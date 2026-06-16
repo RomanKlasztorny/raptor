@@ -519,6 +519,10 @@ function generateSeqFromScenario(id){
   const isDB=cat=>cat==='db'||cat==='cache';
   const isActor=cat=>cat==='actor'||cat==='client';
   const isService=cat=>cat==='svc'||cat==='bff'||cat==='gw'||cat==='net';
+  // Если путь начинается с актора — шаги описывают хопы начиная с client→gw,
+  // а не actor→client. Смещаем индекс на 1 при чтении шагов.
+  const actorOffset=isActor(catOf(path[0]))?1:0;
+  const stepAt=i=>(i-actorOffset>=0?steps[i-actorOffset]:null)||{};
 
   // ── УЧАСТНИКИ: внешние последними, в остальном порядок пути ──
   const seenP=[];
@@ -543,7 +547,7 @@ function generateSeqFromScenario(id){
   // ── Найти первый broker-шаг (граница sync/async) ─────────────
   let brokerStepIdx=-1;
   for(let i=0;i<path.length-1;i++){
-    if((steps[i]||{})._hidden)continue;
+    if(stepAt(i)._hidden)continue;
     if(isBroker(catOf(path[i+1]))){brokerStepIdx=i;break;}
   }
   const syncEnd=brokerStepIdx>=0?brokerStepIdx:path.length-2;
@@ -551,24 +555,39 @@ function generateSeqFromScenario(id){
   // ── GENERATOR: одна forward стрелка ─────────────────────────
   // Возвращает строку UML или null (если шаг скрыт/пропустить)
   function makeFwd(i){
-    const step=steps[i]||{};
+    const step=stepAt(i);
     if(step._hidden)return null;
     const [a,b2]=[path[i],path[i+1]];
     const fb=gb(a),tb=gb(b2);
     if(!fb||!tb)return null;
     const fc=catOf(a),tc=catOf(b2);
 
-    // DB→Service или DB→External — архитектурный разрыв, помечаем
     if(isDB(fc)&&(isService(tc)||tc==='external')){
-      return null; // пропускаем — это ошибка моделирования пути
+      return null;
     }
 
     const _gwCtx=(fc==='gw'&&tc==='svc')?{gwAuthMode:fb.settings?.auth_mode}:null;
-    const biz=step.name||bizVerb(fc,tc,false,_gwCtx);
+
+    // Актор-хоп (i=0 при actorOffset=1): показываем имя действия без API-техдетали
+    if(actorOffset&&i===0){
+      const biz=steps[0]?.name||bizVerb(fc,tc,false,_gwCtx);
+      return `${q(nm(a))} -> ${q(nm(b2))}: ${biz}`;
+    }
+
+    // SQL в поле «бизнес-смысл» (шаг к БД): переставить — SQL под //, глагол над стрелкой
     const isStore=isDB(tc)||isBroker(tc);
+    const isSqlName=isStore&&!step.uri&&/^(SELECT|INSERT\s+INTO|UPDATE\s|DELETE\s+FROM)/i.test(step.name||'');
+    const sqlBiz=isSqlName
+      ?(/^SELECT/i.test(step.name)?'Читает данные'
+        :/^INSERT/i.test(step.name)?'Сохраняет данные'
+        :/^(UPDATE|DELETE)/i.test(step.name)?'Обновляет данные'
+        :'Запрашивает данные')
+      :null;
+
+    const biz=sqlBiz||(step.name||bizVerb(fc,tc,false,_gwCtx));
     const verb=step.verb||'GET';
     const apiTech=isStore
-      ?(step.uri||apiFor(fb,tb,verb))
+      ?(isSqlName?step.name:(step.uri||apiFor(fb,tb,verb)))
       :((step.verb||step.uri)?`${step.verb||''} ${step.uri||''}`.trim():apiFor(fb,tb,verb));
     const arrow=isBroker(tc)?'-)':'->';
     return `${q(nm(a))} ${arrow} ${q(nm(b2))}: ${biz}${apiTech?' // '+apiTech:''}`;
@@ -582,7 +601,7 @@ function generateSeqFromScenario(id){
   //   3. Это ответ от external-системы (нужен явный результат)
   // НЕ показываем: broker→X, X→broker, DB→service без resp
   function makeRet(i){
-    const step=steps[i]||{};
+    const step=stepAt(i);
     if(step._hidden)return null;
     const [caller,responder]=[path[i],path[i+1]];
     const rc=catOf(responder),tc=catOf(caller);
@@ -630,7 +649,7 @@ function generateSeqFromScenario(id){
   // Verb для подбора ошибки — с шага, зовущего сервис
   let _altVerb='GET';
   for(let i=syncEnd;i>=0;i--){
-    const st=steps[i]||{};if(st._hidden)continue;
+    const st=stepAt(i);if(st._hidden)continue;
     const tcv=catOf(path[i+1]);
     if((tcv==='svc'||tcv==='bff')&&st.verb){_altVerb=st.verb;break;}
   }
@@ -638,10 +657,10 @@ function generateSeqFromScenario(id){
   // Цепочка ошибки: только видимые svc/gw узлы sync-части в обратном порядке
   const _errChain=[];
   for(let i=syncEnd;i>=0;i--){
-    const step=steps[i]||{};if(step._hidden)continue;
+    const step=stepAt(i);if(step._hidden)continue;
     const responder=path[i+1],caller=path[i];
     const rc=catOf(responder);
-    if(isDB(rc)||isBroker(rc))continue; // DB/broker не в цепочке ошибки
+    if(isDB(rc)||isBroker(rc))continue;
     if(!_errChain.includes(responder))_errChain.push(responder);
     if(!_errChain.includes(caller))_errChain.push(caller);
   }
