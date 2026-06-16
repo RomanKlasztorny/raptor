@@ -568,9 +568,10 @@ function generateSeqFromScenario(id){
 
     const _gwCtx=(fc==='gw'&&tc==='svc')?{gwAuthMode:fb.settings?.auth_mode}:null;
 
-    // Актор-хоп (i=0 при actorOffset=1): показываем имя действия без API-техдетали
+    // Актор-хоп (i=0 при actorOffset=1): общий глагол без техдетали,
+    // имя шага оставляем для следующей стрелки (client→gw) — иначе текст дублируется
     if(actorOffset&&i===0){
-      const biz=steps[0]?.name||bizVerb(fc,tc,false,_gwCtx);
+      const biz=bizVerb(fc,tc,false,_gwCtx);
       return `${q(nm(a))} -> ${q(nm(b2))}: ${biz}`;
     }
 
@@ -670,7 +671,8 @@ function generateSeqFromScenario(id){
     lines.push(`else Ошибка: ${_altErr.condition}`);
     for(let i=0;i<_errChain.length-1;i++){
       const from=_errChain[i],to=_errChain[i+1];
-      const msg=isActor(catOf(to))?_altErr.userMsg:_altErr.resp;
+      // userMsg только для живого актора (человека), не для web_client
+      const msg=catOf(to)==='actor'?_altErr.userMsg:_altErr.resp;
       lines.push(`  ${q(nm(from))} --> ${q(nm(to))}: ${msg}`);
     }
     lines.push('end');
