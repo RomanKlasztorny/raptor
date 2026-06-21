@@ -1,6 +1,8 @@
-# РАПТОР — конструктор архитектуры
+# RAPTOR — Architecture Designer
 
-Браузерный инструмент для проектирования микросервисных систем, симуляции трафика и генерации документации. Без сборки, без npm.
+Browser-based tool for designing microservice architectures, simulating traffic, and generating documentation. No build step, no npm.
+
+🇬🇧 English · [🇷🇺 Русский](README.ru.md) · [🇺🇦 Українська](README.ua.md) · [🇵🇱 Polski](README.pl.md) · [🇪🇸 Español](README.es.md) · [🇩🇪 Deutsch](README.de.md)
 
 ![RAPTOR demo](demo.gif)
 
@@ -10,113 +12,113 @@
 
 ---
 
-## Быстрый старт
+## Quick Start
 
-### Без AI (только схема и симуляция)
+### Without AI (diagram + simulation only)
 
 ```
 npx serve . -p 5500
 ```
-Или сразу открыть **[Live Demo →](https://romanklasztorny.github.io/raptor/)** (без AI, прямо в браузере).
+Or open the **[Live Demo →](https://romanklasztorny.github.io/raptor/)** directly in your browser (no AI, no install).
 
-### С AI (RAPTOR AI через GitHub Copilot)
+### With AI (RAPTOR AI via GitHub Copilot)
 
-**Шаг 1.** Убедись, что у тебя есть [GitHub Copilot](https://github.com/features/copilot) — бесплатный план подходит.
+**Step 1.** Make sure you have [GitHub Copilot](https://github.com/features/copilot) — free plan works.
 
-**Шаг 2.** Установи [Node.js](https://nodejs.org) если ещё нет.
+**Step 2.** Install [Node.js](https://nodejs.org) if you haven't already.
 
-**Шаг 3.** Установи и запусти [anti-api](https://github.com/ink1ing/anti-api) — он сделает авторизацию через GitHub за тебя:
+**Step 3.** Install and run [anti-api](https://github.com/ink1ing/anti-api) — it handles GitHub OAuth for you:
 ```
 npm install -g anti-api
 anti-api
 ```
-Откроется браузер → войди в GitHub → anti-api запустится на `localhost:8964`.
+A browser window opens → sign in to GitHub → anti-api starts on `localhost:8964`.
 
-**Шаг 4.** Запусти RAPTOR:
+**Step 4.** Run RAPTOR:
 ```
 npx serve . -p 5500
 ```
-Открыть `http://localhost:5500` → кнопка `🤖 AI` готова к работе.
+Open `http://localhost:5500` → click `🤖 AI` — ready to go.
 
 ---
 
-## Что умеет
+## Features
 
-### Схема
-- Блоки: клиенты, Gateway, сервисы, BFF, Auth, PostgreSQL, Redis, MongoDB, Kafka, RabbitMQ, NATS, Queue, Elasticsearch, S3, CDN, LB, External
-- Drag & drop, детект коллизий, двунаправленные стрелки
-- Авторасстановка по слоям — кнопка `Авто`
-- Уровни **C1 / C2 / C3 / Seq** переключаются в тулбаре
+### Diagram
+- Blocks: clients, Gateway, services, BFF, Auth, PostgreSQL, Redis, MongoDB, Kafka, RabbitMQ, NATS, Queue, Elasticsearch, S3, CDN, LB, External
+- Drag & drop, collision detection, bidirectional arrows
+- Auto-layout by layers — `Auto` button
+- **C1 / C2 / C3 / Seq** levels in toolbar
 
-### Сценарии («Линии»)
-- Вкладка «Линии» — маршруты запросов через систему
-- Каждый сценарий: путь блоков, объём (rps), цвет, шаги с `verb + uri + resp`
-- `Автозаполнение` строит шаги по схеме с учётом `auth_mode` Gateway
+### Scenarios ("Lines")
+- Routes of requests through the system
+- Each scenario: path of blocks, volume (rps), color, steps with `verb + uri + resp`
+- `Autofill` builds steps from the diagram based on Gateway `auth_mode`
 
-### Симуляция
-- Шарики летят по путям сценариев, цвет = цвет сценария
-- Kafka/RabbitMQ/NATS/Queue получают трафик когда шарик проходит через сервис-продюсер
-- Потребление: периодический тик каждые ~500 мс независимо от физики шариков
-- Клик по шарику → детали hop-трейса с задержками
-- Режим **Хаос**: падения узлов, деградация, сброс кэша, перегрузка
+### Simulation
+- Balls travel along scenario paths, color = scenario color
+- Kafka/RabbitMQ/NATS/Queue receive traffic when a ball passes through a producer service
+- Consumption: periodic tick every ~500 ms independent of ball physics
+- Click a ball → hop trace details with latencies
+- **Chaos mode**: node failures, degradation, cache flush, overload
 
-### Брокер-инспектор
-- Клик на Kafka/RabbitMQ/NATS/Queue во время симуляции → живая панель
-- SVG-топология: продюсеры → партиции → консьюмеры
-- Счётчики live: опубликовано / обработано / lag / DLQ, обновление 500 мс
-- Consumer groups с офсетами по партициям, кнопка Replay
-- Обоснование для БА: партиции, RF, гарантии доставки
-- Настройки брокера без остановки симуляции
+### Broker Inspector
+- Click Kafka/RabbitMQ/NATS/Queue during simulation → live panel
+- SVG topology: producers → partitions → consumers
+- Live counters: published / consumed / lag / DLQ, 500ms update
+- Consumer groups with per-partition offsets, Replay button
+- Business analyst justification: partitions, RF, delivery guarantees
+- Broker settings without stopping simulation
 
 ### UML Sequence
-- Генерируется из сценария: бизнес-смысл над стрелкой, `verb uri` под `//`
-- Стандарт PlantUML: `autonumber`, активации `++/--`, `group alt/else`, `...пауза...`
-- Kafka → пунктирная стрелка `-)` без синхронного ответа
-- Кнопка **«📋 PlantUML»** — копирует для Confluence
-- `ref over` блоки с горизонтальным drag (меняет участников) и вертикальным (порядок)
+- Generated from scenario: business meaning above arrow, `verb uri` below `//`
+- PlantUML standard: `autonumber`, `++/--` activations, `group alt/else`, `...pause...`
+- Kafka → dashed arrow `-)` without synchronous response
+- **"📋 PlantUML"** button — copies for Confluence
+- `ref over` blocks with horizontal drag (changes participants) and vertical (order)
 
-### База данных
-- Редактор схемы PostgreSQL для каждого сервиса
-- Визуальный ERD в нотации crow's foot
-- Импорт SQL-DDL
-- 23 готовых шаблона (users, sessions, bookings, products и др.)
-- FK с `REFERENCES + ON DELETE CASCADE`, UUID, `created_at`
+### Database
+- PostgreSQL schema editor per service
+- Visual ERD in crow's foot notation
+- SQL-DDL import
+- 23 ready-made templates (users, sessions, bookings, products, etc.)
+- FK with `REFERENCES + ON DELETE CASCADE`, UUID, `created_at`
 
-### Auth-сервис
-- Типы: `jwt_only` / `oauth2_jwt` / `session_based` / `api_key` / `oidc_sso`
-- Тип меняет схему БД и нагрузку Auth в симуляции
-- Gateway читает `auth_mode` → автоматически строит хоп к Auth или пропускает
+### Auth Service
+- Types: `jwt_only` / `oauth2_jwt` / `session_based` / `api_key` / `oidc_sso`
+- Type changes the DB schema and Auth load in simulation
+- Gateway reads `auth_mode` → automatically builds hop to Auth or skips
 
-### Шаблоны
-**Сервисы (9):** search, media, chat\_ws, cqrs, b2b\_api, sso, scheduler, reports, saga\_step  
-**Группы (10):** shop, fullmsa, eventdriven, mentorship, cqrs, b2b\_api, sso, multibff, fintech, saga
+### Templates
+**Services (9):** search, media, chat\_ws, cqrs, b2b\_api, sso, scheduler, reports, saga\_step  
+**Groups (10):** shop, fullmsa, eventdriven, mentorship, cqrs, b2b\_api, sso, multibff, fintech, saga
 
-### Word-экспорт
-- Структура MS-1: описание, C4-диаграмма, API по сервисам, таблицы БД
-- Офлайн через встроенный `docx.min.js`
+### Word Export
+- MS-1 structure: description, C4 diagram, API per service, DB tables
+- Offline via built-in `docx.min.js`
 
 ### RAPTOR AI
 
-Кнопка `🤖 AI` → панель чата справа. Строит схему, пишет UML, создаёт таблицы БД — голосом на русском.
+`🤖 AI` button → chat panel on the right. Builds diagrams, writes UML, creates DB schemas — in natural language.
 
-**13 инструментов:** добавить/удалить блок, добавить связь, создать сценарий, авторасстановка, редактировать UML Sequence, менять схему БД, очистить холст.
+**13 tools:** add/remove block, add connection, create scenario, auto-layout, edit UML Sequence, change DB schema, clear canvas.
 
-> AI работает через **[anti-api](https://github.com/ink1ing/anti-api)** — открытый прокси, который делает OAuth-авторизацию GitHub Copilot за тебя. Спасибо [ink1ing](https://github.com/ink1ing) за инструмент: без него пришлось бы вручную получать `gho_`-токен через OAuth flow — это нетривиально. Каждый пользователь авторизуется своим аккаунтом, чужих токенов нет.
-
----
-
-## Состояние
-
-Всё в глобальном объекте `S` (блоки, связи, сценарии, мета).  
-Сохранение → JSON-файл. Загрузка → перетащить JSON на канвас.
+> AI works via **[anti-api](https://github.com/ink1ing/anti-api)** — an open-source proxy that handles GitHub Copilot OAuth for you. Thanks to [ink1ing](https://github.com/ink1ing) for the tool: without it you'd need to manually obtain a `gho_` token via OAuth flow. Each user authenticates with their own account, no shared tokens.
 
 ---
 
-## Релизы
+## State
 
-| Версия | Что нового |
-|--------|-----------|
-| **[v1.1.0](https://github.com/RomanKlasztorny/raptor/releases/tag/v1.1.0)** | RAPTOR AI (13 инструментов), исправлена Kafka симуляция, sim-trace |
-| [v1.0.0](https://github.com/RomanKlasztorny/raptor/releases/tag/v1.0.0) | Первый публичный релиз — схема, симуляция, UML, ERD, Word-экспорт |
+Everything in the global `S` object (blocks, connections, scenarios, meta).  
+Save → JSON file. Load → drag JSON onto the canvas.
 
-Полный список изменений → [CHANGELOG.md](CHANGELOG.md)
+---
+
+## Releases
+
+| Version | What's new |
+|---------|-----------|
+| **[v1.1.0](https://github.com/RomanKlasztorny/raptor/releases/tag/v1.1.0)** | RAPTOR AI (13 tools), Kafka simulation fix, sim-trace |
+| [v1.0.0](https://github.com/RomanKlasztorny/raptor/releases/tag/v1.0.0) | First public release — diagram, simulation, UML, ERD, Word export |
+
+Full changelog → [CHANGELOG.md](CHANGELOG.md)
