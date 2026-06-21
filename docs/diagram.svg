@@ -1,0 +1,231 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="520" viewBox="0 0 980 520">
+  <rect width="980" height="520" fill="#faf4e8"/>
+  <!-- grid -->
+  <defs>
+    <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
+      <path d="M 24 0 L 0 0 0 24" fill="none" stroke="#ede6d8" stroke-width="1"/>
+    </pattern>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#6c7086" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="arrR" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M8 1L2 5L8 9" fill="none" stroke="#6c7086" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  </defs>
+  <rect width="980" height="520" fill="url(#grid)"/>
+
+  <!-- UI chrome: toolbar -->
+  <rect x="0" y="0" width="980" height="38" fill="#d8d0be"/>
+  <rect x="0" y="37" width="980" height="1" fill="#b8b0a0"/>
+  <!-- App title -->
+  <text x="12" y="24" font-family="Tahoma, Verdana, sans-serif" font-size="13" font-weight="700" fill="#162850">RAPTOR</text>
+  <!-- Toolbar buttons -->
+  <rect x="68" y="7" width="2" height="24" fill="#b8b0a0"/>
+  <rect x="75" y="9" width="52" height="20" rx="2" fill="#ddd5c3" stroke="#7a6e5a" stroke-width="1"/>
+  <text x="101" y="23" text-anchor="middle" font-family="Tahoma, sans-serif" font-size="10" fill="#162850">Файл</text>
+  <rect x="132" y="9" width="90" height="20" rx="2" fill="#ddd5c3" stroke="#7a6e5a" stroke-width="1"/>
+  <text x="177" y="23" text-anchor="middle" font-family="Tahoma, sans-serif" font-size="10" fill="#162850">Документация</text>
+  <rect x="227" y="9" width="72" height="20" rx="2" fill="#ddd5c3" stroke="#7a6e5a" stroke-width="1"/>
+  <text x="263" y="23" text-anchor="middle" font-family="Tahoma, sans-serif" font-size="10" fill="#162850">Шаблоны</text>
+
+  <!-- Run button -->
+  <rect x="380" y="6" width="90" height="26" rx="3" fill="#1e4a90"/>
+  <rect x="380" y="6" width="90" height="26" rx="3" fill="none" stroke="#162850" stroke-width="1"/>
+  <text x="425" y="23" text-anchor="middle" font-family="Tahoma, sans-serif" font-size="11" font-weight="700" fill="white">▶ Запустить</text>
+
+  <!-- C4 level buttons -->
+  <rect x="490" y="8" width="30" height="22" rx="2" fill="#162850" stroke="#0a1e50" stroke-width="1"/>
+  <text x="505" y="23" text-anchor="middle" font-family="Tahoma, sans-serif" font-size="10" fill="white">C1</text>
+  <rect x="524" y="8" width="30" height="22" rx="2" fill="#ddd5c3" stroke="#7a6e5a" stroke-width="1"/>
+  <text x="539" y="23" text-anchor="middle" font-family="Tahoma, sans-serif" font-size="10" fill="#162850">C2</text>
+  <rect x="558" y="8" width="30" height="22" rx="2" fill="#ddd5c3" stroke="#7a6e5a" stroke-width="1"/>
+  <text x="573" y="23" text-anchor="middle" font-family="Tahoma, sans-serif" font-size="10" fill="#162850">C3</text>
+  <rect x="592" y="8" width="30" height="22" rx="2" fill="#ddd5c3" stroke="#7a6e5a" stroke-width="1"/>
+  <text x="607" y="23" text-anchor="middle" font-family="Tahoma, sans-serif" font-size="10" fill="#162850">Seq</text>
+
+  <!-- Left sidebar -->
+  <rect x="0" y="38" width="135" height="482" fill="#d4ccba"/>
+  <rect x="134" y="38" width="1" height="482" fill="#b8b0a0"/>
+  <!-- Sidebar labels -->
+  <text x="10" y="60" font-family="Tahoma, sans-serif" font-size="9" fill="#7a6e5a" letter-spacing="1">КТО</text>
+  <line x1="10" y1="63" x2="124" y2="63" stroke="#b8b0a0" stroke-width="1"/>
+  <rect x="10" y="68" width="14" height="10" rx="2" fill="#9399b2"/>
+  <text x="28" y="78" font-family="Tahoma, sans-serif" font-size="10" fill="#2a2a3a">Актор / Роль</text>
+
+  <text x="10" y="96" font-family="Tahoma, sans-serif" font-size="9" fill="#7a6e5a" letter-spacing="1">КЛИЕНТЫ</text>
+  <line x1="10" y1="99" x2="124" y2="99" stroke="#b8b0a0" stroke-width="1"/>
+  <rect x="10" y="104" width="14" height="10" rx="2" fill="#9399b2"/>
+  <text x="28" y="114" font-family="Tahoma, sans-serif" font-size="10" fill="#2a2a3a">Web Client</text>
+  <rect x="10" y="120" width="14" height="10" rx="2" fill="#7287fd"/>
+  <text x="28" y="130" font-family="Tahoma, sans-serif" font-size="10" fill="#2a2a3a">Mobile</text>
+
+  <text x="10" y="148" font-family="Tahoma, sans-serif" font-size="9" fill="#7a6e5a" letter-spacing="1">ШЛЮЗЫ / СЕТЬ</text>
+  <line x1="10" y1="151" x2="124" y2="151" stroke="#b8b0a0" stroke-width="1"/>
+  <rect x="10" y="156" width="14" height="10" rx="2" fill="#e0af68"/>
+  <text x="28" y="166" font-family="Tahoma, sans-serif" font-size="10" fill="#2a2a3a">API Gateway</text>
+  <rect x="10" y="172" width="14" height="10" rx="2" fill="#ff9e64"/>
+  <text x="28" y="182" font-family="Tahoma, sans-serif" font-size="10" fill="#2a2a3a">Load Balancer</text>
+  <rect x="10" y="188" width="14" height="10" rx="2" fill="#a9b665"/>
+  <text x="28" y="198" font-family="Tahoma, sans-serif" font-size="10" fill="#2a2a3a">CDN</text>
+
+  <text x="10" y="216" font-family="Tahoma, sans-serif" font-size="9" fill="#7a6e5a" letter-spacing="1">СЕРВИСЫ</text>
+  <line x1="10" y1="219" x2="124" y2="219" stroke="#b8b0a0" stroke-width="1"/>
+  <rect x="10" y="224" width="14" height="10" rx="2" fill="#7aa2f7"/>
+  <text x="28" y="234" font-family="Tahoma, sans-serif" font-size="10" fill="#2a2a3a">Сервис</text>
+
+  <text x="10" y="252" font-family="Tahoma, sans-serif" font-size="9" fill="#7a6e5a" letter-spacing="1">ХРАНИЛИЩА</text>
+  <line x1="10" y1="255" x2="124" y2="255" stroke="#b8b0a0" stroke-width="1"/>
+  <rect x="10" y="260" width="14" height="10" rx="2" fill="#f7768e"/>
+  <text x="28" y="270" font-family="Tahoma, sans-serif" font-size="10" fill="#2a2a3a">Redis</text>
+  <rect x="10" y="276" width="14" height="10" rx="2" fill="#4a90d9"/>
+  <text x="28" y="286" font-family="Tahoma, sans-serif" font-size="10" fill="#2a2a3a">PostgreSQL</text>
+
+  <text x="10" y="304" font-family="Tahoma, sans-serif" font-size="9" fill="#7a6e5a" letter-spacing="1">БРОКЕРЫ</text>
+  <line x1="10" y1="307" x2="124" y2="307" stroke="#b8b0a0" stroke-width="1"/>
+  <rect x="10" y="312" width="14" height="10" rx="2" fill="#bb9af7"/>
+  <text x="28" y="322" font-family="Tahoma, sans-serif" font-size="10" fill="#2a2a3a">Kafka</text>
+  <rect x="10" y="328" width="14" height="10" rx="2" fill="#f38ba8"/>
+  <text x="28" y="338" font-family="Tahoma, sans-serif" font-size="10" fill="#2a2a3a">RabbitMQ</text>
+
+  <!-- Right analysis panel -->
+  <rect x="760" y="38" width="220" height="482" fill="#ddd5c3"/>
+  <rect x="760" y="38" width="1" height="482" fill="#b8b0a0"/>
+  <!-- Tabs -->
+  <rect x="760" y="38" width="220" height="30" fill="#d4ccba"/>
+  <rect x="760" y="67" width="220" height="1" fill="#b8b0a0"/>
+  <rect x="762" y="40" width="54" height="26" rx="2" fill="#faf4e8" stroke="#b8b0a0" stroke-width="1"/>
+  <text x="789" y="57" text-anchor="middle" font-family="Tahoma, sans-serif" font-size="10" fill="#162850">Анализ</text>
+  <rect x="819" y="40" width="54" height="26" rx="2" fill="none"/>
+  <text x="846" y="57" text-anchor="middle" font-family="Tahoma, sans-serif" font-size="10" fill="#7a6e5a">Методы</text>
+  <rect x="876" y="40" width="40" height="26" rx="2" fill="none"/>
+  <text x="896" y="57" text-anchor="middle" font-family="Tahoma, sans-serif" font-size="10" fill="#7a6e5a">Логи</text>
+  <!-- Analysis content -->
+  <rect x="770" y="77" width="200" height="24" rx="3" fill="#a9b66522"/>
+  <rect x="770" y="77" width="4" height="24" rx="2" fill="#a9b665"/>
+  <text x="782" y="93" font-family="Tahoma, sans-serif" font-size="10" fill="#5a7030">✓ Всё здорово при 1 rps</text>
+  <rect x="770" y="108" width="200" height="22" rx="3" fill="#e0af6822"/>
+  <rect x="770" y="108" width="4" height="22" rx="2" fill="#e0af68"/>
+  <text x="782" y="123" font-family="Tahoma, sans-serif" font-size="10" fill="#8a6020">⚡ Нагрузка: 1 rps</text>
+
+  <!-- Canvas area: connections -->
+  <g transform="translate(155,48)">
+    <!-- connections -->
+    <g>
+      <path d="M 60 181 L 130 181 L 130 173" fill="none" stroke="#6c7086" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arr)" marker-start="url(#arrR)"/>
+      <path d="M 30 275 L 30 266 L 130 266 L 130 205" fill="none" stroke="#6c7086" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arr)" marker-start="url(#arrR)"/>
+      <path d="M 160 205 L 160 214 L 164 214 L 164 275" fill="none" stroke="#6c7086" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arr)" marker-start="url(#arrR)"/>
+      <path d="M 160 275 L 160 254 L 310 254 L 310 88" fill="none" stroke="#6c7086" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arr)" marker-start="url(#arrR)"/>
+      <path d="M 174 275 L 174 267 L 310 267 L 310 206" fill="none" stroke="#6c7086" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arr)" marker-start="url(#arrR)"/>
+      <path d="M 238 315 L 280 315 L 280 300" fill="none" stroke="#6c7086" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arr)" marker-start="url(#arrR)"/>
+      <path d="M 310 88 L 310 97 L 552 97 L 552 157" fill="none" stroke="#6c7086" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arr)" marker-start="url(#arrR)"/>
+      <path d="M 370 182 L 530 182 L 530 189" fill="none" stroke="#6c7086" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arr)" marker-start="url(#arrR)"/>
+      <path d="M 370 308 L 530 308 L 530 299" fill="none" stroke="#6c7086" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arr)" marker-start="url(#arrR)"/>
+      <path d="M 362 276 L 430 276 L 430 264" fill="none" stroke="#6c7086" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arr)" stroke-dasharray="7 4"/>
+      <path d="M 430 264 L 430 280 L 310 280 L 310 394" fill="none" stroke="#6c7086" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arr)"/>
+    </g>
+
+    <!-- Web Client -->
+    <g>
+      <rect x="0" y="157" width="120" height="48" rx="8" fill="#9399b222" stroke="#9399b2" stroke-width="1.2"/>
+      <path d="M 0 168 Q 0 157 8 157 L 112 157 Q 120 157 120 168 Z" fill="#9399b233"/>
+      <line x1="0" y1="168" x2="120" y2="168" stroke="#9399b2" stroke-width="1" opacity="0.6"/>
+      <circle cx="9" cy="163" r="1.8" fill="#9399b2" opacity="0.7"/>
+      <circle cx="17" cy="163" r="1.8" fill="#9399b2" opacity="0.7"/>
+      <circle cx="25" cy="163" r="1.8" fill="#9399b2" opacity="0.7"/>
+      <text x="60" y="186" text-anchor="middle" font-family="Tahoma, sans-serif" font-size="11" font-weight="600" fill="#9399b2">Web Client</text>
+      <text x="60" y="199" text-anchor="middle" font-family="Tahoma, sans-serif" font-size="9" fill="#78789a">client</text>
+    </g>
+
+    <!-- Mobile -->
+    <g>
+      <rect x="0" y="275" width="120" height="48" rx="8" fill="#7287fd22" stroke="#7287fd" stroke-width="1.2"/>
+      <path d="M 0 286 Q 0 275 8 275 L 112 275 Q 120 275 120 286 Z" fill="#7287fd33"/>
+      <line x1="0" y1="286" x2="120" y2="286" stroke="#7287fd" stroke-width="1" opacity="0.6"/>
+      <circle cx="9" cy="281" r="1.8" fill="#7287fd" opacity="0.7"/>
+      <circle cx="17" cy="281" r="1.8" fill="#7287fd" opacity="0.7"/>
+      <circle cx="25" cy="281" r="1.8" fill="#7287fd" opacity="0.7"/>
+      <text x="60" y="304" text-anchor="middle" font-family="Tahoma, sans-serif" font-size="11" font-weight="600" fill="#7287fd">Mobile</text>
+      <text x="60" y="317" text-anchor="middle" font-family="Tahoma, sans-serif" font-size="9" fill="#78789a">client</text>
+    </g>
+
+    <!-- API Gateway (hexagon) -->
+    <g>
+      <path d="M 84 157 L 176 157 L 190 181 L 176 205 L 84 205 L 70 181 Z" fill="#e0af6822" stroke="#e0af68" stroke-width="1.2"/>
+      <text x="130" y="178" text-anchor="middle" font-family="Tahoma, sans-serif" font-size="10.5" font-weight="600" fill="#e0af68">API Gateway</text>
+      <text x="130" y="193" text-anchor="middle" font-family="Tahoma, sans-serif" font-size="9" fill="#78789a">0% · 1rps</text>
+    </g>
+
+    <!-- Load Balancer -->
+    <g>
+      <rect x="110" y="275" width="128" height="48" rx="4" fill="#ff9e6422" stroke="#ff9e64" stroke-width="1.2"/>
+      <rect x="119" y="275" width="110" height="3" rx="1.5" fill="#ff9e64"/>
+      <text x="174" y="304" text-anchor="middle" font-family="Tahoma, sans-serif" font-size="10.5" font-weight="600" fill="#ff9e64">Load Balancer</text>
+      <text x="174" y="317" text-anchor="middle" font-family="Tahoma, sans-serif" font-size="9" fill="#78789a">0% · 1rps</text>
+    </g>
+
+    <!-- Catalog svc -->
+    <g>
+      <rect x="250" y="40" width="120" height="48" rx="4" fill="#7aa2f722" stroke="#7aa2f7" stroke-width="1.2"/>
+      <rect x="259" y="40" width="102" height="3" rx="1.5" fill="#7aa2f7"/>
+      <text x="310" y="70" text-anchor="middle" font-family="Tahoma, sans-serif" font-size="11" font-weight="600" fill="#7aa2f7">Catalog</text>
+      <text x="310" y="83" text-anchor="middle" font-family="Tahoma, sans-serif" font-size="9" fill="#78789a">svc</text>
+    </g>
+
+    <!-- Cart svc -->
+    <g>
+      <rect x="250" y="158" width="120" height="48" rx="4" fill="#7aa2f722" stroke="#7aa2f7" stroke-width="1.2"/>
+      <rect x="259" y="158" width="102" height="3" rx="1.5" fill="#7aa2f7"/>
+      <text x="310" y="188" text-anchor="middle" font-family="Tahoma, sans-serif" font-size="11" font-weight="600" fill="#7aa2f7">Cart</text>
+      <text x="310" y="201" text-anchor="middle" font-family="Tahoma, sans-serif" font-size="9" fill="#78789a">svc</text>
+    </g>
+
+    <!-- Orders svc -->
+    <g>
+      <rect x="250" y="276" width="120" height="48" rx="4" fill="#7aa2f722" stroke="#7aa2f7" stroke-width="1.2"/>
+      <rect x="259" y="276" width="102" height="3" rx="1.5" fill="#7aa2f7"/>
+      <text x="310" y="306" text-anchor="middle" font-family="Tahoma, sans-serif" font-size="11" font-weight="600" fill="#7aa2f7">Orders</text>
+      <text x="310" y="319" text-anchor="middle" font-family="Tahoma, sans-serif" font-size="9" fill="#78789a">svc</text>
+    </g>
+
+    <!-- Payment svc -->
+    <g>
+      <rect x="250" y="394" width="120" height="48" rx="4" fill="#7aa2f722" stroke="#7aa2f7" stroke-width="1.2"/>
+      <rect x="259" y="394" width="102" height="3" rx="1.5" fill="#7aa2f7"/>
+      <text x="310" y="424" text-anchor="middle" font-family="Tahoma, sans-serif" font-size="11" font-weight="600" fill="#7aa2f7">Payment</text>
+      <text x="310" y="437" text-anchor="middle" font-family="Tahoma, sans-serif" font-size="9" fill="#78789a">svc</text>
+    </g>
+
+    <!-- Kafka (cylinder) -->
+    <g>
+      <rect x="397" y="216" width="105.6" height="48" fill="#bb9af722"/>
+      <ellipse cx="397" cy="240" rx="7.2" ry="24" fill="#bb9af733" stroke="#bb9af7" stroke-width="1.2"/>
+      <line x1="397" y1="216" x2="502.6" y2="216" stroke="#bb9af7" stroke-width="1.2"/>
+      <line x1="397" y1="264" x2="502.6" y2="264" stroke="#bb9af7" stroke-width="1.2"/>
+      <ellipse cx="502.6" cy="240" rx="7.2" ry="24" fill="#bb9af722" stroke="#bb9af7" stroke-width="1.2"/>
+      <text x="450" y="237" text-anchor="middle" font-family="Tahoma, sans-serif" font-size="11" font-weight="600" fill="#bb9af7">Kafka</text>
+      <text x="450" y="252" text-anchor="middle" font-family="Tahoma, sans-serif" font-size="9" fill="#78789a">broker</text>
+    </g>
+
+    <!-- Redis (cylinder) -->
+    <g>
+      <rect x="530" y="164.68" width="120" height="32.64" fill="#f7768e22"/>
+      <ellipse cx="590" cy="197.32" rx="60" ry="7.68" fill="#f7768e22" stroke="#f7768e" stroke-width="1.2"/>
+      <line x1="530" y1="164.68" x2="530" y2="197.32" stroke="#f7768e" stroke-width="1.2"/>
+      <line x1="650" y1="164.68" x2="650" y2="197.32" stroke="#f7768e" stroke-width="1.2"/>
+      <ellipse cx="590" cy="164.68" rx="60" ry="7.68" fill="#f7768e33" stroke="#f7768e" stroke-width="1.2"/>
+      <text x="590" y="182" text-anchor="middle" font-family="Tahoma, sans-serif" font-size="11" font-weight="600" fill="#f7768e">Redis</text>
+    </g>
+
+    <!-- PostgreSQL (cylinder) -->
+    <g>
+      <rect x="530" y="282.68" width="120" height="32.64" fill="#4a90d922"/>
+      <ellipse cx="590" cy="315.32" rx="60" ry="7.68" fill="#4a90d922" stroke="#4a90d9" stroke-width="1.2"/>
+      <line x1="530" y1="282.68" x2="530" y2="315.32" stroke="#4a90d9" stroke-width="1.2"/>
+      <line x1="650" y1="282.68" x2="650" y2="315.32" stroke="#4a90d9" stroke-width="1.2"/>
+      <ellipse cx="590" cy="282.68" rx="60" ry="7.68" fill="#4a90d933" stroke="#4a90d9" stroke-width="1.2"/>
+      <text x="590" y="295" text-anchor="middle" font-family="Tahoma, sans-serif" font-size="11" font-weight="600" fill="#4a90d9">PostgreSQL</text>
+      <text x="590" y="308" text-anchor="middle" font-family="Tahoma, sans-serif" font-size="9" fill="#78789a">БД</text>
+    </g>
+  </g>
+
+  <!-- Status bar -->
+  <rect x="0" y="500" width="980" height="20" fill="#d8d0be"/>
+  <rect x="0" y="500" width="980" height="1" fill="#b8b0a0"/>
+  <text x="10" y="514" font-family="Tahoma, sans-serif" font-size="9" fill="#7a6e5a">11 блоков · 11 связей · 1 rps</text>
+</svg>

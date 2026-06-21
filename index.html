@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>RAPTOR — Arch Constructor</title>
+<style>
+:root{--bg0:#e8e0d0;--bg1:#faf4e8;--bg2:#d8d0be;--bg3:#ccc4b0;--brd:#7a6e5a66;--brd2:#7a6e5a;--txt:#1a1410;--txt2:#6a6050;--blue:#1e4a90;--green:#2a6010;--red:#8a1808;--yellow:#7a5008;--purple:#162850;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Tahoma','Verdana',system-ui,sans-serif;background:var(--bg0);color:var(--txt);height:100vh;display:flex;flex-direction:column;overflow:hidden;user-select:none}
+#toolbar{height:44px;background:linear-gradient(180deg,#ede6d8,#d8d0be 55%,#ccc4b0);border-bottom:2px solid #7a6e5a;box-shadow:inset 0 1px 0 #fff,inset 0 -1px 0 #4a4030;display:flex;align-items:center;gap:5px;padding:0 10px;flex-shrink:0;overflow-x:auto}
+.app-title{font-size:14px;font-weight:700;color:#162850;letter-spacing:.1em;margin-right:4px;white-space:nowrap;text-shadow:1px 1px 0 #fff9;padding-right:10px;border-right:1px solid #7a6e5a;box-shadow:1px 0 0 #fffdf9}
+.sep{width:0;height:22px;border-left:1px solid #7a6e5a;border-right:1px solid #fffdf9;margin:0 4px;flex-shrink:0}
+.btn{padding:4px 10px;border:none;background:#d4ccc0;color:#1a1410;font-size:11.5px;cursor:pointer;white-space:nowrap;font-family:inherit;box-shadow:inset 1px 1px 0 #fff,inset -1px -1px 0 #4a4030,inset 2px 2px 0 #ede6d8,inset -2px -2px 0 #7a6e5a}
+.btn:hover{background:#dcd4c8;color:#162850}
+.btn:active{box-shadow:inset 1px 1px 0 #4a4030,inset -1px -1px 0 #fff,inset 2px 2px 0 #7a6e5a,inset -2px -2px 0 #ede6d8}
+.btn.run{background:#1e4a90;color:#e0e8f8;font-weight:700;box-shadow:inset 1px 1px 0 #6090d0,inset -1px -1px 0 #08183c,inset 2px 2px 0 #4070b8,inset -2px -2px 0 #122858}
+.btn.run:hover{background:#2a58a8;color:#fff}
+.btn.c4active{background:#1a3868;color:#c8d8f8;box-shadow:inset 1px 1px 0 #0a1838,inset -1px -1px 0 #4870b0,inset 2px 2px 0 #102040,inset -2px -2px 0 #3860a0}
+.lbtn{padding:3px 8px;font-size:11px;border:none;background:#d0c8bc;color:#6a6050;cursor:pointer;font-family:inherit;box-shadow:inset 1px 1px 0 #ede8e0,inset -1px -1px 0 #6a6050}
+.lbtn[data-l="1"].on{background:#c8d8c0;color:#1e4010;box-shadow:inset 1px 1px 0 #4a4030,inset -1px -1px 0 #fff,inset 2px 2px 0 #7a6e5a,inset -2px -2px 0 #ede6d8}
+.lbtn[data-l="10"].on{background:#c0c8e0;color:#162850;box-shadow:inset 1px 1px 0 #4a4030,inset -1px -1px 0 #fff,inset 2px 2px 0 #7a6e5a,inset -2px -2px 0 #ede6d8}
+.lbtn[data-l="1000"].on{background:#dcd0b8;color:#6a4008;box-shadow:inset 1px 1px 0 #4a4030,inset -1px -1px 0 #fff,inset 2px 2px 0 #7a6e5a,inset -2px -2px 0 #ede6d8}
+.lbtn[data-l="1000000"].on,.lbtn[data-l="4000000"].on,.lbtn[data-l="10000000"].on{background:#e0c8c0;color:#6a1808;box-shadow:inset 1px 1px 0 #4a4030,inset -1px -1px 0 #fff,inset 2px 2px 0 #7a6e5a,inset -2px -2px 0 #ede6d8}
+.modebtn.on{background:#c8d8c0;color:#1e4010;box-shadow:inset 1px 1px 0 #4a4030,inset -1px -1px 0 #fff,inset 2px 2px 0 #7a6e5a,inset -2px -2px 0 #ede6d8}
+#menubar{height:30px;background:#d8d0be;border-bottom:2px solid #7a6e5a;box-shadow:inset 0 1px 0 #fff,inset 0 -1px 0 #4a4030;display:flex;align-items:center;gap:2px;padding:0 6px;flex-shrink:0;overflow-x:auto}
+.menu{position:relative}
+.menu-btn{padding:3px 10px;border:2px solid transparent;background:transparent;color:#1a1410;font-size:12px;cursor:pointer;font-family:inherit;white-space:nowrap}
+.menu-btn:hover{background:#c8c0ae;box-shadow:inset 1px 1px 0 #fff,inset -1px -1px 0 #4a4030,inset 2px 2px 0 #ede6d8,inset -2px -2px 0 #7a6e5a}
+.menu-pop{position:fixed;background:#d8d0be;border:2px solid #7a6e5a;box-shadow:3px 3px 0 #4a4030;padding:2px 0;min-width:210px;max-height:78vh;overflow-y:auto;z-index:600;display:none}
+.menu-pop.open{display:block}
+.menu-sec{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:#6a6050;padding:7px 14px 2px;font-weight:700}
+.menu-item{padding:5px 14px;font-size:12px;color:#1a1410;cursor:pointer;display:flex;justify-content:space-between;gap:14px;align-items:center;white-space:nowrap}
+.menu-item:hover{background:#1e4a90;color:#fff}
+.menu-item.danger{color:#7a1808}.menu-item.danger:hover{background:#7a1808;color:#fff}
+.menu-kbd{font-size:9.5px;color:#6a6050}.menu-item:hover .menu-kbd{color:#c8d8f8}
+.menu-sep{height:0;border-top:1px solid #7a6e5a;border-bottom:1px solid #fffdf9;margin:3px 0}
+.modebtn2{padding:3px 11px;border:none;background:#ccc4b0;color:#6a6050;font-size:11.5px;cursor:pointer;font-family:inherit;white-space:nowrap;box-shadow:inset 1px 1px 0 #ede8e0,inset -1px -1px 0 #6a6050}
+.modebtn2.on{background:#e0d8c8;color:#162850;font-weight:700;box-shadow:inset 1px 1px 0 #4a4030,inset -1px -1px 0 #fff,inset 2px 2px 0 #7a6e5a,inset -2px -2px 0 #ede6d8}
+.modebtn2[data-mode="learn"].on{background:#d0d8e8;color:#162850}
+.modebtn2[data-mode="devops"].on{background:#e0c8c0;color:#5a1008}
+.c2-badge{font-size:11px;color:#162850;border:1px solid #7a6e5a88;padding:3px 9px;background:#c8d0e0;white-space:nowrap}
+select.ex-select{background:#faf4e8;color:#1a1410;border:1px solid #7a6e5a;padding:4px 7px;font-size:11.5px;max-width:160px;font-family:inherit}
+.ml{margin-left:auto}
+#main{flex:1;display:flex;overflow:hidden;min-height:0}
+#palette{width:148px;background:linear-gradient(180deg,#ddd5c3,#d4ccba);border-right:2px solid #7a6e5a;box-shadow:inset -1px 0 0 #fffdf9;overflow-y:auto;flex-shrink:0;padding:2px 0 20px}
+.pal-cat{font-size:8.5px;text-transform:uppercase;letter-spacing:.1em;color:#162850;padding:10px 10px 4px;font-weight:700;display:flex;align-items:center;gap:5px}
+.pal-cat::after{content:'';flex:1;height:0;border-top:1px solid #7a6e5a;border-bottom:1px solid #fffdf9;margin-top:1px}
+.pal-item{padding:5px 10px 5px 14px;font-size:11.5px;cursor:pointer;display:flex;align-items:center;gap:8px;color:#1a1410}
+.pal-item:hover{background:#c8c0ac;color:#162850}
+.pal-item.on{background:#c0c8e0;color:#162850}
+.pal-item.tpl{color:#162850;font-style:italic}.pal-item.tpl:hover{background:#c8ccd8}
+.pal-dot{width:9px;height:9px;flex-shrink:0;box-shadow:inset 1px 1px 0 #fff7,inset -1px -1px 0 #0003}
+.pal-sep{height:0;border-top:1px solid #7a6e5a;border-bottom:1px solid #fffdf9;margin:4px 10px}
+#canvas-wrap{flex:1;position:relative;overflow:hidden;background:#ffffff;background-image:linear-gradient(#d8d0c8 1px,transparent 1px),linear-gradient(90deg,#d8d0c8 1px,transparent 1px);background-size:24px 24px}
+#canvas{width:100%;height:100%;display:block}
+#hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;color:#b0a898;font-size:13px;line-height:2.4}
+#sidebar{width:222px;background:linear-gradient(180deg,#ddd5c3,#d4ccba);border-left:2px solid #7a6e5a;box-shadow:inset 1px 0 0 #fffdf9;display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
+.side-tabs{display:flex;border-bottom:2px solid #7a6e5a;flex-shrink:0}
+.side-tab{flex:1;padding:7px 4px;font-size:10.5px;text-align:center;cursor:pointer;color:#6a6050;background:#ccc4b0}
+.side-tab:hover{background:#c0b8a8;color:#1a1410}
+.side-tab.on{color:#162850;font-weight:700;background:#d8d0be;box-shadow:inset 0 -2px 0 #162850}
+.side-body{flex:1;overflow-y:auto;padding:10px 9px}
+.card{padding:7px 9px;margin-bottom:6px;font-size:11px;line-height:1.5;border-left:3px solid transparent}
+.card.error{background:#f0d8d4;color:#7a1808;border-color:#8a1808}
+.card.warn{background:#f0e8cc;color:#6a4008;border-color:#8a5008}
+.card.info{background:#d8e0f0;color:#162850;border-color:#1e4090}
+.card.ok{background:#d0e8c8;color:#1e4810;border-color:#2a6018}
+.info-box{background:#ede6d8;border:1px solid #7a6e5a88;padding:8px 10px;font-size:10.5px;line-height:1.5;color:#1a1410;margin:6px 0}
+.metric-box{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0}
+.metric{background:#ede6d8;border:1px solid #7a6e5a88;padding:6px 8px;font-size:10px}
+.metric span{color:#6a6050;display:block;margin-bottom:2px}.metric b{font-size:12px}
+.save-item{display:flex;align-items:center;gap:6px;padding:7px 8px;background:#ccc4b0;margin-bottom:4px;font-size:11px;cursor:pointer;box-shadow:inset 1px 1px 0 #ede8e0,inset -1px -1px 0 #6a6050}
+.save-item:hover{background:#c0b8a8}.save-name{flex:1}.save-meta{font-size:9.5px;color:#6a6050}.save-del{color:#7a1808;cursor:pointer;opacity:.6}.save-del:hover{opacity:1}
+#statusbar{height:22px;background:#ccc4b0;border-top:2px solid #7a6e5a;box-shadow:inset 0 1px 0 #fffdf9,inset 0 2px 0 #ede6d8;padding:0;font-size:10.5px;color:#3a3020;display:flex;align-items:stretch;flex-shrink:0}
+#inspection{position:fixed;bottom:22px;left:148px;right:222px;background:#d8d0be;border-top:2px solid #7a6e5a;box-shadow:inset 0 1px 0 #fffdf9;padding:12px 16px;z-index:100;display:none;max-height:280px;overflow-y:auto}
+#inspection.show{display:block}
+.insp-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px}
+.insp-title{font-size:14px;font-weight:700;color:#162850}
+.insp-badges{display:flex;gap:6px;margin-top:4px;flex-wrap:wrap}
+.badge{padding:2px 9px;font-size:10.5px;font-weight:600}
+.badge.ok{background:#d0e8c8;color:#1e4810;border:1px solid #2a6018}
+.badge.warn{background:#f0e8cc;color:#6a4008;border:1px solid #8a5008}
+.badge.error{background:#f0d8d4;color:#7a1808;border:1px solid #8a1808}
+.badge.sync{background:#d8e0f0;color:#162850;border:1px solid #1e4090}
+.badge.async{background:#ddd0e8;color:#301060;border:1px solid #4a2080}
+.badge.info{background:#d8e0f0;color:#162850;border:1px solid #1e4090}
+.ib-sec{margin-bottom:8px}.ib-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px}
+.ib-t{font-size:9.5px;color:#6a6050;text-transform:uppercase;margin-bottom:3px}
+.ib-v{font-size:11.5px;line-height:1.4}
+.ib-warn{margin-top:6px;padding:7px 10px;background:#f0e8cc;border-left:2px solid #8a5008;font-size:11px;color:#6a4008}
+#advice{position:fixed;bottom:32px;left:50%;transform:translateX(-50%);width:480px;max-width:88%;background:#d8d0be;border:2px solid #7a6e5a;box-shadow:3px 3px 0 #4a4030;padding:13px 18px;z-index:250;display:none}
+#adv-title{font-size:13.5px;font-weight:700;margin-bottom:6px;color:#162850}
+#adv-fix{font-size:11.5px;color:#1e4810;line-height:1.5;white-space:pre-line}
+.modal-ov{position:fixed;inset:0;background:#0007;z-index:300;display:none;align-items:center;justify-content:center}
+.modal-box{background:#d8d0be;border:2px solid #7a6e5a;box-shadow:4px 4px 0 #4a4030;padding:20px 24px;max-width:540px;width:90%;max-height:86vh;overflow-y:auto}
+.modal-box h2{font-size:15px;color:#162850;margin-bottom:4px;font-weight:700}
+.modal-btn{padding:6px 16px;font-size:12px;cursor:pointer;border:none;background:#d4ccc0;color:#1a1410;font-family:inherit;margin-top:10px;box-shadow:inset 1px 1px 0 #fff,inset -1px -1px 0 #4a4030,inset 2px 2px 0 #ede6d8,inset -2px -2px 0 #7a6e5a}
+.modal-btn:hover{background:#dcd4c8}
+.modal-btn.primary{background:#1e4a90;color:#e0e8f8;font-weight:700;box-shadow:inset 1px 1px 0 #6090d0,inset -1px -1px 0 #08183c,inset 2px 2px 0 #4070b8,inset -2px -2px 0 #122858}
+.path-step{display:inline-block;padding:3px 8px;font-size:10.5px;background:#ccc4b0;color:#6a6050;margin:0 2px;box-shadow:inset 1px 1px 0 #ede8e0,inset -1px -1px 0 #6a6050}
+.path-step.path-cur{background:#1e4a90;color:#e0e8f8;box-shadow:inset 1px 1px 0 #6090d0,inset -1px -1px 0 #08183c}
+.path-step.path-done{background:#c8d8c0;color:#1e4810}
+.bi-stat{background:#1a1b26;border:1px solid #3d3f52;padding:7px 10px}
+.bi-sl{font-size:9.5px;color:#787c99;margin-bottom:2px}
+.bi-sv{font-size:15px;font-weight:700}
+#set-sub{font-size:11px;color:#6a6050;margin-bottom:6px}
+#set-cap{font-size:12px;padding:8px 10px;background:#ede6d8;margin-bottom:12px;border:1px solid #7a6e5a88}
+.set-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #7a6e5a88}
+.set-info{flex:1}.set-lbl{font-size:12.5px;font-weight:600;margin-bottom:3px;color:#1a1410}.set-hint{font-size:10.5px;color:#6a6050;line-height:1.4}
+.set-ctrl{flex-shrink:0}
+.set-toggle{padding:5px 14px;border:none;font-size:11px;cursor:pointer;color:#6a6050;font-weight:700;min-width:54px;text-align:center;background:#ccc4b0;box-shadow:inset 1px 1px 0 #ede8e0,inset -1px -1px 0 #6a6050}
+.set-toggle.on{background:#c8d8c0;color:#1e4810;box-shadow:inset 1px 1px 0 #4a4030,inset -1px -1px 0 #fff,inset 2px 2px 0 #7a6e5a,inset -2px -2px 0 #ede6d8}
+.set-num{display:flex;align-items:center;gap:8px}
+.set-num button{width:26px;height:26px;border:none;background:#ccc4b0;color:#1a1410;cursor:pointer;font-size:15px;font-family:inherit;box-shadow:inset 1px 1px 0 #fff,inset -1px -1px 0 #4a4030,inset 2px 2px 0 #ede6d8,inset -2px -2px 0 #7a6e5a}
+.set-num button:hover{background:#d4ccc0}
+.set-num span{min-width:34px;text-align:center;font-weight:700;font-size:13px;color:#162850}
+.set-ctrl select{background:#faf4e8;color:#1a1410;border:1px solid #7a6e5a;padding:5px 8px;font-size:11px;font-family:inherit}
+.ctx{position:fixed;background:#d8d0be;border:2px solid #7a6e5a;box-shadow:3px 3px 0 #4a4030;padding:3px 0;z-index:350;display:none;min-width:155px}
+.ctx-item{padding:6px 14px;font-size:12px;cursor:pointer;color:#1a1410}
+.ctx-item:hover{background:#1e4a90;color:#fff}
+.ctx-item.danger{color:#7a1808}.ctx-item.danger:hover{background:#7a1808;color:#fff}
+.ctx-sep{height:0;border-top:1px solid #7a6e5a;border-bottom:1px solid #fffdf9;margin:3px 0}
+#doc-txt{font-size:11.5px;line-height:1.6;white-space:pre-wrap;font-family:'Consolas','Courier New',monospace;background:#faf4e8;padding:12px;max-height:55vh;overflow-y:auto;border:1px solid #7a6e5a88}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:#d8d0be}::-webkit-scrollbar-thumb{background:#7a6e5a}
+#toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%);background:#d8d0be;border:2px solid #7a6e5a;box-shadow:3px 3px 0 #4a4030;color:#1a1410;padding:6px 18px;font-size:12.5px;z-index:500;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
+#toast.show{opacity:1}
+.help-row{display:flex;gap:12px;margin-bottom:8px;font-size:12.5px}
+.kbd{background:#ccc4b0;padding:2px 8px;font-size:10.5px;color:#162850;min-width:130px;text-align:center;border:1px solid #7a6e5a88;flex-shrink:0;box-shadow:inset 1px 1px 0 #ede8e0,inset -1px -1px 0 #6a6050}
+.legend{display:flex;gap:14px;font-size:10.5px;color:#6a6050;margin-left:6px}
+.legend span{display:flex;align-items:center;gap:4px}.ldot{width:8px;height:8px}
+#canvas-wrap.canvas-dark{background:#1a1b26;background-image:linear-gradient(#24253a 1px,transparent 1px),linear-gradient(90deg,#24253a 1px,transparent 1px);background-size:24px 24px}
+</style>
+</head>
+<body>
+<!-- РЯД 1 — меню по темам + режимы -->
+<div id="menubar">
+  <span class="app-title">RAPTOR</span>
+  <div class="menu"><button class="menu-btn" onclick="toggleMenu(event,'m-file')">Файл</button>
+    <div class="menu-pop" id="m-file">
+      <div class="menu-item" onclick="menuDo(saveCheckpoint)">💾 Сохранить<span class="menu-kbd">Ctrl+S</span></div>
+      <div class="menu-item" onclick="menuDo(function(){switchTab('saves')})">📂 Сейвы</div>
+      <div class="menu-sep"></div>
+      <div class="menu-item" onclick="menuDo(exportJSON)">⬇ Экспорт JSON</div>
+      <div class="menu-item" onclick="$('fi').click();menuClose()">📥 Импорт JSON</div>
+      <div class="menu-sep"></div>
+      <div class="menu-item danger" onclick="menuDo(clearAll)">🗑 Очистить холст</div>
+    </div>
+  </div>
+  <div class="menu"><button class="menu-btn" onclick="toggleMenu(event,'m-doc')">Документация</button>
+    <div class="menu-pop" id="m-doc">
+      <div class="menu-item" onclick="menuDo(openMetaEditor)">📋 О системе (титул, роли)</div>
+      <div class="menu-sep"></div>
+      <div class="menu-item" onclick="menuDo(showDoc)">📄 Превью (Markdown)</div>
+      <div class="menu-item" onclick="menuDo(openExportChooser)">📥 Экспорт в Word (.docx)</div>
+    </div>
+  </div>
+  <div class="menu"><button class="menu-btn" onclick="toggleMenu(event,'m-tmpl')">Шаблоны</button>
+    <div class="menu-pop" id="m-tmpl"></div>
+  </div>
+  <div class="menu"><button class="menu-btn" onclick="$('help-modal').style.display='flex';menuClose()">Справка</button></div>
+
+  <span class="ml"></span>
+
+  <!-- режимы работы (взаимоисключающие) -->
+  <div style="display:flex;gap:3px;align-items:center;margin-right:8px">
+    <button class="modebtn2" id="ai-btn" onclick="toggleAI()" title="RAPTOR AI — архитектурный ассистент" style="background:#1e4a90;color:#e0e8f8;font-weight:700;box-shadow:inset 1px 1px 0 #6090d0,inset -1px -1px 0 #08183c,inset 2px 2px 0 #4070b8,inset -2px -2px 0 #122858;margin-right:4px;">🤖 AI</button>
+    <span style="display:inline-block;width:0;height:18px;border-left:1px solid #7a6e5a;border-right:1px solid #fffdf9;margin:0 2px;"></span>
+    <button class="modebtn2 on" data-mode="build" onclick="setMode('build')" title="Обычное редактирование схемы">🔨 Конструктор</button>
+    <button class="modebtn2" data-mode="learn" onclick="setMode('learn')" title="Пошаговые уроки архитектуры">🎓 Обучение</button>
+    <button class="modebtn2" data-mode="devops" onclick="setMode('devops')" title="Удержи систему под хаосом и нагрузкой">🔥 DevOps</button>
+  </div>
+  <span class="sep"></span>
+  <span style="font-size:10px;color:var(--txt2)">Нагрузка:</span>
+  <div style="display:flex;gap:2px;align-items:center">
+    <button class="lbtn modebtn on" data-m="sandbox" onclick="setLoadMode('sandbox')" title="Глобальная нагрузка ×N">Песочница</button>
+    <button class="lbtn modebtn" data-m="realism" onclick="setLoadMode('realism')" title="Нагрузка из объёмов сценариев">Реализм</button>
+  </div>
+</div>
+
+<!-- РЯД 2 — инструменты редактирования и симуляции -->
+<div id="toolbar">
+  <button class="btn" onclick="undo()" title="Отменить (Ctrl+Z)">↶</button>
+  <button class="btn" onclick="redo()" title="Повторить">↷</button>
+  <span class="sep"></span>
+  <span style="font-size:10.5px;color:var(--txt2)">Нагрузка</span>
+  <input id="load-input" type="text" value="1" onkeydown="if(event.key==='Enter')applyLoadInput()" onblur="applyLoadInput()"
+    style="width:80px;background:var(--bg3);color:var(--txt);border:1px solid var(--brd2);border-radius:6px;padding:5px 7px;font-size:12px;font-family:inherit;text-align:right">
+  <span style="font-size:10.5px;color:var(--txt2)">rps</span>
+  <button class="lbtn" onclick="bumpLoad(1)" style="padding:4px 7px" title="×10">×10</button>
+  <button class="lbtn" onclick="bumpLoad(-1)" style="padding:4px 7px" title="÷10">÷10</button>
+  <span style="display:flex;align-items:center;gap:4px;margin-left:4px"><span style="font-size:10.5px;color:var(--txt2)">⏱</span>
+    <input type="range" min="0.2" max="3" step="0.1" value="1" title="Скорость анимации" oninput="SPEED_MUL=+this.value" style="width:60px"></span>
+  <span class="sep"></span>
+  <button class="btn run" id="run-btn" onclick="runSim()">▶ Запустить</button>
+  <button class="btn" id="pause-btn" onclick="pauseSim()" style="display:none">⏸</button>
+  <button class="btn run" id="resume-btn" onclick="resumeSim()" style="display:none">▶</button>
+  <button class="btn" id="stop-btn" onclick="stopSim()" style="display:none">⏹</button>
+  <span class="sep"></span>
+  <button class="btn" onclick="autoLayout()" title="Расставить блоки по слоям">📐 Авто</button>
+  <button class="btn" id="edge-btn" onclick="toggleEdgeStyle()" title="Стиль связей: 90° / кривые">⌐ 90°</button>
+  <span class="sep"></span>
+  <button class="lbtn" id="c4-l2" onclick="toggleC4(2)" title="C2 Container: все технические блоки (сервисы, БД, брокеры)">C2</button>
+  <span class="sep"></span>
+  <button class="lbtn" id="canvas-theme-btn" onclick="toggleCanvasTheme()" title="Тема холста">📄</button>
+  <span class="ml"></span>
+  <div class="legend">
+    <span><span class="ldot" style="background:#7aa2f7"></span>ок</span>
+    <span><span class="ldot" style="background:#e0af68"></span>медленно</span>
+    <span><span class="ldot" style="background:#f7768e"></span>упал</span>
+  </div>
+</div>
+
+<div id="main">
+  <div id="palette"></div>
+  <div id="canvas-wrap">
+    <svg id="canvas" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arr"  viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#6c7086" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+        <marker id="arrE" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#f7768e" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+        <marker id="arrW" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#e0af68" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+        <marker id="arrH" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#bb9af7" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+        <!-- Обратные маркеры для двунаправленных стрелок -->
+        <marker id="arrR"  viewBox="0 0 10 10" refX="1" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M8 1L2 5L8 9" fill="none" stroke="#6c7086" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+        <marker id="arrER" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M8 1L2 5L8 9" fill="none" stroke="#f7768e" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+        <marker id="arrWR" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M8 1L2 5L8 9" fill="none" stroke="#e0af68" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+        <marker id="arrHR" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M8 1L2 5L8 9" fill="none" stroke="#bb9af7" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+      </defs>
+      <g id="conn-layer"></g>
+      <g id="block-layer"></g>
+      <g id="anim-layer"></g>
+    </svg>
+    <div id="hint">← Перетащи блок из палитры на холст<br>Наведи на блок → тяни от белого кружка ○ к другому<br>2× клик блок → настройки · клик стрелку → что по ней идёт · 2× клик брокер → инспектор</div>
+  </div>
+  <div id="sidebar">
+    <div class="side-tabs">
+      <div class="side-tab on" data-tab="analysis" onclick="switchTab('analysis')">Анализ</div>
+      <div class="side-tab" data-tab="routes" onclick="switchTab('routes')">Методы</div>
+      <div class="side-tab" data-tab="logs" onclick="switchTab('logs')">Логи</div>
+      <div class="side-tab" data-tab="saves" onclick="switchTab('saves')">Сейвы</div>
+    </div>
+    <div class="side-body" id="side-analysis"></div>
+    <div class="side-body" id="side-routes" style="display:none"></div>
+    <div class="side-body" id="side-logs" style="display:none"></div>
+    <div class="side-body" id="side-saves" style="display:none"></div>
+  </div>
+</div>
+
+<div id="statusbar"><span id="sb-l">0 блоков · 0 связей</span><span id="sb-r">×1</span></div>
+
+<div id="inspection">
+  <div class="insp-head">
+    <div><div class="insp-title" id="insp-title">Связь</div><div class="insp-badges" id="insp-badges"></div></div>
+    <div style="display:flex;gap:8px"><button class="btn run" onclick="resumeSim();closeInsp()">▶</button><button class="btn" onclick="closeInsp()">✕</button></div>
+  </div>
+  <div id="insp-body"></div>
+</div>
+
+<div id="advice"><div id="adv-title"></div><div id="adv-fix"></div></div>
+
+<div class="modal-ov" id="dot-modal" onclick="if(event.target===this)resumeSim()"><div class="modal-box" id="dot-info"></div></div>
+
+<!-- BROKER INSPECTOR -->
+<div class="modal-ov" id="broker-modal" onclick="if(event.target===this)closeBrokerInspector()" style="z-index:350">
+  <div style="background:#1a1b26;border:1px solid #3d3f52;border-radius:12px;width:900px;max-width:96vw;height:82vh;display:flex;flex-direction:column;min-height:0">
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 18px;background:#24253a;border-bottom:1px solid #3d3f52;flex-shrink:0">
+      <div id="bi-title" style="font-size:14px;font-weight:700;color:#c0caf5"></div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-size:10px;color:#9ece6a">&#9679; LIVE</div>
+        <button onclick="closeBrokerInspector()" style="background:transparent;border:none;color:#787c99;cursor:pointer;font-size:18px;line-height:1">&#x2715;</button>
+      </div>
+    </div>
+    <!-- Body -->
+    <div style="flex:1;display:flex;min-height:0">
+      <!-- Левая колонка -->
+      <div style="width:42%;border-right:1px solid #3d3f52;display:flex;flex-direction:column;min-height:0">
+        <div style="padding:14px 16px;border-bottom:1px solid #3d3f5255;flex-shrink:0">
+          <div style="font-size:10px;font-weight:700;color:#787c99;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Топология</div>
+          <div id="bi-topology"></div>
+        </div>
+        <div style="padding:14px 16px;overflow-y:auto;flex:1">
+          <div style="font-size:10px;font-weight:700;color:#787c99;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Обоснование</div>
+          <div id="bi-rationale"></div>
+        </div>
+      </div>
+      <!-- Правая колонка -->
+      <div style="flex:1;display:flex;flex-direction:column;min-height:0">
+        <div style="flex:1;padding:14px 16px;overflow-y:auto;min-height:0">
+          <div style="font-size:10px;font-weight:700;color:#787c99;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Данные</div>
+          <div id="bi-live"></div>
+        </div>
+        <div style="padding:14px 16px;border-top:1px solid #3d3f52;flex-shrink:0">
+          <div id="bi-settings"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-ov" id="set-modal" onclick="if(event.target===this)closeSettings()">
+  <div class="modal-box">
+    <h2 id="set-title">⚙ Настройки</h2>
+    <div id="set-sub"></div>
+    <div id="set-cap"></div>
+    <div id="set-body"></div>
+    <button class="modal-btn primary" onclick="closeSettings()">Готово</button>
+  </div>
+</div>
+
+<div class="modal-ov" id="meth-modal" onclick="if(event.target===this)closeMethods()">
+  <div class="modal-box" style="max-width:680px">
+    <h2 id="meth-title">📡 Методы API</h2>
+    <div id="meth-sub" style="font-size:11px;color:var(--txt2);margin-bottom:10px"></div>
+    <div id="meth-list"></div>
+    <button class="modal-btn" style="margin-top:8px" onclick="addMethod()">＋ Добавить метод</button>
+    <div style="margin-top:12px;display:flex;gap:8px">
+      <button class="modal-btn primary" onclick="closeMethods()">Готово</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-ov" id="doc-modal" onclick="if(event.target===this)closeDoc()">
+  <div class="modal-box" style="max-width:700px">
+    <h2>📄 Документация</h2>
+    <div id="doc-txt" style="margin-top:12px"></div>
+    <div style="display:flex;gap:8px">
+      <button class="modal-btn primary" onclick="copyDoc()">📋 Копировать</button>
+      <button class="modal-btn" onclick="downloadDoc()">⬇ .md</button>
+      <button class="modal-btn" onclick="openExportChooser()">📥 Word</button>
+      <button class="modal-btn" onclick="closeDoc()">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-ov" id="help-modal" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal-box">
+    <h2>🏗 Как пользоваться</h2><div style="height:8px"></div>
+    <div class="help-row"><span class="kbd">Палитра + холст</span><span>Выбери тип слева → кликни на холст. Наведи на тип — подсказка где ставить и где нельзя</span></div>
+    <div class="help-row"><span class="kbd">Клик на блок</span><span>Справа: что это, живая нагрузка %, задержка, где ставить, советы</span></div>
+    <div class="help-row"><span class="kbd">Тянуть от ○</span><span>Навести → белый кружок справа → тянуть к другому блоку. Появится совет правильно/нет</span></div>
+    <div class="help-row"><span class="kbd">2× клик блок</span><span>Настройки: реплики, PgBouncer, партиции. 2× клик на брокере в симуляции → инспектор</span></div>
+    <div class="help-row"><span class="kbd">Клик стрелку</span><span>Что несёт, кто кого зовёт, нагрузка, API. Двунаправленные стрелки = запрос+ответ</span></div>
+    <div class="help-row"><span class="kbd">C1 / C2 / C3 / C4</span><span>C4 уровни: Context → Container → Component → Dynamic (sequence)</span></div>
+    <div class="help-row"><span class="kbd">📐 Авто</span><span>Авторасстановка по слоям: клиенты → gateway → сервисы → брокеры → хранилища</span></div>
+    <div class="help-row"><span class="kbd">🗄 БД / 🔐 Auth</span><span>Шаблоны баз данных (20 штук) и авторизации (3 шаблона) с готовыми схемами и SQL</span></div>
+    <div style="margin-top:12px;padding:11px;background:var(--bg1);border-radius:8px;font-size:11.5px;line-height:1.7;color:var(--txt2)">
+      <b style="color:var(--green)">Двунаправленные стрелки:</b> Клиент↔Gateway, Gateway↔Сервис, Сервис↔БД — стрелки с двух сторон.<br>
+      <b style="color:var(--purple)">Kafka:</b> Сервис может быть одновременно продюсером (→Kafka) и консьюмером (Kafka→) разных топиков.<br>
+      <b style="color:var(--blue)">Бизнес-язык в UML:</b> Над стрелкой — что делает (бизнес). После // — как именно (API).<br>
+      <b style="color:var(--yellow)">Коллизия:</b> При перетаскивании блока на другой — красная рамка и откат назад.
+    </div>
+    <button class="modal-btn primary" onclick="$('help-modal').style.display='none'">Понял</button>
+  </div>
+</div>
+
+<div class="ctx" id="ctx">
+  <div class="ctx-item" onclick="ctxAct('rename')">✏️ Переименовать</div>
+  <div class="ctx-item" onclick="ctxAct('settings')">⚙ Настройки</div>
+  <div class="ctx-item" id="ctx-dbedit" onclick="ctxAct('dbedit')" style="display:none">🗄 Таблицы БД</div>
+  <div class="ctx-item" id="ctx-data" onclick="ctxAct('data')" style="display:none">🌱 Данные (INSERT/SET)</div>
+  <div class="ctx-item" onclick="ctxAct('dup')">⧉ Дублировать</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item danger" onclick="ctxAct('del')">🗑 Удалить</div>
+</div>
+
+<div id="chaos-bar" style="display:none;position:fixed;top:54px;left:50%;transform:translateX(-50%);width:620px;max-width:92%;background:var(--bg2);border:1.5px solid #f7768e66;border-radius:10px;padding:9px 14px;z-index:240;box-shadow:0 6px 24px #0008"></div>
+<div id="ai-panel" style="display:none">
+  <div id="ai-hdr">
+    <div><div style="font-size:12px;font-weight:700;color:#162850;letter-spacing:.05em;">RAPTOR AI</div><div style="font-size:9px;color:#6a6050;">gpt-4o / copilot</div></div>
+    <div style="display:flex;gap:5px;align-items:center;margin-left:auto;">
+      <span id="ai-status" style="font-size:9px;font-weight:700;color:#2a6010;">● готов</span>
+      <button onclick="AI.promptKey()" title="API ключ" style="padding:1px 7px;border:none;background:#ccc4b0;color:#6a6050;font-size:11px;font-family:inherit;cursor:pointer;box-shadow:inset 1px 1px 0 #ede8e0,inset -1px -1px 0 #6a6050;">⚙</button>
+      <button onclick="AI.close()" style="padding:1px 7px;border:none;background:#ccc4b0;color:#6a6050;font-size:11px;font-family:inherit;cursor:pointer;box-shadow:inset 1px 1px 0 #ede8e0,inset -1px -1px 0 #6a6050;">✕</button>
+    </div>
+  </div>
+  <div id="ai-msgs">
+    <div class="ai-msg ai-msg-assistant"><div><div class="ai-bubble">Привет! Описывай систему — создам схему, добавлю сервисы, связи, сценарии. Или просто задай вопрос по архитектуре.</div><div class="ai-time">сейчас</div></div></div>
+  </div>
+  <div id="ai-typing" style="display:none"><span style="color:#6a6050;font-size:10.5px;font-style:italic;">✦ Claude печатает...</span></div>
+  <div id="ai-iarea">
+    <textarea id="ai-input" placeholder="Опишите архитектуру или задайте вопрос..."></textarea>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px;">
+      <span style="font-size:9px;color:#6a6050;">Enter — отправить · Shift+Enter — перенос</span>
+      <button id="ai-send" onclick="AI.send()">Отправить</button>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+<input type="file" id="fi" accept=".json" style="display:none">
+
+<!-- ТРЕНАЖЁР -->
+<div id="trainer">
+  <div class="tr-head">
+    <span style="font-weight:700;color:#bb9af7;font-size:13px">🎓 Обучение архитектуре</span>
+    <button onclick="setMode('build')" style="background:transparent;border:none;color:#787c99;cursor:pointer;font-size:18px">✕</button>
+  </div>
+  <div id="tr-body"></div>
+</div>
+<style>
+#trainer{position:fixed;top:48px;left:0;bottom:24px;width:330px;background:var(--bg2);border-right:2px solid #bb9af744;z-index:90;display:none;flex-direction:column;box-shadow:4px 0 24px #0007}
+.tr-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--brd);flex-shrink:0}
+#tr-body{flex:1;overflow-y:auto;padding:14px 16px}
+.tr-lvtabs{display:flex;gap:6px;margin-bottom:12px}
+.tr-lvtab{flex:1;padding:7px;text-align:center;border-radius:7px;border:1px solid var(--brd2);font-size:12px;cursor:pointer;color:var(--txt2)}
+.tr-lvtab.on{background:#bb9af722;border-color:#bb9af7;color:#bb9af7;font-weight:600}
+.tr-progress{height:5px;background:var(--bg1);border-radius:3px;overflow:hidden;margin-bottom:6px}
+.tr-progress-bar{height:100%;background:linear-gradient(90deg,#9ece6a,#7aa2f7);transition:width .3s}
+.tr-meta{font-size:10.5px;color:var(--txt2);margin-bottom:10px}
+.tr-title{font-size:16px;font-weight:700;color:var(--txt);margin-bottom:8px}
+.tr-goal{background:#7aa2f71a;border-left:3px solid var(--blue);padding:9px 11px;border-radius:6px;font-size:12.5px;margin-bottom:10px;line-height:1.4}
+.tr-theory{margin-bottom:10px;font-size:11.5px}
+.tr-theory summary{cursor:pointer;color:var(--purple);font-weight:600;margin-bottom:6px;user-select:none}
+.tr-theory div{color:var(--txt);line-height:1.6;padding:4px 0}
+.tr-tip{font-size:11px;color:var(--yellow);background:#e0af6814;padding:8px 10px;border-radius:6px;margin-bottom:12px;line-height:1.4}
+.tr-result{padding:10px 12px;border-radius:7px;font-size:12px;line-height:1.5;margin-bottom:12px;display:none}
+.tr-result.ok{display:block;background:#9ece6a1a;border-left:3px solid var(--green);color:var(--green)}
+.tr-result.no{display:block;background:#f7768e1a;border-left:3px solid var(--red);color:var(--red)}
+.tr-actions{display:flex;gap:8px;margin-bottom:8px}
+.tr-nav{display:flex;gap:8px}
+.tr-btn{flex:1;padding:9px;border-radius:7px;border:1px solid var(--brd2);background:var(--bg3);color:var(--txt);cursor:pointer;font-size:12px;font-family:inherit}
+.tr-btn:hover:not(:disabled){border-color:var(--blue)}
+.tr-btn:disabled{opacity:.4;cursor:default}
+.tr-btn.check{background:var(--green);color:#11121a;border-color:var(--green);font-weight:700}
+.tr-btn.check:hover{background:#b9e088}
+</style>
+
+<!-- SEQUENCE-РЕДАКТОР -->
+<div class="modal-ov" id="seq-modal" style="align-items:stretch;justify-content:stretch">
+  <div style="background:var(--bg1);width:100%;height:100%;display:flex;flex-direction:column">
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--bg2);border-bottom:1px solid var(--brd);flex-wrap:wrap">
+      <span id="seq-title" style="font-weight:700;color:#7dcfff;font-size:13px">🔀 Sequence-диаграмма</span>
+      <span class="sep"></span>
+      <span style="font-size:10.5px;color:var(--txt2)">Сценарий от:</span>
+      <select id="seq-start" class="ex-select" onchange="seqFromCanvas(this.value)"></select>
+      <button class="btn run" onclick="seqFromCanvas()">↻ Из схемы</button>
+      <span class="sep"></span>
+      <span style="font-size:10.5px;color:var(--txt2)">Вставить:</span>
+      <button class="btn" onclick="seqInsert('\nactor Имя')">+ актор</button>
+      <button class="btn" onclick="seqInsert('\nparticipant Имя')">+ роль</button>
+      <button class="btn" onclick="seqInsert('\nA -> B: Бизнес-действие // GET /api/...')">+ запрос →</button>
+      <button class="btn" onclick="seqInsert('\nB --> A: Отдаёт результат // 200 OK')">+ ответ ◀</button>
+      <button class="btn" onclick="seqInsert('\nA -) Kafka: // publish: topic.event')">+ Kafka</button>
+      <button class="btn" onclick="seqInsert('\nalt условие\n  A -> B: ...\nelse иначе\n  A -> B: ...\nend')">+ alt</button>
+      <button class="btn" onclick="seqInsert('\nopt условие\n  A -> B: ...\nend')">+ opt</button>
+      <button class="btn" onclick="seqInsert('\nloop пока условие\n  A -> B: ...\nend')">+ loop</button>
+      <button class="btn" onclick="seqInsert('\ngroup Название\n  A -> B: ...\nend')">+ группа</button>
+      <button class="btn" onclick="seqInsert('\n...ожидание...')">+ пауза</button>
+      <button class="btn" onclick="seqInsert('\nref over A, B: Название Sub-flow')">+ ref</button>
+      <button class="btn" onclick="seqInsert('\n~~~')" title="Temporal gap — волнистая линия (между publish и consume)">+ ~~~</button>
+      <span class="ml"></span>
+      <button class="btn run" onclick="seqSaveAsRef()" title="Сохранить текущую диаграмму как именованный sub-flow для вставки через ref">💾 sub-flow</button>
+      <button class="btn" onclick="seqCopyPlantUML()" title="Скопировать как PlantUML — вставляется в Confluence и plantuml.com">📋 PlantUML</button>
+      <button class="btn run" onclick="seqExportPNG()">⬇ PNG</button>
+      <button class="btn" onclick="seqExportSVG()">⬇ SVG</button>
+      <button class="btn" onclick="closeSeq()">✕ Закрыть</button>
+    </div>
+    <div style="background:var(--bg2);border-bottom:1px solid var(--brd);padding:5px 14px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-height:30px">
+      <span style="font-size:10px;color:var(--txt2);flex-shrink:0">📎 Sub-flows:</span>
+      <div id="seq-lib-panel" style="display:flex;flex-wrap:wrap;gap:4px;align-items:center"></div>
+    </div>
+    <div style="flex:1;display:flex;overflow:hidden">
+      <textarea id="seq-input" oninput="renderSeq(true)" spellcheck="false"
+        style="width:360px;flex-shrink:0;background:#11121a;color:#c0caf5;border:none;border-right:1px solid var(--brd);padding:14px;font-family:'Consolas',monospace;font-size:12.5px;line-height:1.6;resize:none;outline:none"></textarea>
+      <div id="seq-canvas" style="flex:1;overflow:auto;background:#e9edf3;padding:20px"></div>
+    </div>
+    <div style="background:var(--bg2);border-top:1px solid var(--brd);padding:6px 14px;font-size:10.5px;color:var(--txt2)">
+      💡 <b style="color:#7aa2f7">Клик</b> по тексту — выделяет строку · <b style="color:#9ece6a">2× клик</b> — правка на диаграмме · Бизнес-смысл <b style="color:#c0caf5">над стрелкой</b>, техдеталь <b style="color:#7dcfff">после //</b> · <code>-)</code> = Kafka async · <code>autonumber</code> — нумерация · <code>A -> B++</code>/<code>--</code> — активации · <code>order N</code> — порядок · <code>...пауза...</code>
+    </div>
+  </div>
+</div>
+
+<!-- библиотека генерации .docx (локально, работает офлайн) -->
+<script src="docx.min.js?v=57"></script>
+<!-- ������ (������� �����: ������/������ ������, bootstrap ���������) -->
+<script src="engine.js?v=58"></script>
+<script src="catalog.js?v=57"></script>
+<script src="core.js?v=57"></script>
+<script src="render.js?v=62"></script>
+<script src="c4-levels.js?v=59"></script>
+<script src="interact.js?v=57"></script>
+<script src="methods.js?v=58"></script>
+<script src="ui.js?v=58"></script>
+<script src="sim-trace.js?v=58"></script>
+<script src="sim.js?v=64"></script>
+<script src="broker-inspector.js?v=57"></script>
+<script src="tasks.js?v=57"></script>
+<script src="seq.js?v=72"></script>
+<script src="routes.js?v=59"></script>
+<script src="layout.js?v=57"></script>
+<script src="db-templates.js?v=57"></script>
+<script src="db-schema.js?v=57"></script>
+<script src="auth-templates.js?v=57"></script>
+<script src="doc-export.js?v=57"></script>
+<style>
+#ai-panel{position:fixed;top:76px;right:0;bottom:22px;width:300px;background:linear-gradient(180deg,#ddd5c3,#d4ccba);border-left:2px solid #7a6e5a;box-shadow:inset 1px 0 0 #fffdf9;flex-direction:column;z-index:200;font-family:'Tahoma','Verdana',system-ui,sans-serif;font-size:12px;color:#1a1410;}
+#ai-hdr{background:linear-gradient(180deg,#ede6d8,#d8d0be 55%,#ccc4b0);border-bottom:2px solid #7a6e5a;box-shadow:inset 0 1px 0 #fff;padding:5px 10px;display:flex;align-items:center;flex-shrink:0;}
+#ai-msgs{flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:7px;min-height:0;}
+.ai-msg{display:flex;}
+.ai-msg-user{justify-content:flex-end;}
+.ai-msg-user .ai-bubble{background:#ccc4b0;box-shadow:inset 1px 1px 0 #ede8e0,inset -1px -1px 0 #6a6050;max-width:85%;}
+.ai-msg-assistant .ai-bubble{background:#faf4e8;border-left:3px solid #1e4a90;max-width:100%;}
+.ai-bubble{padding:7px 10px;font-size:11px;line-height:1.5;color:#1a1410;user-select:text;cursor:text;}
+.ai-time{font-size:9px;color:#6a6050;margin-top:2px;text-align:right;}
+.ai-msg-assistant .ai-time{text-align:left;}
+#ai-typing{padding:4px 8px;flex-shrink:0;}
+#ai-iarea{border-top:2px solid #7a6e5a;padding:7px;background:#ccc4b0;flex-shrink:0;}
+#ai-input{width:100%;height:50px;background:#faf4e8;border:1px solid #7a6e5a;color:#1a1410;font-family:'Tahoma','Verdana',system-ui,sans-serif;font-size:10.5px;padding:5px 7px;resize:none;outline:none;line-height:1.4;display:block;box-sizing:border-box;}
+#ai-input:focus{border-color:#1e4a90;}
+#ai-send{padding:3px 14px;border:none;background:#1e4a90;color:#e0e8f8;font-size:11px;font-weight:700;font-family:inherit;cursor:pointer;box-shadow:inset 1px 1px 0 #6090d0,inset -1px -1px 0 #08183c,inset 2px 2px 0 #4070b8,inset -2px -2px 0 #122858;}
+#ai-send:hover{background:#2a58a8;}
+#ai-send:disabled{opacity:.5;cursor:default;}
+</style>
+<script src="ai.js?v=13"></script>
+<script src="bootstrap.js?v=60"></script>
+<script src="seq-tests.js?v=57"></script>
+<script>
+function toggleCanvasTheme(){
+  var w=document.getElementById("canvas-wrap");
+  var btn=document.getElementById("canvas-theme-btn");
+  var dark=w.classList.toggle("canvas-dark");
+  btn.textContent=dark?"🌙":"📄";
+  try{localStorage.setItem("raptor_canvas_theme",dark?"dark":"paper");}catch(e){}
+}
+(function(){
+  try{
+    if(localStorage.getItem("raptor_canvas_theme")==="dark"){
+      var w=document.getElementById("canvas-wrap");
+      if(w)w.classList.add("canvas-dark");
+      var btn=document.getElementById("canvas-theme-btn");
+      if(btn)btn.textContent="🌙";
+    }
+  }catch(e){}
+})();
+</script>
+</body>
+</html>

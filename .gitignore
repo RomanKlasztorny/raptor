@@ -1,0 +1,9 @@
+# Личный токен — у каждого свой
+start-proxy.bat
+
+# Зависимости
+node_modules/
+
+# Системное
+.DS_Store
+Thumbs.db
