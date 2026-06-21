@@ -259,3 +259,5 @@ function renderTraceTimeline(req){
   </div>
   <div style="max-height:310px;overflow-y:auto;padding-right:3px">${rows.join('')}</div>`;
 }
+
+// RAPTOR v1.1.0

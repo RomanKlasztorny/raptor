@@ -498,3 +498,5 @@ const DB_TEMPLATES = [
     ]}
   },
 ];
+
+// RAPTOR v1.1.0

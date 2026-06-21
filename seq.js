@@ -1141,3 +1141,5 @@ function seqCopyPlantUML(){
   if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(done,()=>prompt('Скопируй вручную:',txt));
   else prompt('Скопируй вручную:',txt);
 }
+
+// RAPTOR v1.1.0

@@ -440,3 +440,5 @@ function ensureBiMarkers(){
     defs.appendChild(clone);
   });
 }
+
+// RAPTOR v1.1.0

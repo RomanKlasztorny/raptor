@@ -698,3 +698,5 @@ function trCheck(){
     el.className='tr-result no';el.innerHTML=`❌ ${res.msg}`;
   }
 }
+
+// RAPTOR v1.1.0

@@ -624,3 +624,5 @@ function renderChaosBar(){
     ${evHtml?`<div style="margin-top:6px;border-top:1px solid #3d3f5266;padding-top:5px">${evHtml}</div>`:'<div style="font-size:10.5px;color:#787c99;margin-top:5px">Ждём инцидент… крути реплики и паттерны заранее.</div>'}`;
 }
 
+
+// RAPTOR v1.1.0

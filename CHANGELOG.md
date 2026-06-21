@@ -1,6 +1,6 @@
-# Changelog
+﻿# Changelog
 
-## v1.1.0 — RAPTOR AI + Kafka fix *(в разработке)*
+## v1.1.0 — RAPTOR AI + Kafka fix
 
 ### Новое
 - **RAPTOR AI** — панель чата `🤖 AI`, работает через GitHub Copilot (anti-api)
@@ -32,3 +32,4 @@
 - Auth-сервис: 5 типов (jwt/oauth2/session/api_key/oidc)
 - Шаблоны сервисов (9) и групп (10)
 - Word-экспорт: структура MS-1, C4-картинка, API, таблицы БД
+

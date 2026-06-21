@@ -234,3 +234,5 @@ const seqTests = (() => {
 })();
 
 console.log('%c 📋 SEQ Tests loaded. Run: seqTests.run()', 'color:#7aa2f7');
+
+// RAPTOR v1.1.0

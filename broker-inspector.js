@@ -402,3 +402,5 @@ function generateBrokerRationale(b) {
     return `<div style="font-size:10.5px;color:${col};margin-bottom:5px;line-height:1.5">${l}</div>`;
   }).join('');
 }
+
+// RAPTOR v1.1.0

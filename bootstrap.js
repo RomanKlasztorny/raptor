@@ -136,3 +136,5 @@ if(_a?.blocks?.length){
   S.meta=_a.meta||defaultMeta();
   analyze();toast('⏱ Восстановлен');
 }
+
+// RAPTOR v1.1.0

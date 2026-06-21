@@ -131,3 +131,5 @@ function c4LevelHint(){
   const l=S.c4Level;if(!l)return '';
   return C4_HINTS[l]||'';
 }
+
+// RAPTOR v1.1.0

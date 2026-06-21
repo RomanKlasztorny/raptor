@@ -889,3 +889,5 @@ function showDBSchemaForBlock(blockId,mode){
   if(!ov){ov=document.createElement('div');ov.id='db-view-modal';ov.className='modal-ov';ov.onclick=e=>{if(e.target===ov)ov.style.display='none';};document.body.appendChild(ov);}
   ov.innerHTML=inner;ov.style.display='flex';
 }
+
+// RAPTOR v1.1.0

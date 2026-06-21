@@ -553,3 +553,5 @@ async function downloadWord(cfg={}){
     toast('📥 Word (.docx) скачан');
   }catch(e){ toast('❌ Ошибка генерации: '+e.message); }
 }
+
+// RAPTOR v1.1.0

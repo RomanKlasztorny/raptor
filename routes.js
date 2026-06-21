@@ -532,3 +532,5 @@ function scenLoop(now){
   });
   if(SCEN.balls.length)SCEN.raf=requestAnimationFrame(scenLoop);else SCEN.raf=null;
 }
+
+// RAPTOR v1.1.0

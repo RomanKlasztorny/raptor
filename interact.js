@@ -232,3 +232,5 @@ function updateSetCapacity(){
   el.innerHTML=`Ёмкость: <b style="color:#9ece6a">${fmt(cap)} rps</b>`+(mult!==1?` <span style="color:#787c99">(база ${fmt(base)} ×${mult.toFixed(1)})</span>`:'');
 }
 function closeSettings(){$('set-modal').style.display='none';_setId=null;}
+
+// RAPTOR v1.1.0

@@ -371,3 +371,5 @@ function showAuthSQL(id){
   ov.style.display='flex';ov.onclick=e=>{if(e.target===ov)ov.style.display='none';};
   document.body.appendChild(ov);
 }
+
+// RAPTOR v1.1.0

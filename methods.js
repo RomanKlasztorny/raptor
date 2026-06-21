@@ -195,3 +195,5 @@ function setConnField(cid,field,val){const c=gc(cid);if(!c)return;if(val)c[field
 function setConnDir(cid,dir){const c=gc(cid);if(!c)return;c.dir=(c.dir===dir?'':dir);renderConns();onConnClick(cid);}
 function closeInsp(){$('inspection').classList.remove('show');S.inspConn=null;render();}
 
+
+// RAPTOR v1.1.0

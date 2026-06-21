@@ -751,3 +751,5 @@ var AI = (function () {
 })();
 
 function toggleAI(){ AI.toggle(); }
+
+// RAPTOR v1.1.0

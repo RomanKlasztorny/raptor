@@ -39,3 +39,5 @@ function autoLayout(){
 
   pushHist();analyze();toast('📐 Авто-расстановка применена');
 }
+
+// RAPTOR v1.1.0
