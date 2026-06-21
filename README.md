@@ -2,6 +2,10 @@
 
 Браузерный инструмент для проектирования микросервисных систем, симуляции трафика и генерации документации. Без сборки, без npm.
 
+[![Live Demo](https://img.shields.io/badge/▶_Live_Demo-romanklasztorny.github.io%2Fraptor-1e4a90?style=flat-square)](https://romanklasztorny.github.io/raptor/)
+[![Version](https://img.shields.io/badge/version-v1.1.0-2a6010?style=flat-square)](https://github.com/RomanKlasztorny/raptor/releases/tag/v1.1.0)
+[![No build](https://img.shields.io/badge/no_build-pure_HTML%2FJS-7a6e5a?style=flat-square)](#)
+
 ---
 
 ## Быстрый старт
@@ -11,7 +15,7 @@
 ```
 npx serve . -p 5500
 ```
-Открыть `http://localhost:5500`
+Или сразу открыть **[Live Demo →](https://romanklasztorny.github.io/raptor/)** (без AI, прямо в браузере).
 
 ### С AI (RAPTOR AI через GitHub Copilot)
 
@@ -90,10 +94,12 @@ npx serve . -p 5500
 - Офлайн через встроенный `docx.min.js`
 
 ### RAPTOR AI
-- Кнопка `🤖 AI` → панель чата справа
-- Работает через GitHub Copilot (бесплатный план), нужен запущенный `anti-api` на порту 8964
-- Умеет: добавлять блоки и связи, создавать сценарии, делать авторасстановку, редактировать UML, менять схему БД
-- Отвечает на русском, видит текущую схему и сценарии
+
+Кнопка `🤖 AI` → панель чата справа. Строит схему, пишет UML, создаёт таблицы БД — голосом на русском.
+
+**13 инструментов:** добавить/удалить блок, добавить связь, создать сценарий, авторасстановка, редактировать UML Sequence, менять схему БД, очистить холст.
+
+> AI работает через **[anti-api](https://github.com/ink1ing/anti-api)** — открытый прокси, который делает OAuth-авторизацию GitHub Copilot за тебя. Спасибо [ink1ing](https://github.com/ink1ing) за инструмент: без него пришлось бы вручную получать `gho_`-токен через OAuth flow — это нетривиально. Каждый пользователь авторизуется своим аккаунтом, чужих токенов нет.
 
 ---
 
@@ -108,7 +114,7 @@ npx serve . -p 5500
 
 | Версия | Что нового |
 |--------|-----------|
-| **v1.1.0** | RAPTOR AI (13 инструментов), исправлена Kafka симуляция, sim-trace |
-| v1.0.0 | Первый публичный релиз — схема, симуляция, UML, ERD, Word-экспорт |
+| **[v1.1.0](https://github.com/RomanKlasztorny/raptor/releases/tag/v1.1.0)** | RAPTOR AI (13 инструментов), исправлена Kafka симуляция, sim-trace |
+| [v1.0.0](https://github.com/RomanKlasztorny/raptor/releases/tag/v1.0.0) | Первый публичный релиз — схема, симуляция, UML, ERD, Word-экспорт |
 
 Полный список изменений → [CHANGELOG.md](CHANGELOG.md)
