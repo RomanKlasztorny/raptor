@@ -131,14 +131,14 @@ Object.keys(EL).forEach(t=>{
 });
 
 const CATS=[
-  {lbl:'👤 Кто',          els:['actor']},
-  {lbl:'🌐 Клиенты',      els:['web_client','mob_client']},
-  {lbl:'🚪 Шлюзы / Сеть', els:['api_gw','lb','cdn']},
-  {lbl:'⚡ Real-time',     els:['websocket_gw']},
-  {lbl:'⚙ Сервисы',      els:['service','bff','auth']},
-  {lbl:'🗄 Хранилища',    els:['postgresql','mysql','mongodb','cassandra','clickhouse','elasticsearch','s3','redis']},
-  {lbl:'📡 Брокеры',      els:['kafka','rabbitmq','nats','queue']},
-  {lbl:'🌍 Внешние',      els:['external']},
+  {emoji:'👤', key:'cat_who',      els:['actor']},
+  {emoji:'🌐', key:'cat_clients',  els:['web_client','mob_client']},
+  {emoji:'🚪', key:'cat_gateways', els:['api_gw','lb','cdn']},
+  {emoji:'⚡', key:'cat_realtime', els:['websocket_gw']},
+  {emoji:'⚙', key:'cat_services', els:['service','bff','auth']},
+  {emoji:'🗄', key:'cat_storage',  els:['postgresql','mysql','mongodb','cassandra','clickhouse','elasticsearch','s3','redis']},
+  {emoji:'📡', key:'cat_brokers',  els:['kafka','rabbitmq','nats','queue']},
+  {emoji:'🌍', key:'cat_external', els:['external']},
 ];
 
 // ═══════════════════════════════════════════════════════════════
@@ -248,37 +248,37 @@ const PAT={
 // ═══════════════════════════════════════════════════════════════
 const TMPLS={
   // ── Готовые сервисы ──
-  account:{lbl:'Личный кабинет',g:'Сервисы',bls:[{t:'service',dx:0,dy:0,cl:'Личный кабинет'},{t:'postgresql',dx:0,dy:110,cl:'User DB',db:'profile_postgres'}],cs:[[0,1]]},
-  auth:{lbl:'Авторизация',g:'Сервисы',bls:[{t:'api_gw',dx:0,dy:55},{t:'auth',dx:180,dy:55,cl:'Auth Provider',pat:['timeout'],auth:{type:'jwt_only'}},{t:'postgresql',dx:360,dy:55,cl:'Auth DB',db:'auth_postgres'}],cs:[[0,1],[1,2]]},
-  search:{lbl:'Поиск (Elasticsearch)',g:'Сервисы',bls:[{t:'service',dx:0,dy:0,cl:'Поиск'},{t:'elasticsearch',dx:185,dy:0,cl:'Search Index'}],cs:[[0,1]]},
-  media:{lbl:'Файлы / Медиа',g:'Сервисы',bls:[{t:'service',dx:0,dy:0,cl:'Файлы',pat:['timeout']},{t:'s3',dx:185,dy:-20,cl:'S3 Storage'},{t:'postgresql',dx:185,dy:90,cl:'Files Meta',db:'files_postgres'}],cs:[[0,1],[0,2]]},
-  chat_ws:{lbl:'Чат (WebSocket)',g:'Сервисы',bls:[{t:'websocket_gw',dx:0,dy:0},{t:'service',dx:185,dy:0,cl:'Чат'},{t:'mongodb',dx:370,dy:-20,cl:'Chat DB',db:'chat_mongodb'},{t:'redis',dx:370,dy:90,cl:'Pub/Sub'}],cs:[[0,1],[1,2],[1,3]]},
-  catalog:{lbl:'Каталог',g:'Сервисы',bls:[{t:'service',dx:0,dy:0,cl:'Каталог',pat:['cache_aside']},{t:'redis',dx:180,dy:-20},{t:'mongodb',dx:180,dy:90,cl:'Catalog DB',db:'catalog_mongodb'}],cs:[[0,1],[0,2]]},
-  cart:{lbl:'Корзина',g:'Сервисы',bls:[{t:'service',dx:0,dy:0,cl:'Корзина'},{t:'redis',dx:180,dy:-20,cl:'Cart Cache',db:'cart_redis'},{t:'postgresql',dx:180,dy:90,cl:'Cart DB',db:'ecommerce_orders'}],cs:[[0,1],[0,2]]},
-  payment:{lbl:'Оплата',g:'Сервисы',bls:[{t:'service',dx:0,dy:0,cl:'Оплата',pat:['retry','timeout']},{t:'postgresql',dx:0,dy:110,cl:'Payment DB',db:'payment_postgres'},{t:'external',dx:190,dy:0,cl:'Платёжный шлюз'}],cs:[[0,1],[0,2]]},
-  notify:{lbl:'Уведомления',g:'Сервисы',bls:[{t:'service',dx:0,dy:30,cl:'Сервис-источник'},{t:'kafka',dx:185,dy:30},{t:'service',dx:360,dy:30,cl:'Уведомления'},{t:'external',dx:545,dy:30,cl:'SMTP / Email'}],cs:[[0,1],[1,2],[2,3]]},
-  crud:{lbl:'CRUD-сервис',g:'Сервисы',bls:[{t:'service',dx:0,dy:0,cl:'CRUD-сервис',pat:['cache_aside']},{t:'redis',dx:180,dy:-20},{t:'postgresql',dx:180,dy:90,db:'profile_postgres'}],cs:[[0,1],[0,2]]},
-  analytics:{lbl:'Аналитика',g:'Сервисы',bls:[{t:'service',dx:0,dy:0,cl:'Сборщик'},{t:'kafka',dx:175,dy:0},{t:'service',dx:350,dy:0,cl:'ETL'},{t:'clickhouse',dx:350,dy:110,db:'analytics_clickhouse'}],cs:[[0,1],[1,2],[2,3]]},
+  account:{lbl:'Личный кабинет',lbl_en:'User Account',g:'Сервисы',bls:[{t:'service',dx:0,dy:0,cl:'Личный кабинет'},{t:'postgresql',dx:0,dy:110,cl:'User DB',db:'profile_postgres'}],cs:[[0,1]]},
+  auth:{lbl:'Авторизация',lbl_en:'Authorization',g:'Сервисы',bls:[{t:'api_gw',dx:0,dy:55},{t:'auth',dx:180,dy:55,cl:'Auth Provider',pat:['timeout'],auth:{type:'jwt_only'}},{t:'postgresql',dx:360,dy:55,cl:'Auth DB',db:'auth_postgres'}],cs:[[0,1],[1,2]]},
+  search:{lbl:'Поиск (Elasticsearch)',lbl_en:'Search (Elasticsearch)',g:'Сервисы',bls:[{t:'service',dx:0,dy:0,cl:'Поиск'},{t:'elasticsearch',dx:185,dy:0,cl:'Search Index'}],cs:[[0,1]]},
+  media:{lbl:'Файлы / Медиа',lbl_en:'Files / Media',g:'Сервисы',bls:[{t:'service',dx:0,dy:0,cl:'Файлы',pat:['timeout']},{t:'s3',dx:185,dy:-20,cl:'S3 Storage'},{t:'postgresql',dx:185,dy:90,cl:'Files Meta',db:'files_postgres'}],cs:[[0,1],[0,2]]},
+  chat_ws:{lbl:'Чат (WebSocket)',lbl_en:'Chat (WebSocket)',g:'Сервисы',bls:[{t:'websocket_gw',dx:0,dy:0},{t:'service',dx:185,dy:0,cl:'Чат'},{t:'mongodb',dx:370,dy:-20,cl:'Chat DB',db:'chat_mongodb'},{t:'redis',dx:370,dy:90,cl:'Pub/Sub'}],cs:[[0,1],[1,2],[1,3]]},
+  catalog:{lbl:'Каталог',lbl_en:'Catalog',g:'Сервисы',bls:[{t:'service',dx:0,dy:0,cl:'Каталог',pat:['cache_aside']},{t:'redis',dx:180,dy:-20},{t:'mongodb',dx:180,dy:90,cl:'Catalog DB',db:'catalog_mongodb'}],cs:[[0,1],[0,2]]},
+  cart:{lbl:'Корзина',lbl_en:'Cart',g:'Сервисы',bls:[{t:'service',dx:0,dy:0,cl:'Корзина'},{t:'redis',dx:180,dy:-20,cl:'Cart Cache',db:'cart_redis'},{t:'postgresql',dx:180,dy:90,cl:'Cart DB',db:'ecommerce_orders'}],cs:[[0,1],[0,2]]},
+  payment:{lbl:'Оплата',lbl_en:'Payment',g:'Сервисы',bls:[{t:'service',dx:0,dy:0,cl:'Оплата',pat:['retry','timeout']},{t:'postgresql',dx:0,dy:110,cl:'Payment DB',db:'payment_postgres'},{t:'external',dx:190,dy:0,cl:'Платёжный шлюз'}],cs:[[0,1],[0,2]]},
+  notify:{lbl:'Уведомления',lbl_en:'Notifications',g:'Сервисы',bls:[{t:'service',dx:0,dy:30,cl:'Сервис-источник'},{t:'kafka',dx:185,dy:30},{t:'service',dx:360,dy:30,cl:'Уведомления'},{t:'external',dx:545,dy:30,cl:'SMTP / Email'}],cs:[[0,1],[1,2],[2,3]]},
+  crud:{lbl:'CRUD-сервис',lbl_en:'CRUD Service',g:'Сервисы',bls:[{t:'service',dx:0,dy:0,cl:'CRUD-сервис',pat:['cache_aside']},{t:'redis',dx:180,dy:-20},{t:'postgresql',dx:180,dy:90,db:'profile_postgres'}],cs:[[0,1],[0,2]]},
+  analytics:{lbl:'Аналитика',lbl_en:'Analytics',g:'Сервисы',bls:[{t:'service',dx:0,dy:0,cl:'Сборщик'},{t:'kafka',dx:175,dy:0},{t:'service',dx:350,dy:0,cl:'ETL'},{t:'clickhouse',dx:350,dy:110,db:'analytics_clickhouse'}],cs:[[0,1],[1,2],[2,3]]},
 
   // ── Группы сервисов ──
-  shop:{lbl:'Интернет-магазин',g:'Группы',bls:[
+  shop:{lbl:'Интернет-магазин',lbl_en:'Online Store',g:'Группы',bls:[
     {t:'api_gw',dx:0,dy:150},{t:'lb',dx:160,dy:150},
     {t:'service',dx:330,dy:0,cl:'Каталог',pat:['cache_aside']},{t:'mongodb',dx:510,dy:0,cl:'Catalog DB',db:'catalog_mongodb'},
     {t:'service',dx:330,dy:120,cl:'Корзина'},{t:'redis',dx:510,dy:120,cl:'Cart Cache',db:'cart_redis'},
     {t:'service',dx:330,dy:240,cl:'Заказы'},{t:'postgresql',dx:510,dy:240,cl:'Orders DB',db:'ecommerce_orders'},
     {t:'kafka',dx:330,dy:360},{t:'service',dx:520,dy:360,cl:'Оплата',pat:['retry']},{t:'postgresql',dx:700,dy:360,cl:'Payment DB',db:'payment_postgres'}
   ],cs:[[0,1],[1,2],[1,4],[1,6],[2,3],[4,5],[6,7],[6,8],[8,9],[9,10]]},
-  fullmsa:{lbl:'Полная MSA',g:'Группы',bls:[
+  fullmsa:{lbl:'Полная MSA',lbl_en:'Full MSA',g:'Группы',bls:[
     {t:'web_client',dx:0,dy:0},{t:'mob_client',dx:0,dy:120},{t:'api_gw',dx:180,dy:60},
     {t:'service',dx:360,dy:0,cl:'Users'},{t:'service',dx:360,dy:120,cl:'Goals'},{t:'service',dx:360,dy:240,cl:'Habits'},
     {t:'postgresql',dx:540,dy:0},{t:'postgresql',dx:540,dy:120},{t:'postgresql',dx:540,dy:240}
   ],cs:[[0,2],[1,2],[2,3],[2,4],[2,5],[3,6],[4,7],[5,8]]},
-  eventdriven:{lbl:'Event-Driven',g:'Группы',bls:[
+  eventdriven:{lbl:'Event-Driven',lbl_en:'Event-Driven',g:'Группы',bls:[
     {t:'service',dx:0,dy:120,cl:'Producer'},{t:'kafka',dx:180,dy:120},
     {t:'service',dx:360,dy:40,cl:'Consumer A'},{t:'postgresql',dx:540,dy:40},
     {t:'service',dx:360,dy:200,cl:'Consumer B'},{t:'postgresql',dx:540,dy:200}
   ],cs:[[0,1],[1,2],[1,4],[2,3],[4,5]]},
-  mentorship:{lbl:'Платформа менторства',g:'Группы',bls:[
+  mentorship:{lbl:'Платформа менторства',lbl_en:'Mentorship Platform',g:'Группы',bls:[
     {t:'web_client',dx:0,dy:0},{t:'mob_client',dx:0,dy:110},{t:'api_gw',dx:180,dy:55},
     {t:'service',dx:360,dy:-40,cl:'Пользователи'},{t:'postgresql',dx:540,dy:-40},
     {t:'service',dx:360,dy:70,cl:'Курсы',pat:['cache_aside']},{t:'postgresql',dx:540,dy:70},
@@ -286,14 +286,14 @@ const TMPLS={
     {t:'service',dx:360,dy:290,cl:'Диалоги'},{t:'mongodb',dx:540,dy:290},
     {t:'kafka',dx:360,dy:400},{t:'service',dx:560,dy:400,cl:'Уведомления'},{t:'external',dx:745,dy:400,cl:'SMTP / Email'}
   ],cs:[[0,2],[1,2],[2,3],[2,5],[2,7],[2,9],[3,4],[5,6],[7,8],[9,10],[7,11],[11,12],[12,13]]},
-  cqrs:{lbl:'CQRS (write/read)',g:'Группы',bls:[
+  cqrs:{lbl:'CQRS (write/read)',lbl_en:'CQRS (write/read)',g:'Группы',bls:[
     {t:'api_gw',dx:0,dy:90},
     {t:'service',dx:180,dy:20,cl:'Команды (write)'},{t:'postgresql',dx:380,dy:-30,cl:'Write DB',db:'ecommerce_orders'},
     {t:'kafka',dx:380,dy:70},
     {t:'service',dx:565,dy:70,cl:'Проектор'},{t:'mongodb',dx:750,dy:70,cl:'Read Model',db:'catalog_mongodb'},
     {t:'service',dx:180,dy:180,cl:'Запросы (read)'}
   ],cs:[[0,1],[1,2],[1,3],[3,4],[4,5],[0,6],[6,5]]},
-  b2b_api:{lbl:'B2B API (API Key)',g:'Группы',bls:[
+  b2b_api:{lbl:'B2B API (API Key)',lbl_en:'B2B API (API Key)',g:'Группы',bls:[
     {t:'external',dx:0,dy:60,cl:'Партнёр (B2B)'},
     {t:'api_gw',dx:185,dy:60,set:{auth_mode:'API Key',token_location:'X-API-Key (header)'}},
     {t:'auth',dx:370,dy:-10,cl:'Auth Provider',pat:['timeout'],auth:{type:'api_key'}},
@@ -301,7 +301,7 @@ const TMPLS={
     {t:'redis',dx:370,dy:80,cl:'Rate Limit',db:'ratelimit_redis'},
     {t:'service',dx:370,dy:170,cl:'Интеграции'},{t:'postgresql',dx:560,dy:170,db:'profile_postgres'}
   ],cs:[[0,1],[1,2],[2,3],[1,4],[1,5],[5,6]]},
-  sso:{lbl:'SSO (OIDC, корп. вход)',g:'Группы',bls:[
+  sso:{lbl:'SSO (OIDC, корп. вход)',lbl_en:'SSO (OIDC, Corp Login)',g:'Группы',bls:[
     {t:'web_client',dx:0,dy:60},
     {t:'api_gw',dx:175,dy:60},
     {t:'auth',dx:350,dy:0,cl:'Auth (OIDC)',pat:['timeout'],auth:{type:'oidc_sso'}},
@@ -311,14 +311,14 @@ const TMPLS={
   ],cs:[[0,1],[1,2],[2,3],[2,4],[1,5],[5,6]]},
 
   // ── Новые сервисные блоки ──
-  scheduler:{lbl:'Планировщик / Воркер',g:'Сервисы',bls:[
+  scheduler:{lbl:'Планировщик / Воркер',lbl_en:'Scheduler / Worker',g:'Сервисы',bls:[
     {t:'service',dx:0,dy:30,cl:'Планировщик',pat:['timeout']},
     {t:'queue',dx:185,dy:30},
     {t:'service',dx:370,dy:30,cl:'Воркер',pat:['timeout']},
     {t:'postgresql',dx:185,dy:140,cl:'Job Log',db:'profile_postgres'}
   ],cs:[[0,1],[1,2],[0,3],[2,3]]},
 
-  reports:{lbl:'Отчёты (async)',g:'Сервисы',bls:[
+  reports:{lbl:'Отчёты (async)',lbl_en:'Reports (async)',g:'Сервисы',bls:[
     {t:'service',dx:0,dy:50,cl:'API отчётов'},
     {t:'queue',dx:185,dy:50,cl:'Report Queue'},
     {t:'service',dx:370,dy:50,cl:'Генератор',pat:['timeout']},
@@ -326,7 +326,7 @@ const TMPLS={
     {t:'s3',dx:370,dy:165,cl:'PDF / Excel'}
   ],cs:[[0,1],[1,2],[2,3],[2,4]]},
 
-  saga_step:{lbl:'Сага-шаг (команда+компенсация)',g:'Сервисы',bls:[
+  saga_step:{lbl:'Сага-шаг (команда+компенсация)',lbl_en:'Saga Step (command+compensation)',g:'Сервисы',bls:[
     {t:'kafka',dx:0,dy:0,cl:'Команды'},
     {t:'service',dx:185,dy:40,cl:'Обработчик',pat:['retry']},
     {t:'kafka',dx:370,dy:0,cl:'События'},
@@ -334,7 +334,7 @@ const TMPLS={
   ],cs:[[0,1],[1,2],[1,3]]},
 
   // ── Новые группы ──
-  multibff:{lbl:'Multi-BFF (Web + Mobile)',g:'Группы',bls:[
+  multibff:{lbl:'Multi-BFF (Web + Mobile)',lbl_en:'Multi-BFF (Web + Mobile)',g:'Группы',bls:[
     {t:'web_client',dx:0,dy:0},
     {t:'mob_client',dx:0,dy:120},
     {t:'bff',dx:190,dy:0,cl:'Web BFF',pat:['cache_aside']},
@@ -345,7 +345,7 @@ const TMPLS={
     {t:'postgresql',dx:580,dy:250,cl:'Catalog DB',db:'catalog_mongodb'}
   ],cs:[[0,2],[1,3],[2,4],[3,4],[4,5],[2,6],[3,6],[6,7],[6,8]]},
 
-  fintech:{lbl:'Финтех платформа',g:'Группы',bls:[
+  fintech:{lbl:'Финтех платформа',lbl_en:'Fintech Platform',g:'Группы',bls:[
     {t:'mob_client',dx:0,dy:90},
     {t:'api_gw',dx:180,dy:90},
     {t:'service',dx:360,dy:0,cl:'Счета',pat:['cache_aside']},
@@ -360,7 +360,7 @@ const TMPLS={
     {t:'external',dx:730,dy:320,cl:'SMTP / Email'}
   ],cs:[[0,1],[1,2],[2,3],[2,4],[1,5],[5,6],[5,7],[7,8],[7,9],[8,10],[9,11]]},
 
-  saga:{lbl:'Сага (заказ + оплата + склад)',g:'Группы',bls:[
+  saga:{lbl:'Сага (заказ + оплата + склад)',lbl_en:'Saga (order + payment + warehouse)',g:'Группы',bls:[
     {t:'api_gw',dx:0,dy:120},
     {t:'service',dx:180,dy:120,cl:'Заказы',pat:['circuit_breaker']},
     {t:'postgresql',dx:180,dy:240,cl:'Orders DB',db:'ecommerce_orders'},

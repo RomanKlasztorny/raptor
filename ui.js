@@ -1,16 +1,24 @@
 // UI — палитра с шаблонами, сайдбар (анализ/проблемы)
 // (выделено из app.js при разбиении на модули)
 
+// Возвращает поле описания блока на текущем языке (role/place/never/tip)
+function elDesc(type, field){
+  if(typeof CURR_LANG!=='undefined' && CURR_LANG==='en' && typeof EL_EN!=='undefined' && EL_EN[type])
+    return EL_EN[type][field] || (EL[type]&&EL[type][field]) || '';
+  return (EL[type]&&EL[type][field]) || '';
+}
+
 // ═══════════════════════════════════════════════════════════════
 // ПАЛИТРА + ШАБЛОНЫ + ПРИМЕРЫ
 // ═══════════════════════════════════════════════════════════════
 function buildPalette(){
   const P=$('palette');P.innerHTML='';
   CATS.forEach(cat=>{
-    const h=document.createElement('div');h.className='pal-cat';h.textContent=cat.lbl;P.appendChild(h);
+    const h=document.createElement('div');h.className='pal-cat';h.textContent=(cat.emoji?cat.emoji+' ':'')+(typeof t==='function'?t(cat.key):cat.key);P.appendChild(h);
     cat.els.forEach(type=>{const d=EL[type];const it=document.createElement('div');it.className='pal-item'+(S.palSel===type?' on':'');
-      it.innerHTML=`<span class="pal-dot" style="background:${d.clr}"></span>${d.lbl}`;
-      it.title=`${d.role}\n\n📍 ГДЕ: ${d.place}\n🚫 НЕЛЬЗЯ: ${d.never}\n💡 ${d.tip}`;
+      const _lbl=(typeof LOCALE!=='undefined'&&LOCALE[CURR_LANG]&&LOCALE[CURR_LANG]['el_'+type])||d.lbl;
+      it.innerHTML=`<span class="pal-dot" style="background:${d.clr}"></span>${_lbl}`;
+      it.title=`${elDesc(type,'role')}\n\n📍 ${elDesc(type,'place')}\n🚫 ${elDesc(type,'never')}\n💡 ${elDesc(type,'tip')}`;
       it.onclick=()=>{S.palSel=S.palSel===type?null:type;buildPalette();};P.appendChild(it);});
   });
   // шаблоны переехали в меню «Шаблоны» наверху (buildTemplatesMenu)
@@ -37,13 +45,14 @@ function placeTemplate(key){
 // Меню «Шаблоны» = примеры (готовые системы) + заготовки (Сервисы/Группы) в одном месте
 function buildTemplatesMenu(){
   const m=$('m-tmpl');if(!m)return;
-  let h='<div class="menu-sec">🗂 Примеры — готовые системы</div>';
+  const _grpName=g=>({'Сервисы':t('tmpl_g_services'),'Группы':t('tmpl_g_groups')}[g]||g);
+  let h=`<div class="menu-sec">${t('tmpl_examples')}</div>`;
   EXAMPLES.forEach((ex,i)=>{h+=`<div class="menu-item" onclick="menuDo(function(){loadExampleByIndex(${i})})">🗂 ${ex.name}</div>`;});
   const groups={};
-  Object.entries(TMPLS).forEach(([k,t])=>{(groups[t.g||'Шаблоны']=groups[t.g||'Шаблоны']||[]).push([k,t]);});
+  Object.entries(TMPLS).forEach(([k,tpl])=>{const g=tpl.g||t('tmpl_group_default');(groups[g]=groups[g]||[]).push([k,tpl]);});
   Object.entries(groups).forEach(([gname,items])=>{
-    h+=`<div class="menu-sep"></div><div class="menu-sec">📦 ${gname}</div>`;
-    items.forEach(([key,tpl])=>{h+=`<div class="menu-item" onclick="menuDo(function(){placeTemplate('${key}')})" title="${tpl.bls.length} узлов, ${tpl.cs.length} связей">📦 ${tpl.lbl}</div>`;});
+    h+=`<div class="menu-sep"></div><div class="menu-sec">📦 ${_grpName(gname)}</div>`;
+    items.forEach(([key,tpl])=>{const _lbl=(typeof CURR_LANG!=='undefined'&&CURR_LANG==='en'&&tpl.lbl_en)||tpl.lbl;h+=`<div class="menu-item" onclick="menuDo(function(){placeTemplate('${key}')})" title="${tpl.bls.length} узлов, ${tpl.cs.length} связей">📦 ${_lbl}</div>`;});
   });
   m.innerHTML=h;
 }
@@ -99,25 +108,25 @@ function updateSidebar(){
   const c=$('side-analysis');const sel=gb(S.selected);
   if(sel){
     const d=EL[sel.type];const rt=sel.rt||{};
-    let h=`<div style="font-size:13px;font-weight:700;color:${d.clr};margin-bottom:3px">${sel.customLabel||d.lbl}</div>`;
-    h+=`<div style="font-size:11px;color:#c0caf5;margin-bottom:8px;line-height:1.4">${d.role}</div>`;
+    let h=`<div style="font-size:13px;font-weight:700;color:var(--txt);margin-bottom:3px">${sel.customLabel||d.lbl}</div>`;
+    h+=`<div style="font-size:11px;color:var(--txt2);margin-bottom:8px;line-height:1.4">${elDesc(sel.type,'role')}</div>`;
     // живые метрики
     if(rt.cap&&isFinite(rt.cap)){
       const pct=Math.round(rt.rho*100);const clr=hClr(rt.health)||'#9ece6a';
-      h+=`<div class="metric-box"><div class="metric"><span>Ёмкость</span><b>${fmt(rt.cap)} rps</b></div><div class="metric"><span>Нагрузка λ</span><b>${fmt(rt.lambdaIn)} rps</b></div><div class="metric"><span>Загрузка</span><b style="color:${clr}">${pct}%</b></div><div class="metric"><span>Задержка</span><b style="color:${clr}">${rt.effLat?.toFixed(1)} мс</b></div></div>`;
-      if(rt.cbOpen)h+=`<div class="card info">⚡ Circuit Breaker РАЗОМКНУТ — быстрый отказ вместо ожидания упавшей зависимости.</div>`;
-      if(rt.cascade)h+=`<div class="card warn">🔗 КАСКАД: блок сам здоров, но тормозит из-за медленной зависимости (${gb(rt.slowDueTo)?.customLabel||EL[gb(rt.slowDueTo)?.type]?.lbl||'?'}). Реши: ускорь зависимость или добавь Circuit Breaker.</div>`;
-      if(rt.health==='error')h+=`<div class="card error">💀 Перегружен. Реши: ${fixHint(sel)}</div>`;
-      else if(rt.health==='warn'&&!rt.cascade)h+=`<div class="card warn">⚠ Под давлением (${pct}%). Запас мал — добавь ёмкость пока не поздно.</div>`;
-      else if(rt.health==='ok')h+=`<div class="card ok">✓ Здоров, запас есть</div>`;
+      h+=`<div class="metric-box"><div class="metric"><span>${t('an_capacity')}</span><b>${fmt(rt.cap)} rps</b></div><div class="metric"><span>${t('an_load')}</span><b>${fmt(rt.lambdaIn)} rps</b></div><div class="metric"><span>${t('an_usage')}</span><b style="color:${clr}">${pct}%</b></div><div class="metric"><span>${t('an_latency')}</span><b style="color:${clr}">${rt.effLat?.toFixed(1)} ms</b></div></div>`;
+      if(rt.cbOpen)h+=`<div class="card info">${t('an_cb_open')}</div>`;
+      if(rt.cascade)h+=`<div class="card warn">${t('an_cascade')} (${gb(rt.slowDueTo)?.customLabel||EL[gb(rt.slowDueTo)?.type]?.lbl||'?'}).</div>`;
+      if(rt.health==='error')h+=`<div class="card error">${t('an_overloaded')} ${fixHint(sel)}</div>`;
+      else if(rt.health==='warn'&&!rt.cascade)h+=`<div class="card warn">${t('an_warn')} (${pct}%)</div>`;
+      else if(rt.health==='ok')h+=`<div class="card ok">${t('an_ok')}</div>`;
     }
-    h+=`<div class="info-box">📍 <b>Где ставить:</b> ${d.place}</div>`;
-    h+=`<div class="info-box" style="border-color:#f7768e44">🚫 <b>Нельзя:</b> ${d.never}</div>`;
-    h+=`<div class="card info">💡 ${d.tip}</div>`;
+    h+=`<div class="info-box">${t('an_place')} ${elDesc(sel.type,'place')}</div>`;
+    h+=`<div class="info-box" style="border-color:#f7768e44">${t('an_never')} ${elDesc(sel.type,'never')}</div>`;
+    h+=`<div class="card info">💡 ${elDesc(sel.type,'tip')}</div>`;
     if(SETTINGS_DEF[sel.type]){
       const isBroker=['kafka','rabbitmq','nats','queue'].includes(sel.type);
-      if(isBroker) h+=`<button onclick="openBrokerInspector('${sel.id}')" style="margin-top:8px;width:100%;padding:7px;border-radius:6px;border:1px solid #bb9af777;background:#bb9af722;color:#bb9af7;cursor:pointer;font-size:11.5px">📊 Инспектор${Object.keys(sel.settings||{}).length?' (активен)':''}</button>`;
-      else h+=`<button onclick="openSettings('${sel.id}')" style="margin-top:8px;width:100%;padding:7px;border-radius:6px;border:1px solid #7aa2f777;background:#7aa2f722;color:#7aa2f7;cursor:pointer;font-size:11.5px">⚙ Настройки${(sel.patterns?.length||Object.keys(sel.settings||{}).length)?' (активны)':''}</button>`;
+      if(isBroker) h+=`<button onclick="openBrokerInspector('${sel.id}')" style="margin-top:8px;width:100%;padding:7px;border-radius:6px;border:1px solid #bb9af777;background:#bb9af722;color:#bb9af7;cursor:pointer;font-size:11.5px">${t('an_inspector')}${Object.keys(sel.settings||{}).length?t('an_inspector_active'):''}</button>`;
+      else h+=`<button onclick="openSettings('${sel.id}')" style="margin-top:8px;width:100%;padding:7px;border-radius:6px;border:1px solid #7aa2f777;background:#7aa2f722;color:#7aa2f7;cursor:pointer;font-size:11.5px">${t('an_where_btn')}${(sel.patterns?.length||Object.keys(sel.settings||{}).length)?t('an_settings_active'):''}</button>`;
     }
     // Auth Provider — выбор типа (меняет схему БД и поведение в симуляции)
     if(sel.type==='auth'){
@@ -125,11 +134,11 @@ function updateSidebar(){
       const rate=Math.round(((typeof authPassRate==='function')?authPassRate(sel):0.1)*100);
       const behav={jwt_only:'Stateless: токен по подписи, БД только на login/refresh.',oauth2_jwt:'Токены + интроспекция/refresh.',session_based:'Stateful: КАЖДЫЙ запрос читает сессию из хранилища.'}[at];
       h+=`<div style="margin-top:10px;background:#bb9af714;border-radius:7px;padding:9px">
-        <div style="font-size:10px;color:#bb9af7;font-weight:700;margin-bottom:5px">🔐 Тип авторизации</div>
+        <div style="font-size:10px;color:var(--txt);font-weight:700;margin-bottom:5px">🔐 Тип авторизации</div>
         <select onchange="setAuthType('${sel.id}',this.value)" style="width:100%;background:var(--bg3);color:var(--txt);border:1px solid var(--brd2);border-radius:6px;padding:6px;font-size:11.5px;margin-bottom:6px">
           ${[['jwt_only','JWT-only'],['oauth2_jwt','OAuth2 + JWT'],['session_based','Session-based']].map(o=>`<option value="${o[0]}" ${at===o[0]?'selected':''}>${o[1]}</option>`).join('')}
         </select>
-        <div style="font-size:10.5px;color:#9aa5ce;line-height:1.5">${behav}</div>
+        <div style="font-size:10.5px;color:var(--txt2);line-height:1.5">${behav}</div>
         <div style="font-size:10.5px;color:#e0af68;margin-top:5px">Нагрузка на хранилище: <b>${rate}%</b> от трафика${at==='session_based'?' — нужен Redis при росте':''}</div>
       </div>`;
     }
@@ -143,7 +152,7 @@ function updateSidebar(){
   }
   // общий список проблем
   const issues=[];
-  S.blocks.forEach(b=>{const rt=b.rt||{};if(rt.health==='error')issues.push({s:'error',n:b.customLabel||EL[b.type].lbl,m:'Перегружен '+Math.round(rt.rho*100)+'% — '+fixHint(b)});else if(rt.cascade)issues.push({s:'warn',n:b.customLabel||EL[b.type].lbl,m:'Каскад: тормозит из-за зависимости'});else if(rt.health==='warn')issues.push({s:'warn',n:b.customLabel||EL[b.type].lbl,m:'Под давлением '+Math.round(rt.rho*100)+'%'});});
+  S.blocks.forEach(b=>{const rt=b.rt||{};if(rt.health==='error')issues.push({s:'error',n:b.customLabel||EL[b.type].lbl,m:t('an_issue_overload')+' '+Math.round(rt.rho*100)+'% — '+fixHint(b)});else if(rt.cascade)issues.push({s:'warn',n:b.customLabel||EL[b.type].lbl,m:t('an_issue_cascade')});else if(rt.health==='warn')issues.push({s:'warn',n:b.customLabel||EL[b.type].lbl,m:t('an_issue_warn')+' '+Math.round(rt.rho*100)+'%'});});
   Object.entries(S.connWarn||{}).forEach(([cid,w])=>{const c2=gc(cid);if(c2){const f=gb(c2.from);issues.push({s:w.sev,n:(f?.customLabel||EL[f?.type]?.lbl)+'→',m:w.msg});}});
   // структурная проверка брокеров: у брокера/очереди должны быть И продюсер, И консьюмер
   S.blocks.forEach(b=>{const cat=EL[b.type]?.cat;if(cat==='broker'||cat==='queue'){
@@ -151,27 +160,27 @@ function updateSidebar(){
     const hasProd=S.conns.some(c=>c.to===b.id);
     const consumers=S.conns.filter(c=>c.from===b.id).map(c=>EL[gb(c.to)?.type]?.cat);
     const hasCons=consumers.some(cc=>cc==='svc'||cc==='bff');
-    if(!hasProd)issues.push({s:'warn',n:nm,m:'Брокер без продюсера — некому публиковать события. Подключи сервис-источник → '+nm});
-    if(!S.conns.some(c=>c.from===b.id))issues.push({s:'error',n:nm,m:'Брокер ни с кем не связан на выход — события уходят в никуда. Подключи '+nm+' → сервис-консьюмер'});
-    else if(!hasCons)issues.push({s:'warn',n:nm,m:'У брокера нет сервиса-консьюмера — событие читать некому. Добавь '+nm+' → сервис'});
+    if(!hasProd)issues.push({s:'warn',n:nm,m:t('an_broker_no_prod')+' '+nm});
+    if(!S.conns.some(c=>c.from===b.id))issues.push({s:'error',n:nm,m:t('an_broker_no_out')+' '+nm+' '+t('an_broker_to_svc')});
+    else if(!hasCons)issues.push({s:'warn',n:nm,m:t('an_broker_no_cons')+' '+nm+' '+t('an_broker_to_svc')});
   }});
   const okCard=S.loadMode==='realism'
     ?(scenTotalRps()===0
-        ?'<div class="card warn">⚠ Режим «Реализм»: нагрузки нет. Нарисуй маршруты во вкладке «Методы» и задай им объём (rps) — тогда узлы получат нагрузку. Либо переключись в «Песочницу».</div>'
-        :`<div class="card ok">✓ Держит трафик из сценариев · Σ ${fmt(scenTotalRps())} rps</div>`)
-    :`<div class="card ok">✓ Всё здорово при ${fmt(S.load)} rps</div>`;
-  c.innerHTML=!S.blocks.length?'<div style="color:#787c99;font-size:11px;line-height:1.7">Перетащи блок из палитры на холст.<br><br>Кликни на блок — увидишь что это, где ставить, живую нагрузку.<br><br>Кликни на стрелку — увидишь что по ней идёт.</div>':!issues.length?okCard:issues.map(i=>`<div class="card ${i.s}"><b>${i.n}</b><br>${i.m}</div>`).join('');
+        ?`<div class="card warn">${t('an_ok_realism_no_load')}</div>`
+        :`<div class="card ok">${t('an_ok_realism')} ${fmt(scenTotalRps())} rps</div>`)
+    :`<div class="card ok">${t('an_ok_sandbox')} ${fmt(S.load)} rps</div>`;
+  c.innerHTML=!S.blocks.length?`<div style="color:var(--txt2);font-size:11px;line-height:1.7">${typeof t==='function'?t('analyze_empty'):'Перетащи блок из палитры на холст.'}</div>`:!issues.length?okCard:issues.map(i=>`<div class="card ${i.s}"><b>${i.n}</b><br>${i.m}</div>`).join('');
 }
 function fixHint(b){
-  const t=b.type;
-  if(t==='postgresql'||t==='mysql')return 'включи PgBouncer (×5) + Read Replicas, или поставь Redis-кэш перед БД';
-  if(['service','bff'].includes(t))return 'увеличь реплики в настройках, поставь LB';
-  if(t==='api_gw')return 'увеличь инстансы Gateway';
-  if(t==='redis')return 'включи Redis Cluster (×10)';
-  if(t==='kafka')return 'добавь партиций';
-  if(t==='rabbitmq')return 'при таком потоке переходи на Kafka';
-  if(t==='cassandra')return 'добавь нод в кластер';
-  return 'добавь ёмкости в настройках';
+  const tp=b.type;
+  if(tp==='postgresql'||tp==='mysql')return t('fix_postgresql');
+  if(['service','bff'].includes(tp))return t('fix_service');
+  if(tp==='api_gw')return t('fix_api_gw');
+  if(tp==='redis')return t('fix_redis');
+  if(tp==='kafka')return t('fix_kafka');
+  if(tp==='rabbitmq')return t('fix_rabbitmq');
+  if(tp==='cassandra')return t('fix_cassandra');
+  return t('fix_default');
 }
 function scenTotalRps(){return (S.scenarios||[]).reduce((a,s)=>a+(s.volume||0),0);}
 function updateStatus(){
@@ -231,48 +240,66 @@ function openMetaEditor(){
 function closeMetaEditor(){const ov=$('meta-modal');if(ov)ov.style.display='none';pushHist();analyze();}
 function renderMetaEditor(){
   const m=S.meta;const ov=$('meta-modal');if(!ov)return;
-  const inp='background:#1a1b26;border:1px solid #3d3f52;border-radius:5px;padding:6px 8px;font-size:12px;color:#c0caf5;outline:none;font-family:inherit;width:100%';
-  ov.innerHTML=`<div class="modal-box" style="max-width:640px;width:96%">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-      <h2 style="color:#7aa2f7">📋 О системе (титул документа)</h2>
+  const inp='background:#faf4e8;border:1px solid #7a6e5a;padding:6px 8px;font-size:12px;color:#1a1410;outline:none;font-family:inherit;width:100%';
+  const lbl='display:block;font-size:10px;color:#6a6050;margin-bottom:3px;font-weight:600;text-transform:uppercase;letter-spacing:.05em';
+  const sec=(icon,txt,clr)=>`<div style="font-size:11px;font-weight:700;color:${clr||'#162850'};margin:14px 0 6px;padding-bottom:4px;border-bottom:1px solid #7a6e5a44">${icon} ${txt}</div>`;
+  const DOMAINS=['','E-commerce','Fintech','EdTech','Healthcare','Logistics','SaaS / B2B','Маркетплейс','Медиа / Стриминг','Социальная сеть','Другое'];
+  ov.innerHTML=`<div class="modal-box" style="max-width:680px;width:96%;background:#d8d0be;border:2px solid #7a6e5a">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <h2 style="color:#162850;font-size:15px">📋 О проекте</h2>
       <button class="modal-btn" onclick="closeMetaEditor()">✕</button>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-      <div><label style="font-size:10px;color:#787c99">Название системы</label><input id="meta-name" style="${inp}" value="${escHtml(m.systemName||'')}"></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <div><label style="font-size:10px;color:#787c99">Версия</label><input id="meta-ver" style="${inp}" value="${escHtml(m.version||'')}"></div>
-        <div><label style="font-size:10px;color:#787c99">Автор</label><input id="meta-author" style="${inp}" value="${escHtml(m.author||'')}"></div>
-      </div>
+
+    ${sec('🏷','Идентификация')}
+    <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;margin-bottom:10px">
+      <div><label style="${lbl}">Название системы</label><input id="meta-name" style="${inp}" value="${escHtml(m.systemName||'')}" placeholder="Моя система"></div>
+      <div><label style="${lbl}">Версия</label><input id="meta-ver" style="${inp}" value="${escHtml(m.version||'')}" placeholder="v1.0"></div>
+      <div><label style="${lbl}">Автор</label><input id="meta-author" style="${inp}" value="${escHtml(m.author||'')}" placeholder="Имя"></div>
     </div>
-    <div style="margin-bottom:10px"><label style="font-size:10px;color:#787c99">Общее описание</label>
-      <textarea id="meta-desc" style="${inp};min-height:48px;resize:vertical">${escHtml(m.description||'')}</textarea></div>
+    <div style="margin-bottom:10px"><label style="${lbl}">Домен / отрасль</label>
+      <select id="meta-domain" style="${inp}">
+        ${DOMAINS.map(d=>`<option value="${d}"${(m.domain||'')==d?' selected':''}>${d||'— выбери домен —'}</option>`).join('')}
+      </select>
+    </div>
 
-    <div style="font-size:12px;font-weight:700;color:#9ece6a;margin:10px 0 6px">Категории пользователей</div>
+    ${sec('🎯','Суть проекта','#1e4a90')}
+    <div style="margin-bottom:8px"><label style="${lbl}">Проблема — какую боль решает система?</label>
+      <textarea id="meta-problem" style="${inp};min-height:56px;resize:vertical" placeholder="Пример: пользователи не могут быстро найти нужный контент, теряют время...">${escHtml(m.problem||'')}</textarea></div>
+    <div style="margin-bottom:8px"><label style="${lbl}">Решение — как система это решает?</label>
+      <textarea id="meta-solution" style="${inp};min-height:56px;resize:vertical" placeholder="Пример: персонализированная лента на основе ML, кеш рекомендаций...">${escHtml(m.solution||'')}</textarea></div>
+    <div style="margin-bottom:10px"><label style="${lbl}">Общее описание (для документации)</label>
+      <textarea id="meta-desc" style="${inp};min-height:48px;resize:vertical" placeholder="Краткое описание для шапки Word-документа...">${escHtml(m.description||'')}</textarea></div>
+
+    ${sec('👥','Пользователи','#2a6010')}
     <div id="meta-roles">${(m.userRoles||[]).map((r,ri)=>`
-      <div style="border:1px solid #3d3f52;border-radius:7px;padding:8px;margin-bottom:6px">
+      <div style="border:1px solid #7a6e5a44;padding:8px;margin-bottom:6px;background:#ccc4b0">
         <div style="display:flex;gap:6px;margin-bottom:5px">
-          <input style="${inp}" value="${escHtml(r.name)}" onchange="S.meta.userRoles[${ri}].name=this.value">
-          <button class="btn" onclick="S.meta.userRoles.splice(${ri},1);renderMetaEditor()" style="color:#f7768e">✕</button>
+          <input style="${inp}" value="${escHtml(r.name)}" placeholder="Название роли" onchange="S.meta.userRoles[${ri}].name=this.value">
+          <button class="modal-btn" onclick="S.meta.userRoles.splice(${ri},1);renderMetaEditor()" style="color:#8a1808;padding:4px 8px">✕</button>
         </div>
-        <textarea style="${inp};min-height:54px;resize:vertical" placeholder="Возможности (по одной на строку)" onchange="S.meta.userRoles[${ri}].can=this.value.split('\\n').map(s=>s.trim()).filter(Boolean)">${(r.can||[]).join('\n')}</textarea>
+        <textarea style="${inp};min-height:48px;resize:vertical" placeholder="Что может делать (по одной строке)" onchange="S.meta.userRoles[${ri}].can=this.value.split('\\n').map(s=>s.trim()).filter(Boolean)">${(r.can||[]).join('\n')}</textarea>
       </div>`).join('')}</div>
-    <button class="btn" onclick="S.meta.userRoles.push({name:'Новая роль',can:[]});renderMetaEditor()" style="margin-bottom:12px">＋ Роль</button>
+    <button class="modal-btn" onclick="S.meta.userRoles.push({name:'Новая роль',can:[]});renderMetaEditor()" style="margin-bottom:12px">＋ Добавить роль</button>
 
-    <div style="font-size:12px;font-weight:700;color:#e0af68;margin:6px 0 6px">Доп. требования (кардинальность)</div>
+    ${sec('📐','Доп. требования (кардинальность)','#7a5008')}
     <div id="meta-reqs">${(m.requirements||[]).map((r,ri)=>`
       <div style="display:flex;gap:6px;margin-bottom:5px">
-        <input style="${inp};flex:1" value="${escHtml(r.text)}" onchange="S.meta.requirements[${ri}].text=this.value">
-        <input style="${inp};width:80px" value="${escHtml(r.card||'')}" placeholder="1:M" onchange="S.meta.requirements[${ri}].card=this.value">
-        <button class="btn" onclick="S.meta.requirements.splice(${ri},1);renderMetaEditor()" style="color:#f7768e">✕</button>
+        <input style="${inp};flex:1" value="${escHtml(r.text)}" placeholder="Требование" onchange="S.meta.requirements[${ri}].text=this.value">
+        <input style="${inp};width:70px" value="${escHtml(r.card||'')}" placeholder="1:M" onchange="S.meta.requirements[${ri}].card=this.value">
+        <button class="modal-btn" onclick="S.meta.requirements.splice(${ri},1);renderMetaEditor()" style="color:#8a1808;padding:4px 8px">✕</button>
       </div>`).join('')}</div>
-    <button class="btn" onclick="S.meta.requirements.push({text:'',card:''});renderMetaEditor()">＋ Требование</button>
+    <button class="modal-btn" onclick="S.meta.requirements.push({text:'',card:''});renderMetaEditor()">＋ Требование</button>
 
-    <div style="margin-top:14px"><button class="modal-btn primary" onclick="saveMetaFields();closeMetaEditor()">Готово</button></div>
+    <div style="margin-top:16px;display:flex;gap:8px">
+      <button class="modal-btn primary" onclick="saveMetaFields();closeMetaEditor()">✓ Готово</button>
+      <button class="modal-btn" onclick="closeMetaEditor()">Отмена</button>
+    </div>
   </div>`;
 }
 function saveMetaFields(){
   const g=id=>$(id)?.value||'';
   S.meta.systemName=g('meta-name');S.meta.version=g('meta-ver');
   S.meta.author=g('meta-author');S.meta.description=g('meta-desc');
+  S.meta.domain=g('meta-domain');S.meta.problem=g('meta-problem');S.meta.solution=g('meta-solution');
 }
 

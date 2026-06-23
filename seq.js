@@ -106,9 +106,20 @@ function parseSeq(text){
   };
   // Срезать суффикс активации ++ / -- с имени участника (PlantUML-стиль: A -> B++)
   const stripAct=s=>{const mm=String(s).trim().match(/^(.*?)\s*(\+\+|--)$/);return mm?[mm[1].trim(),mm[2]]:[String(s).trim(),null];};
+  let refCollect=null; // для многострочного ref over ... end ref
   text.split(/\r?\n/).forEach((raw,lineNum)=>{
     const line=raw.trim();if(!line||line.startsWith('#'))return;
     if(line.startsWith('//')) return;
+    // ── Многострочный ref: собираем строки до "end ref" ──
+    if(refCollect!==null){
+      if(/^end\s+ref$/i.test(line)){
+        events.push({type:'ref',lanes:refCollect.lanes,label:refCollect.lines.join('\n'),lineNum:refCollect.lineNum});
+        refCollect=null;
+      } else {
+        refCollect.lines.push(line);
+      }
+      return;
+    }
     let m;
     if(m=line.match(/^(actor|participant|database|queue|boundary|control|entity|collections)\s+(?:"([^"]+)"|(\S+))(?:\s+as\s+(\S+))?(?:\s+order\s+(\d+))?(?:\s+(#\S+))?$/i)){
       const kind=m[1].toLowerCase();const disp=m[2]||m[3];const alias=m[4]||disp;const isActor=kind==='actor';const order=m[5]!=null?+m[5]:null;const color=seqColor(m[6]);
@@ -119,6 +130,7 @@ function parseSeq(text){
     }
     if(m=line.match(/^==\s*(.+?)\s*==$/)){events.push({type:'divider',label:m[1],lineNum});return;}
     if(line==='|||'||line==='||'){events.push({type:'spacer',lineNum});return;}
+    if(line.startsWith('~~~')){events.push({type:'wave',label:line.slice(3).replace(/~~~$/,'').trim(),lineNum});return;}
     if(m=line.match(/^autonumber(?:\s+(\d+))?(?:\s+(\d+))?$/i)){events.push({type:'autonumber',start:m[1]?+m[1]:1,step:m[2]?+m[2]:1,lineNum});return;}
     if(m=line.match(/^\.\.\.(.*?)\.\.\.$/)){events.push({type:'delay',label:m[1].trim(),lineNum});return;}
     if(/^group\b/i.test(line)){events.push({type:'frag',kind:'group',label:line.replace(/^group\s*/i,''),lineNum});return;}
@@ -131,6 +143,10 @@ function parseSeq(text){
     if(/^else\b/i.test(line)){events.push({type:'else',label:line.replace(/^else\s*/i,''),lineNum});return;}
     if(/^end\b/i.test(line)){events.push({type:'end',lineNum});return;}
     if(m=line.match(/^note\s+(?:over|left of|right of)\s+(.+?)\s*:\s*(.*)$/i)){events.push({type:'note',target:laneIdx(m[1].trim()),text:m[2],lineNum});return;}
+    // ref однострочный: ref over A, B : label
+    if(m=line.match(/^ref\s+over\s+(.+?)\s*:\s*(.+)$/i)){const targets=m[1].split(/\s*,\s*/).map(t=>laneIdx(t.trim()));events.push({type:'ref',lanes:targets,label:m[2].trim(),lineNum});return;}
+    // ref многострочный: ref over A, B  (без : — открывает блок до end ref)
+    if(m=line.match(/^ref\s+over\s+(.+?)$/i)){const targets=m[1].trim().split(/\s*,\s*/).map(t=>laneIdx(t.trim()));refCollect={lanes:targets,lines:[],lineNum};return;}
     if(m=line.match(/^(.+?)\s*(-->>|--\)|-->|->>|-\)|->)\s*([^:]+?)\s*:\s*(.*)$/)){
       const [bizText,techNote]=splitNote(m[4]);
       const arrow=m[2];
@@ -191,6 +207,14 @@ function renderSeqSVG(model){
   events.forEach(e=>{
     if(e.type==='spacer'){y+=40;return;}
     if(e.type==='autonumber'){AN={n:e.start||1,step:e.step||1};return;}
+    if(e.type==='wave'){
+      const wx1=left-laneW[0]/2-10,wx2=width-30,amp=4,wlen=20;
+      let d=`M${wx1.toFixed(1)} ${y}`;
+      for(let x=wx1;x<wx2-wlen;x+=wlen)d+=` C${(x+wlen*.25).toFixed(1)} ${(y-amp).toFixed(1)},${(x+wlen*.75).toFixed(1)} ${(y+amp).toFixed(1)},${(x+wlen).toFixed(1)} ${y}`;
+      body+=`<path d="${d}" fill="none" stroke="#9aa0aa" stroke-width="1.3"/>`;
+      if(e.label){body+=`<text x="${(wx2-4).toFixed(1)}" y="${y-5}" text-anchor="end" font-family="Arial" font-size="9" font-style="italic" fill="#778">${seqEsc(e.label)}</text>`;}
+      y+=22;return;
+    }
     if(e.type==='delay'){
       const x1=left-laneW[0]/2-10,x2=width-30,mx=(x1+x2)/2;
       body+=`<line x1="${x1}" y1="${y-2}" x2="${x2}" y2="${y-2}" stroke="#aeb6c4" stroke-width="1" stroke-dasharray="2 5"/>`;
@@ -212,17 +236,20 @@ function renderSeqSVG(model){
     if(e.type==='deactivate'){const a=act[e.lane].pop();if(a)actSvg+=actBar(e.lane,a.y,y-msgGap+12,a);lastY[e.lane]=y;return;}
     if(e.type==='frag'){
       y+=10;
-      fragStack.push({startY:y-18,kind:e.kind,label:e.label,elses:[]});
+      fragStack.push({startY:y-18,kind:e.kind,label:e.label,elses:[],minL:lanes.length,maxL:0});
       y+=14;return;
     }
     if(e.type==='else'){const f=fragStack[fragStack.length-1];if(f)f.elses.push({y:y,label:e.label});y+=16;return;}
     if(e.type==='end'){
       const f=fragStack.pop();if(f){
-        const x1=left-laneW[0]/2-16,x2=width-44,endY=y+6;
+        // Ширина по реальным лайнам внутри фрейма (не на весь холст)
+        const fl=Math.max(0,f.minL),fr=Math.min(lanes.length-1,f.maxL);
+        const fx1=(fl<=fr)?cx[fl]-laneW[fl]/2-14:left-laneW[0]/2-16;
+        const fx2=(fl<=fr)?cx[fr]+laneW[fr]/2+14:width-44;
+        const x1=Math.min(fx1,left-laneW[0]/2-4),x2=Math.max(fx2,fx1+120),endY=y+6;
         const bgClr=FRAG_COLORS[f.kind]||'#f5f5f5';
         const stClr=FRAG_STROKE[f.kind]||'#9aa';
         let frag=`<rect x="${x1}" y="${f.startY}" width="${x2-x1}" height="${endY-f.startY}" fill="${bgClr}" stroke="${stClr}" stroke-width="1.2" rx="4"/>`;
-        // Шапка фрейма
         frag+=`<path d="M${x1} ${f.startY} h50 v16 l-8 8 h-42 z" fill="${stClr}33" stroke="${stClr}" stroke-width="1.2"/>`;
         frag+=`<text x="${x1+6}" y="${f.startY+15}" font-family="Arial" font-size="11" font-weight="bold" fill="${stClr.replace('33','')}">${f.kind}</text>`;
         if(f.label)frag+=`<text x="${x1+58}" y="${f.startY+14}" font-family="Arial" font-size="10.5" fill="#345">[${seqEsc(f.label)}]</text>`;
@@ -240,7 +267,31 @@ function renderSeqSVG(model){
       body+=`<text x="${x}" y="${y+2}" text-anchor="middle" font-family="Arial" font-size="10.5" fill="#665">${seqEsc(e.text)}</text>`;
       y+=msgGap;return;
     }
+    if(e.type==='ref'){
+      const xs=e.lanes.map(li=>cx[li]||0);
+      const lw0=laneW[e.lanes[0]]||80,lwN=laneW[e.lanes[e.lanes.length-1]]||80;
+      const x1=Math.min(...xs)-lw0/2-6,x2=Math.max(...xs)+lwN/2+6;
+      const labelLines=(e.label||'').split('\n').filter(Boolean);
+      const lineH=15,padV=14;
+      const h=Math.max(50,padV*2+labelLines.length*lineH+6);
+      const mx=(x1+x2)/2;
+      const _dl=e.lineNum!=null?` data-line="${e.lineNum}"`:'';
+      // Фон и рамка (кликабельный — data-line для перехода к строке в textarea)
+      body+=`<rect x="${x1}" y="${y-10}" width="${x2-x1}" height="${h}" fill="#eef3ff" stroke="#7aa2f7" stroke-width="1.5" rx="2"${_dl} style="cursor:pointer"/>`;
+      // Пятиугольник-тег "ref" в левом верхнем углу (UML2-стиль)
+      body+=`<path d="M${x1} ${y-10} h32 v15 l-8 8 h-24 z" fill="#7aa2f766" stroke="#7aa2f7" stroke-width="1"/>`;
+      body+=`<text x="${x1+8}" y="${y+6}" font-family="Arial" font-size="9.5" font-weight="bold" fill="#1e2030">ref</text>`;
+      // Текст по центру — одна или несколько строк
+      const firstLineY=y+padV+(h-padV*2-labelLines.length*lineH)/2+lineH*0.7;
+      labelLines.forEach((ll,idx)=>{
+        const fw=idx===0?'bold':'normal';
+        body+=`<text x="${mx}" y="${(firstLineY+idx*lineH).toFixed(1)}"${_dl} text-anchor="middle" font-family="Arial" font-size="${idx===0?12:10.5}" font-weight="${fw}" fill="#1e2030" style="cursor:pointer">${seqEsc(ll)}</text>`;
+      });
+      y+=h+8;return;
+    }
     if(e.type==='msg'){
+      // Обновляем диапазон лайнов для активного фрейма
+      if(fragStack.length){const f=fragStack[fragStack.length-1];f.minL=Math.min(f.minL,e.from,e.to);f.maxL=Math.max(f.maxL,e.from,e.to);}
       const x1=cx[e.from],x2=cx[e.to];
       // autonumber: префикс «N.» к бизнес-тексту (PlantUML-стиль)
       const numPfx=AN?(AN.n+'. '):'';if(AN)AN.n+=AN.step;
@@ -346,6 +397,8 @@ function renderSeqSVG(model){
     <marker id="sqHead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#445"/></marker>
     <marker id="sqHeadO" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto"><path d="M0 0L10 5L0 10" fill="none" stroke="#445" stroke-width="1.4"/></marker>
   </defs>`;
+  // Сохраняем позиции лайнов для горизонтального drag ref-блоков
+  window._seqRenderState={cx:cx.slice(),lanes:lanes.map(l=>({name:l.name,alias:l.alias})),laneW:laneW.slice()};
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${Math.round(width)}" height="${Math.round(bottomY+20)}" font-family="Arial">${defs}<rect width="100%" height="100%" fill="#ffffff"/>${heads}${body}</svg>`;
 }
 
@@ -493,211 +546,210 @@ function pickAltError(verb,seed){
   return pool[h%pool.length];
 }
 
-// ╔═══════════════════════════════════════════════════════════════╗
-// ║  SEQUENCE ENGINE v2 — UML 2.x стандарт                       ║
-// ║  Правила:                                                     ║
-// ║  • Return-стрелки опциональны (UML 2.x §17.4.3)              ║
-// ║    Показываем только если resp задан или это ключевая граница  ║
-// ║  • Async publish (->) — fire & forget, sync return сразу после ║
-// ║  • Consumer chain показывается отдельно после == divider ==    ║
-// ║  • External → boundary (пунктирный бокс, последний в списке)  ║
-// ║  • DB returns опускаем если resp не задан                     ║
-// ╚═══════════════════════════════════════════════════════════════╝
+// ── UML-генератор из сценария (v3) ──────────────────────────────
+// Структура: участники → forward стрелки → return стрелки → opt Ошибка
+// Async: после == Асинхронная обработка == divider
 function generateSeqFromScenario(id){
   const s=(S.scenarios||[]).find(x=>x.id===id);
   if(!s||!s.path||s.path.length<2)return '';
   if(typeof ensureScenSteps==='function')ensureScenSteps(s);
 
-  const nm=nodeId=>{const b=gb(nodeId);return b?(b.customLabel||EL[b.type]?.lbl||nodeId):nodeId;};
-  const q=n=>/\s/.test(n)?'"'+n+'"':n;
   const path=s.path;
   const steps=s.steps||[];
+  const nm=nid=>{const b=gb(nid);return b?(b.customLabel||EL[b.type]?.lbl||nid):nid;};
+  const q=n=>/\s/.test(n)?'"'+n+'"':n;
+  const cat=nid=>EL[gb(nid)?.type]?.cat;
+  const isBrk=c=>c==='broker'||c==='queue';
+  const isDb=c=>c==='db'||c==='cache';
+  const isSvc=c=>c==='svc'||c==='bff'||c==='gw'||c==='auth'||c==='net';
 
-  // ── Вспомогательные функции ──────────────────────────────────
-  const catOf=nodeId=>EL[gb(nodeId)?.type]?.cat;
-  const isBroker=cat=>cat==='broker'||cat==='queue';
-  const isDB=cat=>cat==='db'||cat==='cache';
-  const isActor=cat=>cat==='actor'||cat==='client';
-  const isService=cat=>cat==='svc'||cat==='bff'||cat==='gw'||cat==='net';
-  // Если путь начинается с актора — шаги описывают хопы начиная с client→gw,
-  // а не actor→client. Смещаем индекс на 1 при чтении шагов.
-  const actorOffset=isActor(catOf(path[0]))?1:0;
-  const stepAt=i=>(i-actorOffset>=0?steps[i-actorOffset]:null)||{};
+  // steps[i] описывают хопы начиная с первого НЕ-актор хопа.
+  // Если путь начинается с actor/client — смещаем чтение на 1.
+  const off=['actor','client'].includes(cat(path[0]))?1:0;
+  const stepAt=i=>(i-off>=0?steps[i-off]:null)||{};
 
-  // ── УЧАСТНИКИ: внешние последними, в остальном порядок пути ──
-  const seenP=[];
-  path.forEach(id=>{if(!seenP.includes(id))seenP.push(id);});
-  const seenSorted=[...seenP].sort((a,b)=>{
-    const ca=catOf(a),cb=catOf(b);
-    return (ca==='external'?1:0)-(cb==='external'?1:0);
+  // ── Участники: путь + implicit БД каждого сервиса (external — в конец) ──
+  // brokerIsLast  — брокер последний в path: Вариант 2 (self-стрелка, нет консьюмера здесь)
+  // brokerHasConsumer — брокер в середине: Вариант 1 (Kafka участник, ack + poll + commitOffset)
+  const brkMidIdx=path.findIndex((nid,pi)=>pi>0&&isBrk(cat(nid)));
+  const brokerIsLast   =brkMidIdx>=0&&brkMidIdx===path.length-1;
+  const brokerHasConsumer=brkMidIdx>=0&&brkMidIdx<path.length-1;
+  const pathSet=new Set(path);
+  const seenOrdered=[];const seenOSet=new Set();
+  path.forEach((nid,pi)=>{
+    if(!seenOSet.has(nid)){
+      seenOSet.add(nid);
+      // Брокер последний — скрываем (self-стрелка); брокер с консьюмером — оставляем участником
+      if(!(brokerIsLast&&pi>0&&isBrk(cat(nid))))seenOrdered.push(nid);
+    }
+    if(isSvc(cat(nid))){
+      const dconn=(S.conns||[]).find(c=>c.from===nid&&isDb(cat(c.to))&&!pathSet.has(c.to));
+      const dblk=dconn?gb(dconn.to):null;
+      if(dblk&&!seenOSet.has(dblk.id)){seenOSet.add(dblk.id);seenOrdered.push(dblk.id);}
+    }
   });
+  seenOrdered.sort((a,b)=>(cat(a)==='external'?1:0)-(cat(b)==='external'?1:0));
+  const L=['# UML сценария: '+s.name,''];
+  seenOrdered.forEach(nid=>{const b=gb(nid);if(b)L.push(`${seqKwFor(cat(nid))} ${q(nm(nid))}`);});
+  L.push('autonumber','');
 
-  const lines=[
-    '# UML сценария: '+s.name,
-    '# Бизнес-смысл над стрелкой, API-детали после //','',
-  ];
-  seenSorted.forEach(id=>{
-    const b=gb(id);if(!b)return;
-    const kw=seqKwFor(catOf(id));
-    lines.push(`${kw} ${q(nm(id))}`);
-  });
-  lines.push('autonumber');
-  lines.push('');
-
-  // ── Найти первый broker-шаг (граница sync/async) ─────────────
-  let brokerStepIdx=-1;
+  // ── Граница sync/async ────────────────────────────────────────
+  let brkIdx=-1;
   for(let i=0;i<path.length-1;i++){
     if(stepAt(i)._hidden)continue;
-    if(isBroker(catOf(path[i+1]))){brokerStepIdx=i;break;}
+    if(isBrk(cat(path[i+1]))){brkIdx=i;break;}
   }
-  const syncEnd=brokerStepIdx>=0?brokerStepIdx:path.length-2;
+  const syncLast=brkIdx>=0?brkIdx:path.length-2;
 
-  // ── GENERATOR: одна forward стрелка ─────────────────────────
-  // Возвращает строку UML или null (если шаг скрыт/пропустить)
-  function makeFwd(i){
-    const step=stepAt(i);
-    if(step._hidden)return null;
-    const [a,b2]=[path[i],path[i+1]];
-    const fb=gb(a),tb=gb(b2);
-    if(!fb||!tb)return null;
-    const fc=catOf(a),tc=catOf(b2);
+  // Продюсер — ближайший svc/gw/bff перед брокером
+  // (если в path стоит DB → Kafka, продюсер = сервис ещё левее)
+  let publisherNid=brkIdx>=0?path[brkIdx]:null;
+  if(publisherNid&&isDb(cat(publisherNid))){
+    for(let i=brkIdx-1;i>=0;i--){if(isSvc(cat(path[i]))){publisherNid=path[i];break;}}
+  }
+  const dbBeforeBrk=brokerHasConsumer&&brkIdx>=0&&isDb(cat(path[brkIdx]));
 
-    if(isDB(fc)&&(isService(tc)||tc==='external')){
+  // ── Forward-стрелка i → i+1 ───────────────────────────────────
+  function fwd(i){
+    const st=stepAt(i);
+    if(st._hidden)return null;
+    const [a,b]=[ path[i], path[i+1] ];
+    const ba=gb(a),bb=gb(b);
+    if(!ba||!bb)return null;
+    const [fc,tc]=[cat(a),cat(b)];
+
+    const gwCtx=(fc==='gw'&&isSvc(tc))?{gwAuthMode:ba.settings?.auth_mode}:null;
+
+    if(off&&i===0) return `${q(nm(a))} -> ${q(nm(b))}: ${bizVerb(fc,tc,false,gwCtx)}`;
+
+    const sqlRx=/^(SELECT\b|INSERT\s+INTO\b|UPDATE\b|DELETE\s+FROM\b)/i;
+
+    // Publish к брокеру — проверяем ДО isDb(fc), чтобы не потерять стрелку когда в path стоит DB→Kafka
+    if(isBrk(tc)){
+      if(brokerIsLast){
+        // Вариант 2: self-стрелка
+        const evtName=st.uri||(st.name&&!sqlRx.test(st.name||'')?st.name:null)||('publish '+apiSlug(nm(b)));
+        return `${q(nm(isDb(fc)?publisherNid:a))} ->> ${q(nm(isDb(fc)?publisherNid:a))}: ${evtName}`;
+      }
+      if(brokerHasConsumer&&!dbBeforeBrk){
+        // Вариант 1 (нормальный): sync publish, ack придёт из ret
+        const evtName=st.uri||(st.name&&!sqlRx.test(st.name||'')?st.name:null)||(nm(b)+'.event');
+        return `${q(nm(a))} -> ${q(nm(b))}: producer.send(${evtName})`;
+      }
+      // dbBeforeBrk: fwd возвращает null — всё генерируется inline в ФАЗА 1
       return null;
     }
 
-    const _gwCtx=(fc==='gw'&&tc==='svc')?{gwAuthMode:fb.settings?.auth_mode}:null;
+    if(isDb(fc))return null;
 
-    // Актор-хоп (i=0 при actorOffset=1): общий глагол без техдетали,
-    // имя шага оставляем для следующей стрелки (client→gw) — иначе текст дублируется
-    if(actorOffset&&i===0){
-      const biz=bizVerb(fc,tc,false,_gwCtx);
-      return `${q(nm(a))} -> ${q(nm(b2))}: ${biz}`;
+    const isFromBroker=(fc==='broker'||fc==='queue');
+    const isStore=isDb(tc)||isBrk(tc);
+    const isSql=isStore&&!st.uri&&sqlRx.test(st.name||'');
+    const biz=isSql
+      ?(/^SELECT/i.test(st.name)?'Читает данные':/^INSERT/i.test(st.name)?'Сохраняет данные'
+        :/^(UPDATE|DELETE)/i.test(st.name)?'Обновляет данные':'Запрашивает данные')
+      :(st.name||bizVerb(fc,tc,false,gwCtx));
+    const v=st.verb||'GET';
+    const apiTech=apiFor(ba,bb,v);
+    const tech=isFromBroker
+      ?(st.uri||'consume(event)')
+      :isStore
+        ?(isSql?st.name:(st.uri||apiTech))
+        :tc==='external'
+          ?(st.uri||apiTech)
+          :((st.verb||st.uri)?`${st.verb||''} ${st.uri||''}`.trim():apiTech);
+    return `${q(nm(a))} -> ${q(nm(b))}: ${biz}${tech?' // '+tech:''}`;
+  }
+
+  // ── Return-стрелка i+1 → i ────────────────────────────────────
+  function ret(i){
+    const st=stepAt(i);
+    if(st._hidden)return null;
+    const [call,resp]=[path[i],path[i+1]];
+    const [rc,tc]=[cat(resp),cat(call)];
+    // ack: всегда к publisherNid, а не к тому что стоит в path перед брокером
+    if(isBrk(rc)&&brokerHasConsumer&&!dbBeforeBrk)
+      return `${q(nm(resp))} --> ${q(nm(publisherNid))}: ack`;
+    if(isBrk(rc)||isBrk(tc))return null;
+    const isKey=tc==='actor'||tc==='client'||tc==='gw'||tc==='bff'||isSvc(tc);
+    if(!st.resp&&!isKey&&rc!=='external')return null;
+    const msg=st.resp||(tc==='actor'||tc==='client'?'Показывает результат':bizVerb(rc,tc,true));
+    return msg?`${q(nm(resp))} --> ${q(nm(call))}: ${msg}`:null;
+  }
+
+  // ── ФАЗА 1: Forward ──────────────────────────────────────────
+  const handledRets=new Set();
+  for(let i=0;i<=syncLast;i++){
+    const r=fwd(i); if(r)L.push(r);
+
+    // dbBeforeBrk: DB→Kafka — fwd вернул null, генерируем inline в правильном порядке
+    if(i===brkIdx&&dbBeforeBrk){
+      const st3=stepAt(brkIdx);
+      const evtName3=st3.uri||(st3.name&&!/SELECT|INSERT|UPDATE|DELETE/i.test(st3.name||'')?st3.name:null)||(nm(path[brkIdx+1])+'.event');
+      L.push(`${q(nm(path[brkIdx]))} --> ${q(nm(publisherNid))}: Данные сохранены`);
+      L.push(`${q(nm(publisherNid))} -> ${q(nm(path[brkIdx+1]))}: producer.send(${evtName3})`);
+      L.push(`${q(nm(path[brkIdx+1]))} --> ${q(nm(publisherNid))}: ack`);
+      handledRets.add(brkIdx);           // ack уже есть
+      if(brkIdx>0)handledRets.add(brkIdx-1); // DB return уже есть
     }
 
-    // SQL в поле «бизнес-смысл» (шаг к БД): переставить — SQL под //, глагол над стрелкой
-    const isStore=isDB(tc)||isBroker(tc);
-    const isSqlName=isStore&&!step.uri&&/^(SELECT|INSERT\s+INTO|UPDATE\s|DELETE\s+FROM)/i.test(step.name||'');
-    const sqlBiz=isSqlName
-      ?(/^SELECT/i.test(step.name)?'Читает данные'
-        :/^INSERT/i.test(step.name)?'Сохраняет данные'
-        :/^(UPDATE|DELETE)/i.test(step.name)?'Обновляет данные'
-        :'Запрашивает данные')
-      :null;
-
-    const biz=sqlBiz||(step.name||bizVerb(fc,tc,false,_gwCtx));
-    const verb=step.verb||'GET';
-    const apiTech=isStore
-      ?(isSqlName?step.name:(step.uri||apiFor(fb,tb,verb)))
-      :((step.verb||step.uri)?`${step.verb||''} ${step.uri||''}`.trim():apiFor(fb,tb,verb));
-    const arrow=isBroker(tc)?'-)':'->';
-    return `${q(nm(a))} ${arrow} ${q(nm(b2))}: ${biz}${apiTech?' // '+apiTech:''}`;
-  }
-
-  // ── GENERATOR: одна return стрелка ──────────────────────────
-  // ret(i) = ответ от path[i+1] назад к path[i]
-  // Правило UML 2.x: return опционален. Показываем если:
-  //   1. step.resp явно задан
-  //   2. Это граница клиент/GW (критически важный ответ)
-  //   3. Это ответ от external-системы (нужен явный результат)
-  // НЕ показываем: broker→X, X→broker, DB→service без resp
-  function makeRet(i){
-    const step=stepAt(i);
-    if(step._hidden)return null;
-    const [caller,responder]=[path[i],path[i+1]];
-    const rc=catOf(responder),tc=catOf(caller);
-
-    if(isBroker(rc)||isBroker(tc))return null; // broker не отвечает
-
-    const resp=step.resp;
-    const isKeyBoundary=isActor(tc)||tc==='gw'||tc==='bff'||tc==='svc'; // всегда показываем (svc←svc/db/external)
-    const isExternal=rc==='external';                        // внешний → показываем
-
-    // DB: пропускаем return если resp не задан (очевидно из контекста)
-    if(isDB(rc)&&!resp)return null;
-
-    // Если resp пустой и это не ключевая граница — пропускаем
-    if(!resp&&!isKeyBoundary&&!isExternal)return null;
-
-    const respMsg=resp||bizVerb(rc,tc,true);
-    if(!respMsg)return null;
-    return `${q(nm(responder))} --> ${q(nm(caller))}: ${respMsg}`;
-  }
-
-  // ════════════════════════════════════════════════════════════
-  // ФАЗА 1 — Sync forward (от актора до broker-publish включительно)
-  // ════════════════════════════════════════════════════════════
-  for(let i=0;i<=syncEnd;i++){
-    const line=makeFwd(i);
-    if(line)lines.push(line);
-    // После broker-publish: note о том что брокер хранит событие
-    if(i===brokerStepIdx){
-      lines.push(`note over ${q(nm(path[i+1]))}: хранит событие в топике`);
+    const tcNext=cat(path[i+1]);
+    if(isSvc(tcNext)){
+      const dconn=(S.conns||[]).find(c=>c.from===path[i+1]&&isDb(cat(c.to))&&!pathSet.has(c.to));
+      const dblk=dconn?gb(dconn.to):null;
+      if(dblk){
+        const sn=nm(path[i+1]),dn=nm(dblk.id);
+        const st2=stepAt(i);const v2=st2?.verb||'GET';
+        const biz2=/^(POST|PUT|PATCH)$/i.test(v2)?'Сохраняет данные':v2==='DELETE'?'Удаляет запись':'Запрашивает данные';
+        L.push(`${q(sn)} -> ${q(dn)}: ${biz2} // ${apiFor(gb(path[i+1]),dblk,v2)}`);
+        L.push(`${q(dn)} --> ${q(sn)}: Отдаёт данные`);
+      }
     }
+    if(i===brkIdx&&!brokerIsLast&&!brokerHasConsumer)
+      L.push(`note over ${q(nm(path[i+1]))}: хранит событие в топике`);
   }
 
-  // ════════════════════════════════════════════════════════════
-  // ФАЗА 2 — Sync returns в alt Успех / else Ошибка
-  // (правило из практики аналитиков: alt всегда с else — обе ветки)
-  // Returns идут СРАЗУ после publish, ДО async divider:
-  // publisher не ждёт consumer, возвращает 2xx немедленно
-  // ════════════════════════════════════════════════════════════
-  const retLines=[];
-  for(let i=syncEnd;i>=0;i--){
-    const line=makeRet(i);
-    if(line)retLines.push(line);
+  // ── ФАЗА 2: Happy-path returns ───────────────────────────────
+  const rets=[];
+  for(let i=syncLast;i>=0;i--){
+    if(handledRets.has(i))continue;
+    const r=ret(i);if(r)rets.push(r);
   }
-  // Verb для подбора ошибки — с шага, зовущего сервис
-  let _altVerb='GET';
-  for(let i=syncEnd;i>=0;i--){
-    const st=stepAt(i);if(st._hidden)continue;
-    const tcv=catOf(path[i+1]);
-    if((tcv==='svc'||tcv==='bff')&&st.verb){_altVerb=st.verb;break;}
-  }
-  const _altErr=pickAltError(_altVerb,s.id);
-  // Цепочка ошибки: только видимые svc/gw узлы sync-части в обратном порядке
-  const _errChain=[];
-  for(let i=syncEnd;i>=0;i--){
-    const step=stepAt(i);if(step._hidden)continue;
-    const responder=path[i+1],caller=path[i];
-    const rc=catOf(responder);
-    if(isDB(rc)||isBroker(rc))continue;
-    if(!_errChain.includes(responder))_errChain.push(responder);
-    if(!_errChain.includes(caller))_errChain.push(caller);
-  }
-  if(retLines.length&&_errChain.length>=2){
-    lines.push('alt Успех');
-    retLines.forEach(l=>lines.push('  '+l));
-    lines.push(`else Ошибка: ${_altErr.condition}`);
-    for(let i=0;i<_errChain.length-1;i++){
-      const from=_errChain[i],to=_errChain[i+1];
-      // userMsg только для живого актора (человека), не для web_client
-      const msg=catOf(to)==='actor'?_altErr.userMsg:_altErr.resp;
-      lines.push(`  ${q(nm(from))} --> ${q(nm(to))}: ${msg}`);
-    }
-    lines.push('end');
-  } else retLines.forEach(l=>lines.push(l));
+  rets.forEach(r=>L.push(r));
 
-  // ════════════════════════════════════════════════════════════
-  // ФАЗА 3 — Async consumer chain (если есть broker в пути)
-  // ════════════════════════════════════════════════════════════
-  if(brokerStepIdx>=0&&brokerStepIdx<path.length-2){
-    lines.push('');
-    lines.push('== Асинхронная обработка ==');
-
-    // Async forward: consumer chain
-    for(let i=brokerStepIdx+1;i<path.length-1;i++){
-      const line=makeFwd(i);
-      if(line)lines.push(line);
-    }
-    // Async returns: только внутри consumer chain
-    for(let i=path.length-2;i>brokerStepIdx;i--){
-      const line=makeRet(i);
-      if(line)lines.push(line);
+  // ── ФАЗА 3: Consumer chain ───────────────────────────────────
+  if(brkIdx>=0&&brkIdx<path.length-2){
+    if(brokerHasConsumer){
+      // Вариант 1: Kafka как участник — poll + consumer chain + commitOffset
+      const brkNid=path[brkIdx+1];                 // id брокера
+      const conNid=path[brkIdx+2];                 // id первого консьюмера
+      const brkName=q(nm(brkNid)),conName=q(nm(conNid));
+      const st1=stepAt(brkIdx+1);
+      const deliverLabel=st1.uri||st1.name||'deliver / consumer.poll()';
+      L.push('','~~~','');
+      L.push(`== Kafka consumer: ${nm(conNid)} ==`);
+      L.push(`${brkName} -> ${conName}: ${deliverLabel}`);
+      // Авто-инъекция БД консьюмера
+      const dconn2=(S.conns||[]).find(c=>c.from===conNid&&isDb(cat(c.to))&&!pathSet.has(c.to));
+      const dblk2=dconn2?gb(dconn2.to):null;
+      if(dblk2){
+        const v3=stepAt(brkIdx+1)?.verb||'POST';
+        const biz3='Сохраняет данные';
+        L.push(`${conName} -> ${q(nm(dblk2.id))}: ${biz3} // ${apiFor(gb(conNid),dblk2,v3)}`);
+        L.push(`${q(nm(dblk2.id))} --> ${conName}: ok`);
+      }
+      // Остальные хопы после консьюмера (если есть)
+      for(let i=brkIdx+2;i<path.length-1;i++){const r=fwd(i);if(r)L.push(r);}
+      L.push(`${conName} -> ${brkName}: commitOffset`);
+    } else {
+      // Старый вариант: брокер первый в path, simple consumer chain
+      L.push('','~~~');
+      for(let i=brkIdx+1;i<path.length-1;i++){const r=fwd(i);if(r)L.push(r);}
+      for(let i=path.length-2;i>brkIdx;i--){const r=ret(i);if(r)L.push(r);}
     }
   }
 
-  return lines.join('\n');
+  return L.join('\n');
 }
 
 function apiSlug(name){return String(name).toLowerCase().replace(/[^a-zа-яё0-9]+/gi,'-').replace(/^-|-$/g,'').slice(0,16)||'res';}
@@ -718,7 +770,11 @@ function apiFor(from,to,verb){
   if(tc==='broker')return 'publish(event)';
   if(tc==='queue') return 'enqueue(task)';
   if(tc==='gw'||tc==='net')return 'HTTPS';
-  if(tc==='external')return 'POST /external/api';
+  if(tc==='external'){
+    const lbl=(to.customLabel||'').toLowerCase();
+    if(/smtp|email|mail/.test(lbl)) return '';  // SMTP/Email — не HTTP-протокол
+    return 'POST /external/api';
+  }
   const slug=apiSlug(to.customLabel||EL[to.type]?.lbl);
   return `${v==='POST'?'POST':'GET'} /api/v1/${slug}${v!=='POST'?'/{id}':''}`;
 }
@@ -730,6 +786,7 @@ function openSeq(){
   SEQ_ACTOR=null;SEQ_SCEN=null;
   document.getElementById('seq-modal').style.display='flex';
   document.getElementById('seq-title').textContent='🔀 Sequence-диаграмма';
+  renderSeqLibPanel();
   populateSeqStart();
   const ta=document.getElementById('seq-input');
   const saved=localStorage.getItem('arch4_seq');
@@ -742,11 +799,12 @@ function openSeqForScenario(id){
   SEQ_ACTOR=null;SEQ_SCEN=id;
   document.getElementById('seq-modal').style.display='flex';
   document.getElementById('seq-title').textContent='📜 UML сценария: '+s.name;
+  renderSeqLibPanel();
   populateSeqStart();
   const ta=document.getElementById('seq-input');
-  // Авто-UML всегда генерим свежий (генератор детерминированный).
-  // Сохранённый текст берём ТОЛЬКО если пользователь правил его руками.
-  ta.value=(s.umlEdited&&s.uml&&s.uml.trim())?s.uml:generateSeqFromScenario(id);
+  // Если в сценарии есть готовый UML (написанный вручную или AI) — используем его.
+  // Генерируем из path+steps только когда uml пустой.
+  ta.value=(s.uml&&s.uml.trim())?s.uml:generateSeqFromScenario(id);
   renderSeq();
 }
 function openScenario(actorId){
@@ -844,9 +902,9 @@ function renderSeq(fromUser){
     canvas.querySelectorAll('[data-line]').forEach(el=>{
       const ln=parseInt(el.dataset.line);
       el.addEventListener('click',e=>{
+        if(e._seqDragMoved) return; // подавить клик после перетаскивания
         e.stopPropagation();
         seqHighlightLine(ln);
-        // Мини-вспышка чтобы показать что связь работает
         el.style.outline='2px solid #7aa2f7';
         el.style.outlineOffset='2px';
         setTimeout(()=>{el.style.outline='';el.style.outlineOffset='';},600);
@@ -857,10 +915,123 @@ function renderSeq(fromUser){
         seqInlineEdit(el,ln);
       });
     });
+    // ── Drag-to-reorder для ref-блоков (инициализируется один раз) ──
+    if(!canvas.dataset.dragInit){canvas.dataset.dragInit='1';_initSeqRefDrag(canvas);}
   }catch(err){
     document.getElementById('seq-canvas').innerHTML='<div style="color:#f7768e;padding:20px;font-size:12px">Ошибка разбора: '+err.message+'</div>';
   }
 }
+// ── Drag-to-reorder: перетаскивание ref-блока мышью ─────────────
+// Вертикально (вверх/вниз) — меняет порядок ref в диаграмме
+// Горизонтально (влево/вправо) — меняет участников в «ref over A, B»
+function _initSeqRefDrag(canvas){
+  let drag=null,indicator=null;
+
+  canvas.addEventListener('mousedown',e=>{
+    const el=e.target.closest?e.target.closest('[data-line]'):e.target;
+    if(!el||!el.dataset||!el.dataset.line)return;
+    const ln=parseInt(el.dataset.line);
+    const ta=document.getElementById('seq-input');
+    const lines=ta.value.split('\n');
+    const refLine=(lines[ln]||'').trim();
+    if(!/^ref\s+over/i.test(refLine))return;
+
+    let endLn=ln;
+    if(!/^ref\s+over\s+.+?:\s*.+$/i.test(refLine)){
+      for(let i=ln+1;i<lines.length;i++){if(/^end\s+ref$/i.test(lines[i].trim())){endLn=i;break;}}
+    }
+    drag={lineStart:ln,lineEnd:endLn,startY:e.clientY,startX:e.clientX,moved:false,axis:null};
+    e.preventDefault();
+  },{passive:false});
+
+  document.addEventListener('mousemove',e=>{
+    if(!drag)return;
+    const dx=e.clientX-drag.startX, dy=e.clientY-drag.startY;
+
+    // Фиксируем ось по первому значимому движению
+    if(!drag.axis&&(Math.abs(dx)>8||Math.abs(dy)>8)){
+      drag.axis=Math.abs(dx)>Math.abs(dy)?'x':'y';
+    }
+    if(drag.axis&&!drag.moved){
+      drag.moved=true;
+      document.body.style.cursor='grabbing';
+      const cr=canvas.getBoundingClientRect();
+      indicator=document.createElement('div');
+      if(drag.axis==='y'){
+        indicator.style.cssText=`position:fixed;left:${cr.left+8}px;width:${cr.width-16}px;height:3px;background:#7aa2f7;border-radius:2px;box-shadow:0 0 8px #7aa2f780;z-index:99999;pointer-events:none;transition:top .05s`;
+      } else {
+        indicator.style.cssText=`position:fixed;top:${cr.top+8}px;height:${cr.height-16}px;width:3px;background:#e0af68;border-radius:2px;box-shadow:0 0 8px #e0af6880;z-index:99999;pointer-events:none`;
+      }
+      document.body.appendChild(indicator);
+    }
+    if(drag.moved&&indicator){
+      if(drag.axis==='y') indicator.style.top=e.clientY+'px';
+      else indicator.style.left=e.clientX+'px';
+    }
+  });
+
+  document.addEventListener('mouseup',e=>{
+    if(!drag)return;
+    const wasMoved=drag.moved;
+    if(wasMoved){
+      const ta=document.getElementById('seq-input');
+      const cr=canvas.getBoundingClientRect();
+      const lines=ta.value.split('\n');
+
+      if(drag.axis==='y'){
+        // ── Вертикальный дроп: меняем порядок строк ──
+        const dropY=e.clientY-cr.top;
+        const elems=[...canvas.querySelectorAll('[data-line]')]
+          .map(el=>({ln:parseInt(el.dataset.line),y:el.getBoundingClientRect().top+el.getBoundingClientRect().height/2-cr.top}))
+          .filter(x=>x.ln<drag.lineStart||x.ln>drag.lineEnd)
+          .sort((a,b)=>a.ln-b.ln);
+        let insertAfterLn=-1;
+        for(const {ln,y} of elems){if(y<dropY)insertAfterLn=ln;}
+        const block=lines.splice(drag.lineStart,drag.lineEnd-drag.lineStart+1);
+        const nRemoved=block.length;
+        let insertAt;
+        if(insertAfterLn<0){insertAt=0;}
+        else if(insertAfterLn>drag.lineEnd){insertAt=insertAfterLn-nRemoved+1;}
+        else{insertAt=insertAfterLn+1;}
+        insertAt=Math.max(0,Math.min(insertAt,lines.length));
+        lines.splice(insertAt,0,...block);
+        ta.value=lines.join('\n');
+      } else {
+        // ── Горизонтальный дроп: меняем «ref over A, B» ──
+        const rs=window._seqRenderState;
+        if(rs&&rs.cx&&rs.cx.length){
+          const toCanvasX=(clientX)=>clientX-cr.left;
+          const nearestLane=(cx)=>{let bi=0,bd=Infinity;rs.cx.forEach((x,i)=>{const d=Math.abs(x-cx);if(d<bd){bd=d;bi=i;}});return bi;};
+          const iStart=nearestLane(toCanvasX(drag.startX));
+          const iDrop =nearestLane(toCanvasX(e.clientX));
+          const iMin=Math.min(iStart,iDrop), iMax=Math.max(iStart,iDrop);
+          const alias=(i)=>{const l=rs.lanes[i];return(l.alias||l.name||'').trim();};
+          const q=(n)=>/\s/.test(n)?`"${n}"`:n;
+          const newOver=iMin===iMax?q(alias(iMin)):`${q(alias(iMin))}, ${q(alias(iMax))}`;
+
+          // Обновляем ref over в первой строке блока
+          const refLine=lines[drag.lineStart]||'';
+          if(/^ref\s+over\s+.+?:\s*.+$/i.test(refLine.trim())){
+            // Однострочный: «ref over A, B : label»
+            const labelPart=refLine.replace(/^ref\s+over\s+.+?\s*:/i,'').trim();
+            lines[drag.lineStart]=`ref over ${newOver} : ${labelPart}`;
+          } else {
+            // Многострочный: «ref over A, B»
+            lines[drag.lineStart]=`ref over ${newOver}`;
+          }
+          ta.value=lines.join('\n');
+        }
+      }
+
+      e._seqDragMoved=true;
+      renderSeq(true);
+    }
+    if(indicator){indicator.remove();indicator=null;}
+    document.body.style.cursor='';
+    drag=null;
+  });
+}
+
 function seqExample(k){document.getElementById('seq-input').value=SEQ_EXAMPLES[k]||SEQ_EXAMPLES.blank;renderSeq();}
 function seqInsert(snippet){
   const ta=document.getElementById('seq-input');
@@ -908,6 +1079,61 @@ function seqToPlantUML(text){
   out.push('@enduml');
   return out.join('\n');
 }
+// ── Библиотека sub-flows (ref) ────────────────────────────────
+const SEQ_LIB_KEY='raptor_seq_library';
+function seqLibLoad(){try{return JSON.parse(localStorage.getItem(SEQ_LIB_KEY)||'[]');}catch{return [];}}
+function _seqLibSave(lib){localStorage.setItem(SEQ_LIB_KEY,JSON.stringify(lib));}
+
+function seqSaveAsRef(){
+  const ta=document.getElementById('seq-input');
+  const rawTitle=document.getElementById('seq-title').textContent.replace(/^[^\:]*:\s*/,'').trim()||'Без названия';
+  const name=prompt('Название sub-flow (будет вставляться как ref):',rawTitle);
+  if(!name||!name.trim())return;
+  const lib=seqLibLoad();
+  const ei=lib.findIndex(x=>x.name===name.trim());
+  if(ei>=0)lib[ei]={name:name.trim(),text:ta.value};
+  else lib.push({name:name.trim(),text:ta.value});
+  _seqLibSave(lib);
+  renderSeqLibPanel();
+  if(typeof toast==='function')toast('Sub-flow «'+name.trim()+'» сохранён');
+}
+
+function seqInsertRef(name){
+  const ta=document.getElementById('seq-input');
+  // Собираем все объявленные участники (включая actor), возвращаем alias или имя в кавычках
+  const q=n=>/\s/.test(n)?`"${n}"`:n;
+  const parts=ta.value.split('\n')
+    .map(l=>{const m=l.match(/^(?:actor|participant|database|queue|boundary)\s+(?:"([^"]+)"|(\S+))(?:\s+as\s+(\S+))?/i);if(!m)return null;const raw=m[3]||m[2]||m[1];return q(raw);})
+    .filter(Boolean);
+  const over=parts.length>=2?parts[0]+', '+parts[parts.length-1]:parts[0]||'Участник';
+  seqInsert('\nref over '+over+': '+name);
+}
+
+function seqDeleteRef(name){
+  if(!confirm('Удалить sub-flow «'+name+'»?'))return;
+  _seqLibSave(seqLibLoad().filter(x=>x.name!==name));
+  renderSeqLibPanel();
+}
+
+function seqOpenRef(name){
+  const item=seqLibLoad().find(x=>x.name===name);if(!item)return;
+  SEQ_ACTOR=null;SEQ_SCEN=null;
+  document.getElementById('seq-title').textContent='📎 Sub-flow: '+item.name;
+  document.getElementById('seq-input').value=item.text;
+  renderSeq();
+}
+
+function renderSeqLibPanel(){
+  const panel=document.getElementById('seq-lib-panel');if(!panel)return;
+  const lib=seqLibLoad();
+  if(!lib.length){panel.innerHTML='<span style="font-size:10px;color:var(--txt2);font-style:italic">нет — нажми «Сохранить sub-flow»</span>';return;}
+  panel.innerHTML=lib.map(x=>`<span style="display:inline-flex;align-items:center;gap:2px;background:#1e2235;border:1px solid #3d4468;border-radius:4px;padding:1px 3px 1px 7px;font-size:10.5px">
+    <span onclick="seqOpenRef(${JSON.stringify(x.name)})" style="cursor:pointer;color:#c0caf5" title="Открыть">${seqEsc(x.name)}</span>
+    <button class="btn" onclick="seqInsertRef(${JSON.stringify(x.name)})" title="Вставить ref в текущую диаграмму" style="padding:0 4px;font-size:10px;margin-left:2px">ref ↩</button>
+    <button class="btn" onclick="seqDeleteRef(${JSON.stringify(x.name)})" style="padding:0 3px;font-size:10px;color:#f7768e">✕</button>
+  </span>`).join('');
+}
+
 function seqCopyPlantUML(){
   const src=document.getElementById('seq-input');if(!src)return;
   const txt=seqToPlantUML(src.value);

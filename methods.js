@@ -7,7 +7,7 @@
 // Подпись стрелки, UML и таблица Word берут текст отсюда.
 // ═══════════════════════════════════════════════════════════════
 const VERBS=['GET','POST','PUT','PATCH','DELETE'];
-const VERB_CLR={GET:'#9ece6a',POST:'#7aa2f7',PUT:'#e0af68',PATCH:'#bb9af7',DELETE:'#f7768e',PUBLISH:'#ff9e64',CONSUME:'#73daca',EVENT:'#ff9e64',SQL:'#9aa5ce'};
+const VERB_CLR={GET:'#2a7014',POST:'#1e4a90',PUT:'#8a5e08',PATCH:'#5a2898',DELETE:'#9a1420',PUBLISH:'#a03c10',CONSUME:'#0e6858',EVENT:'#a03c10',SQL:'#384a88'};
 function methodHost(type){return ['svc','bff','gw','external'].includes(EL[type]?.cat);}
 function fmtMethod(m){return m?((m.verb||'GET')+' '+(m.uri||'')).trim():'';}
 function connApi(c){return c&&c.method?fmtMethod(c.method):'';}
@@ -31,16 +31,16 @@ function openMethods(id){
 function renderMethods(){
   const box=$('meth-list');box.innerHTML='';
   const list=serviceMethods(_methId);
-  if(!list.length){box.innerHTML='<div style="color:#787c99;font-size:11.5px;padding:6px 0;line-height:1.6">У сервиса пока нет методов.<br>Кликни на <b>входящую линию</b> (стрелку, ведущую к этому сервису) и впиши метод прямо там.</div>';return;}
+  if(!list.length){box.innerHTML='<div style="color:var(--txt2);font-size:11.5px;padding:6px 0;line-height:1.6">У сервиса пока нет методов.<br>Кликни на <b>входящую линию</b> (стрелку, ведущую к этому сервису) и впиши метод прямо там.</div>';return;}
   list.forEach(({m,from})=>{
     const row=document.createElement('div');row.style.cssText='border:1px solid #2a2b3d;border-radius:7px;padding:8px;margin-bottom:7px';
     row.innerHTML=`<div style="display:flex;gap:8px;align-items:baseline">
         <span style="color:${VERB_CLR[m.verb]||'#c0caf5'};font-weight:700;font-size:12px;min-width:54px">${m.verb||'GET'}</span>
-        <span style="color:#7dcfff;font-size:12px">${escHtml(m.uri||'')}</span>
-        <span style="color:#787c99;font-size:9.5px;margin-left:auto">← ${escHtml(from?.customLabel||EL[from?.type]?.lbl||'?')}</span>
+        <span style="color:var(--blue);font-size:12px">${escHtml(m.uri||'')}</span>
+        <span style="color:var(--txt2);font-size:9.5px;margin-left:auto">← ${escHtml(from?.customLabel||EL[from?.type]?.lbl||'?')}</span>
       </div>
-      ${m.name?`<div style="color:#c0caf5;font-size:11px;margin-top:3px">${escHtml(m.name)}</div>`:''}
-      ${m.resp?`<div style="color:#9ece6a;font-size:10.5px;margin-top:2px">↩ ${escHtml(m.resp)}</div>`:''}`;
+      ${m.name?`<div style="color:var(--txt);font-size:11px;margin-top:3px">${escHtml(m.name)}</div>`:''}
+      ${m.resp?`<div style="color:var(--green);font-size:10.5px;margin-top:2px">↩ ${escHtml(m.resp)}</div>`:''}`;
     box.appendChild(row);
   });
 }

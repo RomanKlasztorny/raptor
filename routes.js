@@ -23,7 +23,7 @@ let ROUTE_DRAFT=null;
 function startRouteDraw(){
   ensureScenarios();
   // НЕ привязываем первый узел: первый тап = инициатор сценария (любой блок — клиент, актор, да хоть БД)
-  ROUTE_DRAFT={editId:null,name:'Сценарий '+(S.scenarios.length+1),color:nextRouteColor(),actorId:null,path:[]};
+  ROUTE_DRAFT={editId:null,name:'Сценарий '+(S.scenarios.length+1),color:nextRouteColor(),actorId:null,path:[],steps:[]};
   S.mode='routing';
   toast('Кликни ПЕРВЫЙ узел — это инициатор (любой). Дальше веди по пути · Enter — готово · Esc — отмена',4000);
   switchTab('routes');render();renderRoutesPanel();
@@ -61,17 +61,27 @@ function validateHop(a,c){const f=gb(a),t=gb(c);const bad=(typeof badConn==='fun
 function routeClickNode(b){
   if(!ROUTE_DRAFT||!b)return;
   const path=ROUTE_DRAFT.path;
+  // Первый клик — инициатор (актор), шаг не нужен
   if(!path.length){path.push(b.id);ROUTE_DRAFT.actorId=b.id;render();renderRoutesPanel();return;}
   const last=path[path.length-1];
   if(b.id===last)return;
   const direct=S.conns.some(c=>(c.from===last&&c.to===b.id)||(c.from===b.id&&c.to===last));
-  if(direct){if(!validateHop(last,b.id))return;path.push(b.id);}
-  else{
+  if(direct){
+    if(!validateHop(last,b.id))return;
+    path.push(b.id);
+  } else {
     const bfs=routePathBFS(last,b.id);
     if(!bfs){toast('Нет пути по схеме до «'+nodeName(b.id)+'» — соедини узлы на схеме');return;}
-    for(let i=1;i<bfs.length;i++){if(!validateHop(bfs[i-1],bfs[i]))return;path.push(bfs[i]);} // линия протягивается сама
+    for(let i=1;i<bfs.length;i++){
+      if(!validateHop(bfs[i-1],bfs[i]))return;
+      path.push(bfs[i]);
+      // BFS-промежуточные узлы — пустой шаг без попапа
+      if(i<bfs.length-1)(ROUTE_DRAFT.steps=ROUTE_DRAFT.steps||[]).push({name:'',verb:'',uri:'',resp:'',cache:null,dbTarget:null});
+    }
   }
   render();renderRoutesPanel();
+  // Показываем попап для последнего добавленного блока
+  showStepPopup(b);
 }
 function finishRouteDraw(){
   if(!ROUTE_DRAFT)return;
@@ -80,8 +90,9 @@ function finishRouteDraw(){
     const s=S.scenarios.find(x=>x.id===ROUTE_DRAFT.editId);
     if(s){s.path=ROUTE_DRAFT.path.slice();s.name=ROUTE_DRAFT.name;s.color=ROUTE_DRAFT.color;s.actorId=ROUTE_DRAFT.actorId;}
   }else{
-    S.scenarios.push({id:'sc'+Date.now(),name:ROUTE_DRAFT.name,color:ROUTE_DRAFT.color,actorId:ROUTE_DRAFT.actorId,volume:100,path:ROUTE_DRAFT.path.slice(),visible:true});
+    S.scenarios.push({id:'sc'+Date.now(),name:ROUTE_DRAFT.name,color:ROUTE_DRAFT.color,actorId:ROUTE_DRAFT.actorId,volume:100,path:ROUTE_DRAFT.path.slice(),steps:ROUTE_DRAFT.steps||[],visible:true});
   }
+  removeStepPopup();
   ROUTE_DRAFT=null;ROUTE_HOVER=null;S.mode='idle';pushHist();render();renderRoutesPanel();toast('✓ Сценарий сохранён');
 }
 function cancelRouteDraw(){ROUTE_DRAFT=null;ROUTE_HOVER=null;S.mode='idle';render();renderRoutesPanel();}
@@ -146,37 +157,37 @@ function renderRoutesPanel(){
   const c=$('side-routes');if(!c)return;
   let h='';
   if(S.mode==='routing'&&ROUTE_DRAFT){
-    const pathTxt=ROUTE_DRAFT.path.map(nodeName).join(' → ')||'кликни первый узел (актор)';
+    const pathTxt=ROUTE_DRAFT.path.map(nodeName).join(' → ')||t('scen_editing');
     h+=`<div style="background:var(--bg1);border:1px solid ${ROUTE_DRAFT.color};border-radius:7px;padding:9px;margin-bottom:8px">
-      <div style="font-size:11px;color:${ROUTE_DRAFT.color};font-weight:700;margin-bottom:6px">${ROUTE_DRAFT.editId?'✏ Правим: '+escHtml(ROUTE_DRAFT.name):'✏ Рисуем маршрут'}</div>
-      <div style="font-size:10.5px;color:#9aa5ce;margin-bottom:8px;line-height:1.4">${escHtml(pathTxt)}</div>
+      <div style="font-size:11px;color:${ROUTE_DRAFT.color};font-weight:700;margin-bottom:6px">${ROUTE_DRAFT.editId?'✏ '+escHtml(ROUTE_DRAFT.name):'✏ '+t('scen_new')}</div>
+      <div style="font-size:10.5px;color:var(--txt2);margin-bottom:8px;line-height:1.4">${escHtml(pathTxt)}</div>
       <div style="display:flex;gap:6px">
-        <button onclick="finishRouteDraw()" style="flex:1;padding:7px;border:1px solid #9ece6a;border-radius:6px;background:#9ece6a22;color:#9ece6a;cursor:pointer;font-size:11px">✓ Готово</button>
+        <button onclick="finishRouteDraw()" style="flex:1;padding:7px;border:1px solid #9ece6a;border-radius:6px;background:#9ece6a22;color:#9ece6a;cursor:pointer;font-size:11px">✓ OK</button>
         <button onclick="routeUndoLast()" style="padding:7px 9px;border:1px solid var(--brd2);border-radius:6px;background:transparent;color:#787c99;cursor:pointer;font-size:11px">↶</button>
-        <button onclick="cancelRouteDraw()" style="padding:7px 9px;border:1px solid var(--brd2);border-radius:6px;background:transparent;color:#787c99;cursor:pointer;font-size:11px">Отмена</button>
+        <button onclick="cancelRouteDraw()" style="padding:7px 9px;border:1px solid var(--brd2);border-radius:6px;background:transparent;color:#787c99;cursor:pointer;font-size:11px">${t('scen_cancel')}</button>
       </div>
     </div>`;
   }else{
-    h+=`<button onclick="startRouteDraw()" style="width:100%;padding:8px;border:1px solid #7aa2f7;border-radius:6px;background:#7aa2f722;color:#7aa2f7;cursor:pointer;font-size:11.5px;font-weight:600;margin-bottom:8px">+ Новый сценарий</button>`;
+    h+=`<button onclick="startRouteDraw()" style="width:100%;padding:8px;border:1px solid var(--blue);border-radius:6px;background:#1e4a9022;color:var(--blue);cursor:pointer;font-size:11.5px;font-weight:600;margin-bottom:8px">${t('scen_new')}</button>`;
   }
-  if(!S.scenarios.length){h+='<div style="color:#787c99;font-size:11px;line-height:1.7">Сценарии — это маршруты запросов поверх схемы (как линии метро). Каждый своим цветом ложится полосой на связи. На общей связи полосы идут <b>рядом</b>, не перекрывая.<br><br>«+ Новый сценарий» → кликай узлы по пути от актора. У одного актора может быть много сценариев.</div>';c.innerHTML=h;return;}
+  if(!S.scenarios.length){h+=`<div style="color:var(--txt2);font-size:11px;line-height:1.7">${t('scen_hint')}</div>`;c.innerHTML=h;return;}
   S.scenarios.forEach(s=>{
-    h+=`<div style="background:var(--bg1);border-radius:7px;padding:7px 8px;margin-bottom:6px;border-left:3px solid ${s.color}">
+    h+=`<div onmouseenter="S.hovScen='${s.id}';renderConns()" onmouseleave="S.hovScen=null;renderConns()" style="background:var(--bg1);border-radius:7px;padding:7px 8px;margin-bottom:6px;border-left:3px solid ${s.color}">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
         <input type="color" value="${s.color}" onchange="setScenColor('${s.id}',this.value)" style="width:18px;height:18px;border:none;background:none;padding:0;cursor:pointer;flex-shrink:0">
-        <input value="${escHtml(s.name)}" onchange="setScenName('${s.id}',this.value)" style="flex:1;min-width:0;background:transparent;border:none;color:#c0caf5;font-size:11.5px;font-weight:600;outline:none">
-        <span onclick="editScenario('${s.id}')" style="cursor:pointer;color:#7aa2f7" title="редактировать маршрут">✏</span>
-        <span onclick="openScenSteps('${s.id}')" style="cursor:pointer;color:#9ece6a" title="методы шагов (бизнес-смысл + API для UML)">📝</span>
-        <span onclick="openSeqForScenario('${s.id}')" style="cursor:pointer;color:#7dcfff" title="UML этого сценария">📜</span>
-        <span onclick="toggleScen('${s.id}')" style="cursor:pointer;opacity:${s.visible?1:0.3}" title="видимость">👁</span>
-        <span onclick="runScen('${s.id}')" style="cursor:pointer;color:#9ece6a;font-weight:700" title="запустить">▶</span>
-        <span onclick="delScen('${s.id}')" style="cursor:pointer;color:#f7768e;opacity:.6">✕</span>
+        <input value="${escHtml(s.name)}" onchange="setScenName('${s.id}',this.value)" style="flex:1;min-width:0;background:transparent;border:none;color:var(--txt);font-size:11.5px;font-weight:600;outline:none">
+        <span onclick="editScenario('${s.id}')" style="cursor:pointer;color:var(--blue)">✏</span>
+        <span onclick="openScenSteps('${s.id}')" style="cursor:pointer;color:var(--green)">📝</span>
+        <span onclick="openSeqForScenario('${s.id}')" style="cursor:pointer;color:var(--blue)">📜</span>
+        <span onclick="toggleScen('${s.id}')" style="cursor:pointer;opacity:${s.visible?1:0.3}">👁</span>
+        <span onclick="runScen('${s.id}')" style="cursor:pointer;color:var(--green);font-weight:700">▶</span>
+        <span onclick="delScen('${s.id}')" style="cursor:pointer;color:var(--red);opacity:.7">✕</span>
       </div>
-      <div style="font-size:9.5px;color:#787c99;line-height:1.4">${escHtml(s.path.map(nodeName).join(' → '))}</div>
-      <div style="font-size:10px;color:#9aa5ce;margin-top:4px">Объём: <input type="number" min="0" value="${s.volume||0}" onchange="setScenVol('${s.id}',this.value)" style="width:70px;background:var(--bg3);border:1px solid var(--brd2);border-radius:4px;color:#c0caf5;font-size:10px;padding:2px 5px"> rps</div>
+      <div style="font-size:9.5px;color:var(--txt2);line-height:1.4">${escHtml(s.path.map(nodeName).join(' → '))}</div>
+      <div style="font-size:10px;color:var(--txt2);margin-top:4px">${t('scen_volume')} <input type="number" min="0" value="${s.volume||0}" onchange="setScenVol('${s.id}',this.value)" style="width:70px;background:var(--bg3);border:1px solid var(--brd2);border-radius:4px;color:var(--txt);font-size:10px;padding:2px 5px"> rps</div>
     </div>`;
   });
-  h+=`<button onclick="runAllScen()" style="width:100%;padding:7px;border:1px solid #9ece6a;border-radius:6px;background:#9ece6a22;color:#9ece6a;cursor:pointer;font-size:11px;margin-top:2px">▶ Запустить все видимые</button>`;
+  h+=`<button onclick="runAllScen()" style="width:100%;padding:7px;border:1px solid var(--green);border-radius:6px;background:#2a601022;color:var(--green);cursor:pointer;font-size:11px;margin-top:2px">${t('scen_run_all')}</button>`;
   c.innerHTML=h;
 }
 // ═══════════════════════════════════════════════════════════════
@@ -485,6 +496,95 @@ function autofillScenSteps(id){
   renderScenSteps();pushHist();
   toast(`✨ Авто: промежуточные GET · конечный ${finalVerb} · Auth — по типу (jwt/session/oauth2)`);
 }
+
+// ── ШАГ-ПОПАП при рисовании маршрута ────────────────────────────
+function getBlockVerbs(b){
+  const t=b.type;
+  if(['postgresql','mysql'].includes(t))return{verbs:['SELECT','INSERT','UPDATE','DELETE'],hint:'table WHERE id=$1'};
+  if(t==='mongodb')return{verbs:['find','insertOne','updateOne','deleteOne'],hint:'collection'};
+  if(t==='redis')return{verbs:['GET','SET','DEL','HGET','HSET','EXPIRE'],hint:'key'};
+  if(['kafka','rabbitmq','nats','queue'].includes(t))return{verbs:['producer.send','consumer.poll','commitOffset','publish','subscribe'],hint:'topic/queue'};
+  if(t==='external')return{verbs:['POST','GET','webhook'],hint:'/callback'};
+  if(t==='elasticsearch')return{verbs:['search','index','delete'],hint:'index/_search'};
+  if(t==='s3')return{verbs:['PUT','GET','DELETE'],hint:'bucket/key'};
+  // service/auth/bff/api_gw — берём из settings.methods или routes
+  const ms=(b.settings&&(b.settings.methods||b.settings.routes))||[];
+  const verbs=ms.length?[...new Set(ms.map(m=>m.method).filter(Boolean))]:['GET','POST','PUT','PATCH','DELETE'];
+  const first=ms[0]?{verb:ms[0].method,uri:ms[0].path}:null;
+  return{verbs,hint:'/api/v1/path',first};
+}
+function showStepPopup(b){
+  removeStepPopup();
+  if(!b||!ROUTE_DRAFT)return;
+  // Для акторов и клиентов — пустой шаг без попапа
+  if(['actor','web_client','mob_client'].includes(b.type)){
+    (ROUTE_DRAFT.steps=ROUTE_DRAFT.steps||[]).push({name:'',verb:'',uri:'',resp:'',cache:null,dbTarget:null});
+    return;
+  }
+  const info=getBlockVerbs(b);
+  // Smart verb: переносим с предыдущего шага + CRUD-маппинг для БД
+  const _steps=ROUTE_DRAFT.steps||[];
+  const _prev=_steps.length?_steps[_steps.length-1]:null;
+  const _prevVerb=_prev?_prev.verb:'';
+  const _isDb=['postgresql','mysql','mongodb','redis','elasticsearch','cassandra','clickhouse','s3'].includes(b.type);
+  const _CRUD={'GET':'SELECT','POST':'INSERT','PUT':'UPDATE','PATCH':'UPDATE','DELETE':'DELETE'};
+  let _smart=info.first?info.first.verb:'';
+  if(_isDb&&_prevVerb&&_CRUD[_prevVerb])_smart=_CRUD[_prevVerb];
+  else if(!_isDb&&_prevVerb&&info.verbs.includes(_prevVerb))_smart=_prevVerb;
+  const opts=info.verbs.map(v=>`<option${v===_smart?' selected':''}>${escHtml(v)}</option>`).join('');
+  const isLast=ROUTE_DRAFT.path.length>2;
+  const popup=document.createElement('div');
+  popup.id='step-popup';
+  popup.style.cssText='position:fixed;z-index:9999;background:var(--bg1);border:2px solid var(--border);border-radius:8px;padding:12px;width:250px;box-shadow:4px 4px 0 #0004;font-family:Tahoma,sans-serif';
+  popup.innerHTML=`
+    <div style="font-size:10.5px;color:var(--blue);font-weight:700;margin-bottom:8px">📍 ${escHtml(b.customLabel||b.type)}</div>
+    <input id="sp-name" placeholder="Что делает? (бизнес-слой)" style="width:100%;box-sizing:border-box;padding:5px 7px;border:1px solid var(--brd2);border-radius:5px;background:var(--bg3);color:var(--txt);font-size:11px;margin-bottom:6px">
+    <div style="display:flex;gap:5px;margin-bottom:6px">
+      <select id="sp-verb" style="width:100px;padding:5px;border:1px solid var(--brd2);border-radius:5px;background:var(--bg3);color:var(--txt);font-size:11px">${opts}</select>
+      <input id="sp-uri" placeholder="${escHtml(info.hint)}" style="flex:1;padding:5px 7px;border:1px solid var(--brd2);border-radius:5px;background:var(--bg3);color:var(--txt);font-size:11px">
+    </div>
+    <input id="sp-resp" placeholder="Ответ: 200 OK" style="width:100%;box-sizing:border-box;padding:5px 7px;border:1px solid var(--brd2);border-radius:5px;background:var(--bg3);color:var(--txt);font-size:11px;margin-bottom:8px">
+    <div style="display:flex;gap:6px">
+      <button onclick="submitStepPopup(${isLast?'false':'false'})" style="flex:1;padding:6px;background:var(--blue);color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:11px;font-weight:600">Добавить →</button>
+      ${isLast?`<button onclick="submitStepPopup(true)" style="padding:6px 8px;background:#2a6010;color:#9ece6a;border:1px solid #9ece6a55;border-radius:5px;cursor:pointer;font-size:11px">✓ Завершить</button>`:''}
+      <button onclick="skipStepPopup()" style="padding:6px 8px;background:transparent;border:1px solid var(--brd2);color:var(--txt2);border-radius:5px;cursor:pointer;font-size:11px">Пропустить</button>
+    </div>`;
+  document.body.appendChild(popup);
+  // Автозаполнение URI из settings (verb уже выставлен через _smart)
+  if(info.first){
+    const ue=document.getElementById('sp-uri');
+    if(ue&&info.first.uri)ue.value=info.first.uri;
+  }
+  // Позиция рядом с блоком
+  const svgEl=document.querySelector('#cv svg');
+  if(svgEl){try{
+    const pt=svgEl.createSVGPoint();pt.x=b.x+130;pt.y=b.y;
+    const sc=pt.matrixTransform(svgEl.getScreenCTM());
+    popup.style.left=Math.min(sc.x+8,window.innerWidth-265)+'px';
+    popup.style.top=Math.max(8,Math.min(sc.y,window.innerHeight-230))+'px';
+  }catch(e){popup.style.left='60%';popup.style.top='30%';}}
+  popup.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){e.preventDefault();submitStepPopup();}
+    if(e.key==='Escape'){e.preventDefault();skipStepPopup();}
+  });
+  setTimeout(()=>{const n=document.getElementById('sp-name');if(n)n.focus();},40);
+}
+function submitStepPopup(finish){
+  if(!ROUTE_DRAFT){removeStepPopup();return;}
+  const name=(document.getElementById('sp-name')||{}).value||'';
+  const verb=(document.getElementById('sp-verb')||{}).value||'';
+  const uri=(document.getElementById('sp-uri')||{}).value||'';
+  const resp=(document.getElementById('sp-resp')||{}).value||'';
+  (ROUTE_DRAFT.steps=ROUTE_DRAFT.steps||[]).push({name,verb,uri,resp,cache:null,dbTarget:null});
+  removeStepPopup();
+  if(finish)finishRouteDraw();
+}
+function skipStepPopup(){
+  if(!ROUTE_DRAFT){removeStepPopup();return;}
+  (ROUTE_DRAFT.steps=ROUTE_DRAFT.steps||[]).push({name:'',verb:'',uri:'',resp:'',cache:null,dbTarget:null});
+  removeStepPopup();
+}
+function removeStepPopup(){const p=document.getElementById('step-popup');if(p)p.remove();}
 
 function setScenColor(id,v){const s=S.scenarios.find(x=>x.id===id);if(s){s.color=v;pushHist();render();}}
 function setScenName(id,v){const s=S.scenarios.find(x=>x.id===id);if(s){s.name=v;pushHist();}}

@@ -142,31 +142,31 @@ function openExportChooser(){
   ov.onclick=e=>{if(e.target===ov)ov.style.display='none';};
 
   const checks=[
-    {k:'title',      lbl:'Шапка (название / версия / автор)',        def:true},
-    {k:'description',lbl:'Описание системы и роли пользователей',    def:true},
-    {k:'c4',         lbl:'Схема C4 (уровень C2 — контейнеры)',       def:true},
-    {k:'gw_table',   lbl:'API Gateway — таблица маршрутизации',      def:true},
-    {k:'svc_desc',   lbl:'Описание каждого сервиса',                  def:true},
-    {k:'db_schema',  lbl:'Схема БД (6 кол.) + ERD-связи',            def:true},
-    {k:'db_examples',lbl:'Примеры строк в таблицах БД (2-3 записи)', def:true},
-    {k:'api_table',  lbl:'Таблица API сервиса',                       def:true},
-    {k:'input_params',lbl:'Входные параметры каждого эндпоинта',     def:true},
-    {k:'output_params',lbl:'Выходные параметры (авто из БД + verb)',  def:true},
-    {k:'status_codes',lbl:'Статус-коды ответов',                      def:true},
-    {k:'seq_uml',    lbl:'UML Sequence (PlantUML) — в конце документа', def:true},
-  ];
+    {k:'title',        def:true},
+    {k:'description',  def:true},
+    {k:'c4',           def:true},
+    {k:'gw_table',     def:true},
+    {k:'svc_desc',     def:true},
+    {k:'db_schema',    def:true},
+    {k:'db_examples',  def:true},
+    {k:'api_table',    def:true},
+    {k:'input_params', def:true},
+    {k:'output_params',def:true},
+    {k:'status_codes', def:true},
+    {k:'seq_uml',      def:true},
+  ].map(function(c){ c.lbl = (typeof t==='function' ? t('word_s_'+c.k) : null) || c.k; return c; });
 
-  const row=c=>`<label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:12px;color:#c0caf5">
-    <input type="checkbox" id="exc_${c.k}" ${c.def?'checked':''} style="width:14px;height:14px;accent-color:#7aa2f7">
+  const row=c=>`<label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:12px;color:#1a1410">
+    <input type="checkbox" id="exc_${c.k}" ${c.def?'checked':''} style="width:14px;height:14px;accent-color:#2a6010">
     ${c.lbl}
   </label>`;
 
   ov.innerHTML=`<div class="modal-box" style="max-width:520px;width:96%">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-      <h2 style="color:#7aa2f7">📄 Собрать документ Word (MS-формат)</h2>
+      <h2 style="color:#1a1410">${(typeof t==='function'?t('word_modal_title'):null)||'📄 Word'}</h2>
       <button class="modal-btn" onclick="document.getElementById('export-chooser-modal').style.display='none'">✕</button>
     </div>
-    <div style="font-size:10.5px;color:#787c99;margin-bottom:10px">Выбери разделы для включения в документ</div>
+    <div style="font-size:10.5px;color:#6a6050;margin-bottom:10px">${(typeof t==='function'?t('word_modal_subtitle'):null)||'Select sections'}</div>
     <div style="columns:2;gap:16px;margin-bottom:14px">${checks.map(row).join('')}</div>
     <div style="display:flex;gap:8px;align-items:center">
       <button class="modal-btn primary" onclick="
@@ -174,9 +174,9 @@ function openExportChooser(){
         document.querySelectorAll('#export-chooser-modal input[type=checkbox]').forEach(cb=>{cfg[cb.id.replace('exc_','')]=cb.checked});
         document.getElementById('export-chooser-modal').style.display='none';
         downloadWord(cfg);
-      ">📥 Генерировать Word</button>
-      <button class="modal-btn" onclick="document.getElementById('export-chooser-modal').style.display='none'">Отмена</button>
-      <span style="font-size:10px;color:#787c99;margin-left:auto">Пустые секции пропускаются автоматически</span>
+      ">${(typeof t==='function'?t('word_modal_generate'):null)||'📥 Generate Word'}</button>
+      <button class="modal-btn" onclick="document.getElementById('export-chooser-modal').style.display='none'">${(typeof t==='function'?t('word_modal_cancel'):null)||'Cancel'}</button>
+      <span style="font-size:10px;color:#6a6050;margin-left:auto">${(typeof t==='function'?t('word_modal_empty'):null)||'Empty sections skipped'}</span>
     </div>
   </div>`;
   document.body.appendChild(ov);

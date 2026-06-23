@@ -9,11 +9,14 @@ let _rId=0;
 
 function runSim(){
   stopSim();
-  if(typeof resetBrokerStates==='function')resetBrokerStates(); // чистые топики/оффсеты на старт
-  analyze(); // пересчитать поток
-  const hasInc=new Set(S.conns.map(c=>c.to));
-  const srcs=S.blocks.filter(b=>!hasInc.has(b.id));
-  if(!srcs.length){toast('Нет стартовых узлов (клиента)');return;}
+  if(typeof resetBrokerStates==='function')resetBrokerStates();
+  analyze();
+  const activeScs=(S.scenarios||[]).filter(function(sc){
+    return sc.visible!==false&&sc.path&&sc.path.length>1;
+  });
+  if(!activeScs.length&&!S.blocks.some(function(b){return !new Set(S.conns.map(function(c){return c.to;})).has(b.id)&&S.conns.some(function(c){return c.from===b.id;});})){
+    toast('Нет сценариев или связей для симуляции');return;
+  }
   SIM.running=true;SIM.paused=false;SIM.time=0;SIM.lastT=0;SIM.spawn={};SIM.dots={};SIM.reqs={};
   $('anim-layer').innerHTML='';
   $('run-btn').style.display='none';$('pause-btn').style.display='';$('stop-btn').style.display='';
@@ -30,13 +33,32 @@ function simLoop(now){
   if(!SIM.running)return;
   if(!SIM.paused){
     const dt=SIM.lastT?Math.min(now-SIM.lastT,80):16;SIM.time+=dt;SIM.lastT=now;
-    const hasInc=new Set(S.conns.map(c=>c.to));
-    const visibleRate=Math.min(14,Math.max(1,effLoad())); // не больше 14 спавнов/сек на источник
-    S.blocks.filter(b=>!hasInc.has(b.id)).forEach(cl=>{
-      const interval=1000/visibleRate;
-      if(!SIM.spawn[cl.id])SIM.spawn[cl.id]=SIM.time;
-      while(SIM.spawn[cl.id]<=SIM.time&&Object.keys(SIM.reqs).length<140){spawnReq(cl.id);SIM.spawn[cl.id]+=interval;}
-    });
+    // Спавн по сценариям — каждый сценарий с шагами порождает шарики своего цвета
+    const load=effLoad();
+    const hasScs=(S.scenarios||[]).some(function(sc){return sc.visible!==false&&sc.path&&sc.path.length>1;});
+    if(hasScs){
+      (S.scenarios||[]).forEach(function(sc){
+        if(sc.visible===false||!sc.path||sc.path.length<2)return;
+        const rate=Math.min(12,Math.max(0.5,(sc.volume||100)/100*load));
+        const interval=1000/rate;
+        if(!SIM.spawn[sc.id])SIM.spawn[sc.id]=SIM.time;
+        while(SIM.spawn[sc.id]<=SIM.time&&Object.keys(SIM.reqs).length<140){
+          spawnScenario(sc);
+          SIM.spawn[sc.id]+=interval;
+        }
+      });
+    }else{
+      // фолбэк: нет сценариев — спавним от source-блоков как раньше
+      const hasInc=new Set(S.conns.map(c=>c.to));
+      const sources=S.blocks.filter(b=>!hasInc.has(b.id)&&S.conns.some(c=>c.from===b.id));
+      const rate=Math.min(12,Math.max(0.5,load/Math.max(1,sources.length)));
+      const interval=1000/rate;
+      if(!SIM.spawn['__src'])SIM.spawn['__src']=SIM.time;
+      while(SIM.spawn['__src']<=SIM.time&&Object.keys(SIM.reqs).length<140){
+        sources.forEach(s=>spawnReq(s.id));
+        SIM.spawn['__src']+=interval;
+      }
+    }
     Object.values(SIM.reqs).forEach(req=>{
       if(req.status!=='flying'||!req.pts)return;
       const dot=SIM.dots[req.id];if(!dot)return;
@@ -53,6 +75,9 @@ function simLoop(now){
       }
       dot.style.opacity='1';
     });
+    // Тик консьюмеров: каждые 30 кадров (~500мс при 60fps)
+    SIM._btick=(SIM._btick||0)+1;
+    if(SIM._btick%30===0&&typeof tickBrokerConsumers==='function')tickBrokerConsumers();
   }
   SIM.rafId=requestAnimationFrame(simLoop);updateStatus();
 }
@@ -62,7 +87,7 @@ function nextHop(nodeId,visited){
   const outs=S.conns.filter(c=>c.from===nodeId&&!visited.has(c.to));
   if(!outs.length)return null;
   // Синхронные (не-брокерные) ветки приоритетнее для наглядности пути
-  const sync=outs.filter(c=>{const t=gb(c.to);return t&&!['broker','queue'].includes(EL[t.type]?.cat);});
+  const sync=outs.filter(c=>{const t=gb(c.to);return t&&!['broker','queue'].includes(BASE[t.type]?.cat);});
   const pool=sync.length?sync:outs;
   return pool[Math.floor(Math.random()*pool.length)];
 }
@@ -71,10 +96,46 @@ function buildPath(start){
   while(guard++<20){const h=nextHop(cur,visited);if(!h)break;path.push(h.to);visited.add(h.to);cur=h.to;}
   return path;
 }
+// Спавн шарика строго по пути сценария (цвет = цвет сценария, путь = scenario.path)
+function spawnScenario(sc){
+  if(!sc||!sc.path||sc.path.length<2)return;
+  const path=sc.path.slice();
+  const color=sc.color||'#7aa2f7';
+  const id='r'+(_rId++);
+  const conn=S.conns.find(c=>c.from===path[0]&&c.to===path[1]);if(!conn)return;
+  const pts=edgePts(conn);if(!pts)return;
+  const req={id,path,idx:1,connId:conn.id,pts,t:0,speed:0,status:'flying',
+             color,accLat:0,dead:false,trace:false,hopTrace:[],scenarioId:sc.id};
+  setSpeed(req,path[1]);
+  decideFate(req,path[1]);
+  recordHop(req,path[0],path[1],conn);
+  SIM.reqs[id]=req;
+  const dot=document.createElementNS(NS,'circle');
+  dot.setAttribute('r','6.5');dot.setAttribute('cx','-200');dot.setAttribute('cy','-200');
+  dot.style.fill=color;dot.style.filter=`drop-shadow(0 0 5px ${color})`;dot.style.opacity='0';dot.style.cursor='pointer';
+  dot.addEventListener('click',e=>{e.stopPropagation();showDotInfo(id);});
+  dot.addEventListener('mousemove',e=>{showHoverTip(id,e.clientX,e.clientY);});
+  dot.addEventListener('mouseleave',()=>{hideHoverTip();});
+  $('anim-layer').appendChild(dot);SIM.dots[id]=dot;
+}
+
+// Выбрать сценарий для блока-источника (взвешенно по volume)
+function pickScenario(startId){
+  var m=(S.scenarios||[]).filter(function(sc){
+    return sc.visible!==false&&sc.path&&sc.path.length>1&&sc.path[0]===startId;
+  });
+  if(!m.length)return null;
+  var t=m.reduce(function(s,sc){return s+(sc.volume||1);},0),r=Math.random()*t,a=0;
+  for(var i=0;i<m.length;i++){a+=(m[i].volume||1);if(r<=a)return m[i];}
+  return m[m.length-1];
+}
 
 function spawnReq(start,opts){
   opts=opts||{};
-  const path=buildPath(start);if(path.length<2)return;
+  // Используем путь из сценария — так шарики идут через Kafka когда нужно
+  const _sc=pickScenario(start);
+  const path=_sc?_sc.path.slice():buildPath(start);
+  if(path.length<2)return;
   const id='r'+(_rId++);
   const conn=S.conns.find(c=>c.from===path[0]&&c.to===path[1]);if(!conn)return;
   const pts=edgePts(conn);if(!pts)return;
@@ -108,7 +169,7 @@ function onArrive(req){
     if(req.isResponse){
       const d=SIM.dots[req.id];if(d)setTimeout(()=>{d.remove();delete SIM.dots[req.id];delete SIM.reqs[req.id];},200);return;
     }
-    const lastId=req.path[req.path.length-1],ld=EL[gb(lastId)?.type];
+    const lastId=req.path[req.path.length-1],ld=BASE[gb(lastId)?.type];
     if(!['db','cache','queue','broker','external','net'].includes(ld?.cat)){showDeadEnd(lastId);}
     else{
       flash(lastId,req.color);
@@ -131,16 +192,28 @@ function onArrive(req){
   }
   const conn=S.conns.find(c=>c.from===from&&c.to===to);if(!conn){delete SIM.reqs[req.id];SIM.dots[req.id]?.remove();delete SIM.dots[req.id];return;}
   const pts=edgePts(conn);if(!pts){delete SIM.reqs[req.id];return;}
-  // БРОКЕРНАЯ МОДЕЛЬ: шарик прибыл в брокер и уходит к консьюмеру →
-  // produce (offset++ в партиции) + consume; судьба у консьюмера решит commit/nack(DLQ)
-  let _bAck=null;
+
+  // ── PRODUCE: два случая ──────────────────────────────────────
   const fromB=gb(from);
-  if(fromB&&['broker','queue'].includes(EL[fromB.type]?.cat)&&typeof brokerProduce==='function'){
-    brokerProduce(from,{value:{req:req.id},key:req.id});
-    _bAck=brokerConsume(from,{});
+  const fromCat=BASE[fromB?.type]?.cat;
+  if(typeof brokerProduce==='function'){
+    // [1] broker-in-path: шарик прошёл через брокер — produce
+    if(['broker','queue'].includes(fromCat)){
+      brokerProduce(from,{value:{req:req.id},key:req.id});
+    }
+    // [2] implicit: сервис/gw/auth → боковая связь на брокер (Kafka не в sc.path)
+    if(!req.dead&&(fromCat==='svc'||fromCat==='gw'||fromCat==='auth')){
+      S.conns.filter(c=>c.from===from).forEach(c=>{
+        const bt=gb(c.to);
+        if(bt&&['broker','queue'].includes(BASE[bt.type]?.cat)&&!req.path.includes(c.to)){
+          brokerProduce(c.to,{value:{req:req.id,src:from},key:req.id});
+        }
+      });
+    }
   }
+  // consume — НЕ здесь; tickBrokerConsumers() вызывается из simLoop каждые 30 кадров
+
   req.connId=conn.id;req.pts=pts;setSpeed(req,to);decideFate(req,to);req.status='flying';
-  if(_bAck){ if(req.dead&&req.deadAt===to)_bAck.nack();else _bAck.commit(); }
   if(req.trace)logHopFor(req,from,to,conn);
   recordHop(req,from,to,conn);
 }
@@ -208,8 +281,8 @@ function hopTech(from,to,conn,isResp){
     if(isResp){const r=connResp(conn)||conn.respLabel;if(r)return r;}
     else{const a=conn.label||connApi(conn)||conn.reqLabel;if(a)return a;}
   }
-  const tc=EL[to.type]?.cat,fc=EL[from.type]?.cat;
-  if(isResp)return EL[to.type]?.cat==='actor'?'результат пользователю (200 OK)':'возврат: 200 OK (данные)';
+  const tc=BASE[to.type]?.cat,fc=BASE[from.type]?.cat;
+  if(isResp)return BASE[to.type]?.cat==='actor'?'результат пользователю (200 OK)':'возврат: 200 OK (данные)';
   if(tc==='db')return 'SQL: SELECT / INSERT';
   if(tc==='cache')return 'GET key (Redis)';
   if(tc==='broker')return 'produce(topic, event)';
@@ -223,7 +296,7 @@ function hopTech(from,to,conn,isResp){
 }
 function logHopFor(req,fromId,toId,conn){
   const from=gb(fromId),to=gb(toId);if(!from||!to)return;
-  const fc=EL[from.type]?.cat,tc=EL[to.type]?.cat;
+  const fc=BASE[from.type]?.cat,tc=BASE[to.type]?.cat;
   const status=(req.dead&&req.deadAt===toId)?'fail':(to.rt?.health==='error'?'fail':to.rt?.health==='warn'?'slow':'ok');
   pushLog({run:req.run,reqId:req.id,resp:!!req.isResponse,
     from:from.customLabel||EL[from.type]?.lbl, to:to.customLabel||EL[to.type]?.lbl,
@@ -242,7 +315,7 @@ function walkCalls(startId,maxDepth){
     for(const c of outs){
       usedConn.add(c.id);
       const to=gb(c.to);if(!to)continue;
-      const tcat=EL[to.type]?.cat;
+      const tcat=BASE[to.type]?.cat;
       const async=(tcat==='broker'||tcat==='queue');
       events.push({kind:async?'async':'call',from:id,to:c.to,conn:c,depth});
       if(async){
@@ -266,10 +339,10 @@ function logFromEvents(events,runId){
   events.forEach(ev=>{
     if(ev.kind==='asyncphase')return; // маркер фазы — в логе не нужен
     const from=gb(ev.from),to=gb(ev.to);if(!from||!to)return;
-    const fc=EL[from.type]?.cat,tc=EL[to.type]?.cat;
+    const fc=BASE[from.type]?.cat,tc=BASE[to.type]?.cat;
     let biz,tech,status,arrow;
     if(ev.kind==='return'){
-      const toActor=EL[to.type]?.cat==='actor';
+      const toActor=BASE[to.type]?.cat==='actor';
       biz=toActor?'Пользователь видит результат':'Возвращает результат вызвавшему';
       tech=connResp(ev.conn)||ev.conn.respLabel||'200 OK (данные)';
       status=from.rt?.health==='error'?'fail':from.rt?.health==='warn'?'slow':'ok';arrow='◀';
@@ -312,51 +385,83 @@ function logFromScenario(text,runId){
   });
   return out;
 }
-function traceRequest(startId){
+// Строит лог трассировки из структурированного сценария S.scenarios[i]
+function logFromScenarioObj(sc, runId){
+  if(!sc||!sc.path||!sc.steps)return null;
+  var out=[];
+  for(var i=0;i<sc.path.length-1;i++){
+    var fromId=sc.path[i],toId=sc.path[i+1];
+    var from=gb(fromId),to=gb(toId);
+    if(!from||!to)continue;
+    var step=sc.steps[i]||{};
+    var isReturn=(!step.name&&!step.verb&&!step.uri&&!!step.resp);
+    var biz=step.name||(step.resp?'← '+step.resp:'—');
+    var tech=step.verb&&step.uri?step.verb+' '+step.uri:step.verb||step.uri||(step.resp||'—');
+    var health=(gb(toId)?.rt?.health)||'ok';
+    out.push({
+      run:runId, kind:isReturn?'return':'call', arrow:isReturn?'◀':'→',
+      from:from.customLabel||EL[from.type]?.lbl||fromId,
+      to:to.customLabel||EL[to.type]?.lbl||toId,
+      depth:0, biz:biz, tech:tech,
+      status:health==='error'?'fail':health==='warn'?'slow':'ok'
+    });
+  }
+  return out.length?out:null;
+}
+
+function traceRequest(scId){
   analyze();
-  let src=startId?gb(startId):null;
-  if(!src){const hasInc=new Set(S.conns.map(c=>c.to));src=S.blocks.find(b=>!hasInc.has(b.id)&&S.conns.some(c=>c.from===b.id))||S.blocks.find(b=>!hasInc.has(b.id));}
-  if(!src){toast('Построй цепочку от актора/клиента');return;}
-  // приоритет — авторский сценарий актора; иначе авто-обход графа
-  let entries=(src.scenario&&src.scenario.trim())?logFromScenario(src.scenario,0):null;
-  let fromScenario=!!entries;
-  if(!entries){const ev=walkCalls(src.id);if(!ev.length){toast('У источника нет связей и сценария');return;}entries=logFromEvents(ev,0);}
-  const runId=++TRACE_RUN;entries.forEach(e=>e.run=runId);
-  const calls=entries.filter(e=>!e.frag&&e.kind!=='return').length;
-  LOG.push({hdr:true,run:runId,text:'▶ Сценарий: '+(src.customLabel||EL[src.type]?.lbl)+' · '+calls+' шагов'+(fromScenario?' (твой скрипт)':' (авто из схемы)')});
+  // Ищем сценарий по id (новый режим) или по блоку-источнику (fallback)
+  var sc=(S.scenarios||[]).find(function(s){return s.id===scId;});
+  var entries=sc?logFromScenarioObj(sc,0):null;
+  var fromScenario=!!entries;
+  if(!entries){
+    // fallback: авто-обход от первого источника
+    var hasInc=new Set(S.conns.map(function(c){return c.to;}));
+    var src=S.blocks.find(function(b){return !hasInc.has(b.id)&&S.conns.some(function(c){return c.from===b.id;});});
+    if(!src){toast('Нет сценариев и источников на схеме');return;}
+    var ev=walkCalls(src.id);
+    if(!ev.length){toast('У источника нет связей');return;}
+    entries=logFromEvents(ev,0);
+  }
+  const runId=++TRACE_RUN;entries.forEach(function(e){e.run=runId;});
+  const calls=entries.filter(function(e){return !e.frag&&e.kind!=='return';}).length;
+  const label=sc?sc.name:'авто из схемы';
+  LOG.push({hdr:true,run:runId,text:'▶ '+label+' · '+calls+' шагов'+(fromScenario?'':' (авто из схемы)')});
   if(TRACE_TIMER)clearInterval(TRACE_TIMER);
   switchTab('logs');renderLogs();
   let i=0;
   TRACE_TIMER=setInterval(()=>{
-    if(i>=entries.length){clearInterval(TRACE_TIMER);TRACE_TIMER=null;LOG.push({hdr2:true,run:runId,text:'✓ Сценарий завершён'});renderLogs();return;}
+    if(i>=entries.length){clearInterval(TRACE_TIMER);TRACE_TIMER=null;LOG.push({hdr2:true,run:runId,text:typeof t==='function'?t('log_done'):'✓ Done'});renderLogs();return;}
     pushLog(entries[i++]);
   },230);
 }
 function renderLogs(){
   const c=$('side-logs');if(!c)return;
-  const hasInc=new Set(S.conns.map(x=>x.to));
-  const srcs=S.blocks.filter(b=>!hasInc.has(b.id)&&S.conns.some(x=>x.from===b.id));
-  const opts=srcs.map(s=>`<option value="${s.id}">${s.customLabel||EL[s.type]?.lbl}</option>`).join('')||'<option value="">нет источников</option>';
+  // Сценарии вместо блоков-источников — трассировка идёт по scenario.steps
+  const scOpts=(S.scenarios||[]).filter(function(sc){return sc.visible!==false&&sc.path&&sc.path.length>1;})
+    .map(function(sc){return `<option value="${sc.id}">${sc.name||sc.id}</option>`;}).join('')
+    ||(typeof t==='function'?`<option value="">${t('log_no_scenarios')}</option>`:'<option value=""></option>');
   let h=`<div style="margin-bottom:8px">
-    <select id="trace-src" style="width:100%;background:var(--bg3);color:var(--txt);border:1px solid var(--brd2);border-radius:6px;padding:5px 7px;font-size:11px;margin-bottom:6px">${opts}</select>
+    <select id="trace-src" style="width:100%;background:var(--bg3);color:var(--txt);border:1px solid var(--brd2);border-radius:6px;padding:5px 7px;font-size:11px;margin-bottom:6px">${scOpts}</select>
     <div style="display:flex;gap:6px">
-      <button onclick="traceRequest(document.getElementById('trace-src').value)" style="flex:1;padding:8px;border:1px solid #e0af68;border-radius:6px;background:#e0af6822;color:#e0af68;cursor:pointer;font-size:11.5px;font-weight:600">▶ Трассировать сценарий</button>
-      <button onclick="clearLog()" style="padding:8px 10px;border:1px solid #4a4c6a;border-radius:6px;background:transparent;color:#787c99;cursor:pointer;font-size:11.5px">Очистить</button>
+      <button onclick="traceRequest(document.getElementById('trace-src').value)" style="flex:1;padding:8px;border:1px solid #e0af68;border-radius:6px;background:#e0af6822;color:#e0af68;cursor:pointer;font-size:11.5px;font-weight:600">${typeof t==='function'?t('log_trace_btn'):'▶ Trace'}</button>
+      <button onclick="clearLog()" style="padding:8px 10px;border:1px solid #4a4c6a;border-radius:6px;background:transparent;color:#787c99;cursor:pointer;font-size:11.5px">${typeof t==='function'?t('log_clear_btn'):'Clear'}</button>
     </div>
   </div>`;
-  if(!LOG.length){h+='<div style="color:#787c99;font-size:11px;line-height:1.7">Выбери <b>кто инициирует</b> (Ученик, Ментор…) и нажми «<b style="color:#e0af68">Трассировать сценарий</b>».<br><br>📜 <b>Двойной клик по человечку</b> → опиши ЕГО сценарий (что он делает). Лог и UML возьмут именно его — у Ученика свой путь, у Ментора свой.<br><br>Формат шага:<br><code style="color:#7aa2f7">App -> Gateway: POST /api/v1/enroll // ученик жмёт «записаться»</code><br>слева от <code>//</code> — технический вызов, справа — 🧩 бизнес-смысл.<br><br>Без сценария трассировка идёт авто-обходом схемы.</div>';c.innerHTML=h;return;}
+  if(!LOG.length){h+=`<div style="color:var(--txt2);font-size:11px;line-height:1.7">${typeof t==='function'?t('log_empty_hint'):''}</div>`;c.innerHTML=h;return;}
   LOG.forEach(e=>{
-    if(e.hdr){h+=`<div style="margin:10px 0 4px;font-size:11px;font-weight:700;color:#e0af68;border-bottom:1px solid #3d3f52;padding-bottom:3px">${e.text}</div>`;return;}
-    if(e.hdr2){h+=`<div style="font-size:10.5px;color:#9ece6a;font-weight:600;margin:3px 0 8px;padding-left:2px">${e.text}</div>`;return;}
-    if(e.frag){h+=`<div style="margin-left:${(e.depth||0)*11}px;font-size:10px;color:#bb9af7;font-weight:600;margin-top:3px;margin-bottom:2px">⎇ ${e.text}</div>`;return;}
+    if(e.hdr){h+=`<div style="margin:10px 0 4px;font-size:11px;font-weight:700;color:var(--yellow);border-bottom:1px solid var(--brd);padding-bottom:3px">${e.text}</div>`;return;}
+    if(e.hdr2){h+=`<div style="font-size:10.5px;color:var(--green);font-weight:600;margin:3px 0 8px;padding-left:2px">${e.text}</div>`;return;}
+    if(e.frag){h+=`<div style="margin-left:${(e.depth||0)*11}px;font-size:10px;color:var(--purple);font-weight:600;margin-top:3px;margin-bottom:2px">⎇ ${e.text}</div>`;return;}
     const clr=e.status==='fail'?'#f7768e':e.status==='slow'?'#e0af68':'#9ece6a';
     const st=e.status==='fail'?'ошибка':e.status==='slow'?'медленно':'ok';
     const ind=(e.depth||0)*11;
     const dashed=e.kind==='return'?'border-left-style:dashed;':'';
     h+=`<div style="margin-left:${ind}px;background:var(--bg1);border-left:2px solid ${clr};${dashed}border-radius:5px;padding:5px 7px;margin-bottom:4px;font-size:10.5px;line-height:1.45">
-      <div style="color:#c0caf5;font-weight:600">${e.arrow} ${e.from} → ${e.to} <span style="float:right;color:${clr};font-size:9px">${st}</span></div>
-      <div style="color:#9aa5ce">🧩 ${e.biz}</div>
-      <div style="color:#7aa2f7">⚙ ${e.tech}</div>
+      <div style="color:var(--txt);font-weight:600">${e.arrow} ${e.from} → ${e.to} <span style="float:right;color:${clr};font-size:9px">${st}</span></div>
+      <div style="color:var(--txt2)">🧩 ${e.biz}</div>
+      <div style="color:var(--blue)">⚙ ${e.tech}</div>
     </div>`;
   });
   c.innerHTML=h;c.scrollTop=c.scrollHeight;
@@ -387,13 +492,13 @@ function showDotInfo(id){
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="font-size:14px;font-weight:600">${req.isResponse?'▶ Ответ':'🔵 Запрос'} #${id.slice(1)}</div><button onclick="resumeSim()" style="background:transparent;border:none;color:#787c99;cursor:pointer;font-size:16px">✕</button></div>
     <div style="font-size:11.5px;margin-bottom:12px;line-height:2">${pathHtml}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;font-size:11px;margin-bottom:10px">
-      <div><div style="color:#787c99;margin-bottom:3px">СЕЙЧАС НА</div><b style="color:#c0caf5">${cur?.customLabel||EL[cur?.type]?.lbl||'?'}</b></div>
-      <div><div style="color:#787c99;margin-bottom:3px">ДАЛЬШЕ</div><b style="color:#c0caf5">${next?(next.customLabel||EL[next.type].lbl):'конец'}</b></div>
-      <div><div style="color:#787c99;margin-bottom:3px">НАКОПЛЕНО</div><b style="color:#c0caf5">${req.accLat.toFixed(1)} мс</b></div>
+      <div><div style="color:var(--txt2);margin-bottom:3px">СЕЙЧАС НА</div><b style="color:var(--txt)">${cur?.customLabel||EL[cur?.type]?.lbl||'?'}</b></div>
+      <div><div style="color:var(--txt2);margin-bottom:3px">ДАЛЬШЕ</div><b style="color:var(--txt)">${next?(next.customLabel||EL[next.type].lbl):'конец'}</b></div>
+      <div><div style="color:var(--txt2);margin-bottom:3px">НАКОПЛЕНО</div><b style="color:var(--txt)">${req.accLat.toFixed(1)} мс</b></div>
     </div>
     <div style="padding:9px;border-radius:7px;background:${vClr}1a;border-left:2px solid ${vClr};font-size:11.5px;color:${vClr};margin-bottom:12px">${verdict}</div>
     <div style="margin-bottom:8px">
-      <div style="font-size:11.5px;font-weight:700;color:#bb9af7;margin-bottom:8px;display:flex;align-items:center;gap:7px">
+      <div style="font-size:11.5px;font-weight:700;color:var(--txt);margin-bottom:8px;display:flex;align-items:center;gap:7px">
         <span>📋 Трейс запроса</span>
         <span style="font-size:9.5px;color:#4a4c6a;font-weight:400">нажми ▶ Продолжить — трейс обновится в реальном времени</span>
       </div>
@@ -424,19 +529,19 @@ const EVT_POOL=[
    revert:e=>{const b=gb(e.targetId);if(b)delete b.chaosLat;}},
   {id:'cacheflush',title:'🧊 Сброс кэша',desc:'Redis перезапущен — кэш пуст, вся нагрузка ринулась в БД (thundering herd).',
    fix:'Кэш защищал БД. Переживи окно: добавь ёмкость БД (PgBouncer, реплики) пока кэш греется.',dur:12,
-   can:()=>S.blocks.some(b=>EL[b.type].cat==='cache'),
-   apply:e=>{const b=S.blocks.find(x=>EL[x.type].cat==='cache');if(b){b.down=true;e.targetId=b.id;}},
+   can:()=>S.blocks.some(b=>BASE[b.type]?.cat==='cache'),
+   apply:e=>{const b=S.blocks.find(x=>BASE[x.type]?.cat==='cache');if(b){b.down=true;e.targetId=b.id;}},
    revert:e=>{const b=gb(e.targetId);if(b)b.down=false;}},
 ];
 function pickChaosNode(cats){
-  const cand=S.blocks.filter(b=>cats.includes(EL[b.type]?.cat)&&!b.down&&!b.chaosLat);
+  const cand=S.blocks.filter(b=>cats.includes(BASE[b.type]?.cat)&&!b.down&&!b.chaosLat);
   return cand.length?cand[Math.floor(Math.random()*cand.length)]:null;
 }
 function toggleChaos(){CHAOS.active?stopChaos(true):startChaos();}
 function startChaos(){
   const hasInc=new Set(S.conns.map(c=>c.to));
   if(!S.blocks.length||!S.blocks.some(b=>!hasInc.has(b.id))){toast('Сначала построй систему с клиентом');return;}
-  if(!S.blocks.some(b=>['db','cache','queue','broker'].includes(EL[b.type]?.cat))){toast('Добавь хранилище — цепочке некуда вести');return;}
+  if(!S.blocks.some(b=>['db','cache','queue','broker'].includes(BASE[b.type]?.cat))){toast('Добавь хранилище — цепочке некуда вести');return;}
   closeTrainer&&closeTrainer();
   CHAOS.active=true;CHAOS.budget=100;CHAOS.survived=0;CHAOS.loadMul=1;CHAOS.startMul=1;CHAOS.events=[];
   S.blocks.forEach(b=>{b.down=false;delete b.chaosLat;});

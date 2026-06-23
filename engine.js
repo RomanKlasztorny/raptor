@@ -519,3 +519,57 @@ function getBrokerInspectorData(brokerId){
 function resetBrokerStates(){
   Object.keys(BROKER_STATE).forEach(k=>delete BROKER_STATE[k]);
 }
+
+// ── Периодическое потребление сообщений (вызывается из simLoop каждые N кадров) ──
+// Полностью отвязано от физики шариков: консьюмеры опрашивают брокер асинхронно.
+function tickBrokerConsumers(){
+  if(typeof S==='undefined') return;
+  const conns = S.conns||[];
+  Object.keys(BROKER_STATE).forEach(function(bId){
+    const b = (typeof gb==='function')?gb(bId):null; if(!b) return;
+    const state = BROKER_STATE[bId]; if(!state) return;
+    const delivery = (b.settings||{}).delivery || 'at-least-once';
+
+    if(b.type==='kafka'){
+      const topicName = (b.settings||{}).topic_name||'events';
+      const parts = state.topics[topicName]; if(!parts) return;
+      // Нет консьюмеров — lag просто растёт, тик ничего не делает
+      const hasCons = conns.some(function(c){return c.from===bId;});
+      if(!hasCons) return;
+      const offs = grpTopicOffsets(state,'default-group',topicName,parts.length);
+      for(var pi=0;pi<parts.length;pi++){
+        var off = offs[pi]||0;
+        var avail = parts[pi].messages.length - off;
+        if(avail<=0) continue;
+        // Обрабатываем до 3 сообщений с партиции за тик (~150 msg/s при 30fps)
+        var batch = Math.min(3, avail);
+        for(var j=0;j<batch;j++){
+          // exactly-once без потерь; at-least-once: 2% DLQ; at-most-once: 1% DLQ
+          var failP = delivery==='exactly-once'?0 : delivery==='at-most-once'?0.01:0.02;
+          if(Math.random()<failP){
+            state.dlq.push({offset:off+j, topic:topicName, partition:pi,
+              failReason:'consumer_error', dlqAt:Date.now()});
+            state.failedCount++;
+          } else {
+            state.totalConsumed++;
+          }
+        }
+        offs[pi] = off+batch;
+      }
+    } else {
+      // RabbitMQ / Queue / NATS JetStream — дрейним очереди
+      Object.values(state.queues||{}).forEach(function(queue){
+        var batch = Math.min(3, queue.length);
+        for(var i=0;i<batch;i++){
+          if(!queue.length) break;
+          var fail = Math.random()<0.015;
+          if(fail){
+            state.dlq.push({...queue[0], failReason:'nack', dlqAt:Date.now()});
+            state.failedCount++;
+          } else { state.totalConsumed++; }
+          queue.shift();
+        }
+      });
+    }
+  });
+}

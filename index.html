@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -28,6 +28,7 @@ body{font-family:'Tahoma','Verdana',system-ui,sans-serif;background:var(--bg0);c
 .menu-btn:hover{background:#c8c0ae;box-shadow:inset 1px 1px 0 #fff,inset -1px -1px 0 #4a4030,inset 2px 2px 0 #ede6d8,inset -2px -2px 0 #7a6e5a}
 .menu-pop{position:fixed;background:#d8d0be;border:2px solid #7a6e5a;box-shadow:3px 3px 0 #4a4030;padding:2px 0;min-width:210px;max-height:78vh;overflow-y:auto;z-index:600;display:none}
 .menu-pop.open{display:block}
+.menu-hover:hover .menu-pop{display:block}
 .menu-sec{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:#6a6050;padding:7px 14px 2px;font-weight:700}
 .menu-item{padding:5px 14px;font-size:12px;color:#1a1410;cursor:pointer;display:flex;justify-content:space-between;gap:14px;align-items:center;white-space:nowrap}
 .menu-item:hover{background:#1e4a90;color:#fff}
@@ -135,43 +136,59 @@ select.ex-select{background:#faf4e8;color:#1a1410;border:1px solid #7a6e5a;paddi
 <!-- РЯД 1 — меню по темам + режимы -->
 <div id="menubar">
   <span class="app-title">RAPTOR</span>
-  <div class="menu"><button class="menu-btn" onclick="toggleMenu(event,'m-file')">Файл</button>
+  <div class="menu"><button class="menu-btn" onclick="toggleMenu(event,'m-file')" data-i18n="menu_file">Файл</button>
     <div class="menu-pop" id="m-file">
-      <div class="menu-item" onclick="menuDo(saveCheckpoint)">💾 Сохранить<span class="menu-kbd">Ctrl+S</span></div>
-      <div class="menu-item" onclick="menuDo(function(){switchTab('saves')})">📂 Сейвы</div>
+      <div class="menu-item" onclick="menuDo(saveCheckpoint)" data-i18n="menu_save">💾 Сохранить<span class="menu-kbd">Ctrl+S</span></div>
+      <div class="menu-item" onclick="menuDo(function(){switchTab('saves')})" data-i18n="menu_saves">📂 Сейвы</div>
       <div class="menu-sep"></div>
-      <div class="menu-item" onclick="menuDo(exportJSON)">⬇ Экспорт JSON</div>
-      <div class="menu-item" onclick="$('fi').click();menuClose()">📥 Импорт JSON</div>
+      <div class="menu-item" onclick="menuDo(exportJSON)" data-i18n="menu_export_json">⬇ Экспорт JSON</div>
+      <div class="menu-item" onclick="$('fi').click();menuClose()" data-i18n="menu_import_json">📥 Импорт JSON</div>
+      <div class="menu-item" onclick="openPasteJSON();menuClose()" data-i18n="menu_paste_json">📋 Вставить JSON текстом</div>
       <div class="menu-sep"></div>
-      <div class="menu-item danger" onclick="menuDo(clearAll)">🗑 Очистить холст</div>
+      <div class="menu-sep"></div>
+      <div class="menu-item" onclick="menuDo(newProject)">🆕 Новый проект</div>
+      <div class="menu-item danger" onclick="menuDo(clearAll)" data-i18n="menu_clear">🗑 Очистить холст</div>
     </div>
   </div>
-  <div class="menu"><button class="menu-btn" onclick="toggleMenu(event,'m-doc')">Документация</button>
+  <div class="menu"><button class="menu-btn" onclick="toggleMenu(event,'m-doc')" data-i18n="menu_docs">Документация</button>
     <div class="menu-pop" id="m-doc">
-      <div class="menu-item" onclick="menuDo(openMetaEditor)">📋 О системе (титул, роли)</div>
+      <div class="menu-item" onclick="menuDo(openMetaEditor)" data-i18n="menu_meta">📋 О системе (титул, роли)</div>
       <div class="menu-sep"></div>
-      <div class="menu-item" onclick="menuDo(showDoc)">📄 Превью (Markdown)</div>
-      <div class="menu-item" onclick="menuDo(openExportChooser)">📥 Экспорт в Word (.docx)</div>
+      <div class="menu-item" onclick="menuDo(showDoc)" data-i18n="menu_preview">📄 Превью (Markdown)</div>
+      <div class="menu-item" onclick="menuDo(openExportChooser)" data-i18n="menu_export_word">📥 Экспорт в Word (.docx)</div>
+      <div class="menu-item" onclick="menuDo(exportDrawio)">📐 Экспорт в draw.io</div>
+      <div class="menu-item" onclick="menuDo(exportSwagger)">📋 Экспорт в Swagger (.yaml)</div>
     </div>
   </div>
-  <div class="menu"><button class="menu-btn" onclick="toggleMenu(event,'m-tmpl')">Шаблоны</button>
+  <div class="menu"><button class="menu-btn" onclick="toggleMenu(event,'m-tmpl')" data-i18n="menu_templates">Шаблоны</button>
     <div class="menu-pop" id="m-tmpl"></div>
   </div>
-  <div class="menu"><button class="menu-btn" onclick="$('help-modal').style.display='flex';menuClose()">Справка</button></div>
+  <div class="menu"><button class="menu-btn" onclick="openHelp()" data-i18n="menu_help">Справка</button></div>
+  <div class="menu menu-hover">
+    <button class="menu-btn">⚙ <span data-i18n="menu_settings">Настройки</span></button>
+    <div class="menu-pop" id="m-settings">
+      <div class="menu-sec">Язык / Language</div>
+      <div class="menu-item" id="lang-ru" onclick="setLang('ru');menuClose()">🇷🇺 Русский</div>
+      <div class="menu-item" id="lang-en" onclick="setLang('en');menuClose()">🇬🇧 English</div>
+    </div>
+  </div>
 
   <span class="ml"></span>
 
+  <button id="ai-btn" class="btn" onclick="toggleAI()" title="RAPTOR AI" style="background:#1e4a90;color:#e0e8f8;font-weight:700;box-shadow:inset 1px 1px 0 #6090d0,inset -1px -1px 0 #08183c,inset 2px 2px 0 #4070b8,inset -2px -2px 0 #122858">🤖 AI</button>
+  <span class="sep"></span>
+
   <!-- режимы работы (взаимоисключающие) -->
   <div style="display:flex;gap:3px;align-items:center;margin-right:8px">
-    <button class="modebtn2 on" data-mode="build" onclick="setMode('build')" title="Обычное редактирование схемы">🔨 Конструктор</button>
-    <button class="modebtn2" data-mode="learn" onclick="setMode('learn')" title="Пошаговые уроки архитектуры">🎓 Обучение</button>
-    <button class="modebtn2" data-mode="devops" onclick="setMode('devops')" title="Удержи систему под хаосом и нагрузкой">🔥 DevOps</button>
+    <button class="modebtn2 on" data-mode="build" onclick="setMode('build')" title="Обычное редактирование схемы" data-i18n="mode_build">🔨 Конструктор</button>
+    <button class="modebtn2" data-mode="learn" onclick="setMode('learn')" title="Пошаговые уроки архитектуры" data-i18n="mode_learn">🎓 Обучение</button>
+    <button class="modebtn2" data-mode="devops" onclick="setMode('devops')" title="Удержи систему под хаосом и нагрузкой" data-i18n="mode_devops">🔥 DevOps</button>
   </div>
   <span class="sep"></span>
-  <span style="font-size:10px;color:var(--txt2)">Нагрузка:</span>
+  <span style="font-size:10px;color:var(--txt2)" data-i18n="load_label">Нагрузка:</span>
   <div style="display:flex;gap:2px;align-items:center">
-    <button class="lbtn modebtn on" data-m="sandbox" onclick="setLoadMode('sandbox')" title="Глобальная нагрузка ×N">Песочница</button>
-    <button class="lbtn modebtn" data-m="realism" onclick="setLoadMode('realism')" title="Нагрузка из объёмов сценариев">Реализм</button>
+    <button class="lbtn modebtn on" data-m="sandbox" onclick="setLoadMode('sandbox')" title="Глобальная нагрузка ×N" data-i18n="mode_sandbox">Песочница</button>
+    <button class="lbtn modebtn" data-m="realism" onclick="setLoadMode('realism')" title="Нагрузка из объёмов сценариев" data-i18n="mode_realism">Реализм</button>
   </div>
 </div>
 
@@ -180,7 +197,7 @@ select.ex-select{background:#faf4e8;color:#1a1410;border:1px solid #7a6e5a;paddi
   <button class="btn" onclick="undo()" title="Отменить (Ctrl+Z)">↶</button>
   <button class="btn" onclick="redo()" title="Повторить">↷</button>
   <span class="sep"></span>
-  <span style="font-size:10.5px;color:var(--txt2)">Нагрузка</span>
+  <span style="font-size:10.5px;color:var(--txt2)" data-i18n="toolbar_load">Нагрузка</span>
   <input id="load-input" type="text" value="1" onkeydown="if(event.key==='Enter')applyLoadInput()" onblur="applyLoadInput()"
     style="width:80px;background:var(--bg3);color:var(--txt);border:1px solid var(--brd2);border-radius:6px;padding:5px 7px;font-size:12px;font-family:inherit;text-align:right">
   <span style="font-size:10.5px;color:var(--txt2)">rps</span>
@@ -189,26 +206,23 @@ select.ex-select{background:#faf4e8;color:#1a1410;border:1px solid #7a6e5a;paddi
   <span style="display:flex;align-items:center;gap:4px;margin-left:4px"><span style="font-size:10.5px;color:var(--txt2)">⏱</span>
     <input type="range" min="0.2" max="3" step="0.1" value="1" title="Скорость анимации" oninput="SPEED_MUL=+this.value" style="width:60px"></span>
   <span class="sep"></span>
-  <button class="btn run" id="run-btn" onclick="runSim()">▶ Запустить</button>
+  <button class="btn run" id="run-btn" onclick="runSim()" data-i18n="btn_run">▶ Запустить</button>
   <button class="btn" id="pause-btn" onclick="pauseSim()" style="display:none">⏸</button>
   <button class="btn run" id="resume-btn" onclick="resumeSim()" style="display:none">▶</button>
   <button class="btn" id="stop-btn" onclick="stopSim()" style="display:none">⏹</button>
   <span class="sep"></span>
-  <button class="btn" onclick="autoLayout()" title="Расставить блоки по слоям">📐 Авто</button>
+  <button class="btn" onclick="autoLayout()" title="Расставить блоки по слоям" data-i18n="btn_auto">📐 Авто</button>
   <button class="btn" id="edge-btn" onclick="toggleEdgeStyle()" title="Стиль связей: 90° / кривые">⌐ 90°</button>
   <span class="sep"></span>
   <span style="font-size:10px;color:var(--txt2)">Вид:</span>
-  <button class="lbtn" id="c4-l1" onclick="toggleC4(1)" title="C1 Context: пользователи и внешние системы, граница системы">C1</button>
   <button class="lbtn" id="c4-l2" onclick="toggleC4(2)" title="C2 Container: все технические блоки (сервисы, БД, брокеры)">C2</button>
-  <button class="lbtn" id="c4-l3" onclick="toggleC4(3)" title="C3 Component: только сервисы и хранилища, без клиентов">C3</button>
-  <button class="lbtn" id="c4-l4" onclick="toggleC4(4)" title="Dynamic: sequence-диаграмма активного сценария">Seq</button>
   <span class="sep"></span>
   <button class="lbtn" id="canvas-theme-btn" onclick="toggleCanvasTheme()" title="Тема холста">📄</button>
   <span class="ml"></span>
   <div class="legend">
-    <span><span class="ldot" style="background:#7aa2f7"></span>ок</span>
-    <span><span class="ldot" style="background:#e0af68"></span>медленно</span>
-    <span><span class="ldot" style="background:#f7768e"></span>упал</span>
+    <span><span class="ldot" style="background:#7aa2f7"></span><span data-i18n="leg_ok">ок</span></span>
+    <span><span class="ldot" style="background:#e0af68"></span><span data-i18n="leg_slow">медленно</span></span>
+    <span><span class="ldot" style="background:#f7768e"></span><span data-i18n="leg_down">упал</span></span>
   </div>
 </div>
 
@@ -231,14 +245,14 @@ select.ex-select{background:#faf4e8;color:#1a1410;border:1px solid #7a6e5a;paddi
       <g id="block-layer"></g>
       <g id="anim-layer"></g>
     </svg>
-    <div id="hint">← Перетащи блок из палитры на холст<br>Наведи на блок → тяни от белого кружка ○ к другому<br>2× клик блок → настройки · клик стрелку → что по ней идёт · 2× клик брокер → инспектор</div>
+    <div id="hint" data-i18n="hint_canvas">← Перетащи блок из палитры на холст<br>Наведи на блок → тяни от белого кружка ○ к другому<br>2× клик блок → настройки · клик стрелку → что по ней идёт · 2× клик брокер → инспектор</div>
   </div>
   <div id="sidebar">
     <div class="side-tabs">
-      <div class="side-tab on" data-tab="analysis" onclick="switchTab('analysis')">Анализ</div>
-      <div class="side-tab" data-tab="routes" onclick="switchTab('routes')">Методы</div>
-      <div class="side-tab" data-tab="logs" onclick="switchTab('logs')">Логи</div>
-      <div class="side-tab" data-tab="saves" onclick="switchTab('saves')">Сейвы</div>
+      <div class="side-tab on" data-tab="analysis" onclick="switchTab('analysis')" data-i18n="tab_analysis">Анализ</div>
+      <div class="side-tab" data-tab="routes" onclick="switchTab('routes')" data-i18n="tab_routes">Методы</div>
+      <div class="side-tab" data-tab="logs" onclick="switchTab('logs')" data-i18n="tab_logs">Логи</div>
+      <div class="side-tab" data-tab="saves" onclick="switchTab('saves')" data-i18n="tab_saves">Сейвы</div>
     </div>
     <div class="side-body" id="side-analysis"></div>
     <div class="side-body" id="side-routes" style="display:none"></div>
@@ -335,24 +349,7 @@ select.ex-select{background:#faf4e8;color:#1a1410;border:1px solid #7a6e5a;paddi
 </div>
 
 <div class="modal-ov" id="help-modal" onclick="if(event.target===this)this.style.display='none'">
-  <div class="modal-box">
-    <h2>🏗 Как пользоваться</h2><div style="height:8px"></div>
-    <div class="help-row"><span class="kbd">Палитра + холст</span><span>Выбери тип слева → кликни на холст. Наведи на тип — подсказка где ставить и где нельзя</span></div>
-    <div class="help-row"><span class="kbd">Клик на блок</span><span>Справа: что это, живая нагрузка %, задержка, где ставить, советы</span></div>
-    <div class="help-row"><span class="kbd">Тянуть от ○</span><span>Навести → белый кружок справа → тянуть к другому блоку. Появится совет правильно/нет</span></div>
-    <div class="help-row"><span class="kbd">2× клик блок</span><span>Настройки: реплики, PgBouncer, партиции. 2× клик на брокере в симуляции → инспектор</span></div>
-    <div class="help-row"><span class="kbd">Клик стрелку</span><span>Что несёт, кто кого зовёт, нагрузка, API. Двунаправленные стрелки = запрос+ответ</span></div>
-    <div class="help-row"><span class="kbd">C1 / C2 / C3 / C4</span><span>C4 уровни: Context → Container → Component → Dynamic (sequence)</span></div>
-    <div class="help-row"><span class="kbd">📐 Авто</span><span>Авторасстановка по слоям: клиенты → gateway → сервисы → брокеры → хранилища</span></div>
-    <div class="help-row"><span class="kbd">🗄 БД / 🔐 Auth</span><span>Шаблоны баз данных (20 штук) и авторизации (3 шаблона) с готовыми схемами и SQL</span></div>
-    <div style="margin-top:12px;padding:11px;background:var(--bg1);border-radius:8px;font-size:11.5px;line-height:1.7;color:var(--txt2)">
-      <b style="color:var(--green)">Двунаправленные стрелки:</b> Клиент↔Gateway, Gateway↔Сервис, Сервис↔БД — стрелки с двух сторон.<br>
-      <b style="color:var(--purple)">Kafka:</b> Сервис может быть одновременно продюсером (→Kafka) и консьюмером (Kafka→) разных топиков.<br>
-      <b style="color:var(--blue)">Бизнес-язык в UML:</b> Над стрелкой — что делает (бизнес). После // — как именно (API).<br>
-      <b style="color:var(--yellow)">Коллизия:</b> При перетаскивании блока на другой — красная рамка и откат назад.
-    </div>
-    <button class="modal-btn primary" onclick="$('help-modal').style.display='none'">Понял</button>
-  </div>
+  <div class="modal-box" id="help-modal-box"></div>
 </div>
 
 <div class="ctx" id="ctx">
@@ -366,13 +363,49 @@ select.ex-select{background:#faf4e8;color:#1a1410;border:1px solid #7a6e5a;paddi
 </div>
 
 <div id="chaos-bar" style="display:none;position:fixed;top:54px;left:50%;transform:translateX(-50%);width:620px;max-width:92%;background:var(--bg2);border:1.5px solid #f7768e66;border-radius:10px;padding:9px 14px;z-index:240;box-shadow:0 6px 24px #0008"></div>
+<!-- AI PANEL -->
+<div id="ai-panel" style="display:none;position:fixed;top:75px;right:0;width:320px;height:calc(100vh - 75px);background:#d8d0be;border-left:2px solid #7a6e5a;box-shadow:-3px 0 12px #0003;z-index:400;flex-direction:column;font-family:inherit;user-select:text">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#ccc4b0;border-bottom:1px solid #7a6e5a;flex-shrink:0">
+    <span style="font-weight:700;color:#162850;font-size:12px">🤖 RAPTOR AI <span style="font-weight:400;font-size:10px;color:#6a6050">Groq / llama-3.3-70b</span></span>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span id="ai-status" style="font-size:10px;color:#2a6010">● готов</span>
+      <button onclick="AI.close()" style="background:transparent;border:none;color:#6a6050;cursor:pointer;font-size:16px;line-height:1">✕</button>
+    </div>
+  </div>
+  <div id="ai-key-form" style="display:none;padding:10px 12px;background:#ede6d8;border-bottom:1px solid #7a6e5a;flex-shrink:0">
+    <div style="font-size:11px;color:#1a1410;margin-bottom:6px">Groq API ключ (gsk_...):<br><span style="color:#6a6050;font-size:10px">Бесплатно: <b>console.groq.com</b></span></div>
+    <input id="ai-key-input" type="password" placeholder="gsk_..." style="width:100%;padding:6px 8px;font-size:11px;font-family:inherit;background:#faf4e8;border:1px solid #7a6e5a;color:#1a1410;margin-bottom:6px">
+    <div style="display:flex;gap:6px">
+      <button onclick="AI.saveKey()" style="flex:1;padding:5px;background:#1e4a90;color:#fff;border:none;font-size:11px;font-family:inherit;cursor:pointer;font-weight:700">Сохранить</button>
+      <button onclick="AI.hideKeyForm()" style="padding:5px 10px;border:none;background:#ccc4b0;color:#6a6050;font-size:11px;font-family:inherit;cursor:pointer">Отмена</button>
+    </div>
+  </div>
+  <div id="ai-msgs" style="flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:7px;min-height:0">
+    <div class="ai-msg ai-msg-assistant"><div><div class="ai-bubble">Привет! Описывай систему — создам схему, добавлю сервисы, связи, сценарии. Или просто задай вопрос по архитектуре.</div><div class="ai-time">сейчас</div></div></div>
+  </div>
+  <div id="ai-typing" style="display:none;padding:6px 12px;flex-shrink:0"><span style="color:#6a6050;font-size:10.5px;font-style:italic;">✦ думает...</span></div>
+  <div id="ai-iarea" style="padding:8px;border-top:1px solid #7a6e5a;flex-shrink:0">
+    <textarea id="ai-input" placeholder="Опишите архитектуру или задайте вопрос..." style="width:100%;height:64px;background:#faf4e8;color:#1a1410;border:1px solid #7a6e5a;padding:7px 9px;font-size:11.5px;font-family:inherit;resize:none;outline:none"></textarea>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px">
+      <span style="font-size:9px;color:#6a6050">Enter — отправить · Shift+Enter — перенос</span>
+      <button id="ai-send" onclick="AI.send()" style="padding:5px 14px;background:#1e4a90;color:#fff;border:none;font-size:11px;font-family:inherit;cursor:pointer;font-weight:700">Отправить</button>
+    </div>
+  </div>
+</div>
+<style>
+.ai-msg{display:flex;flex-direction:column}.ai-msg-user{align-items:flex-end}.ai-msg-assistant{align-items:flex-start}
+.ai-bubble{max-width:270px;padding:7px 10px;font-size:11.5px;line-height:1.5;word-break:break-word;background:#ccc4b0;color:#1a1410;border:1px solid #7a6e5a44;user-select:text;cursor:text}
+.ai-msg-user .ai-bubble{background:#1e4a90;color:#e0e8f8;border-color:#1e4a90}
+.ai-time{font-size:9px;color:#6a6050;margin-top:2px}
+</style>
+
 <div id="toast"></div>
 <input type="file" id="fi" accept=".json" style="display:none">
 
 <!-- ТРЕНАЖЁР -->
 <div id="trainer">
   <div class="tr-head">
-    <span style="font-weight:700;color:#bb9af7;font-size:13px">🎓 Обучение архитектуре</span>
+    <span style="font-weight:700;color:#bb9af7;font-size:13px" data-i18n="trainer_title">🎓 Обучение архитектуре</span>
     <button onclick="setMode('build')" style="background:transparent;border:none;color:#787c99;cursor:pointer;font-size:18px">✕</button>
   </div>
   <div id="tr-body"></div>
@@ -409,7 +442,7 @@ select.ex-select{background:#faf4e8;color:#1a1410;border:1px solid #7a6e5a;paddi
 <div class="modal-ov" id="seq-modal" style="align-items:stretch;justify-content:stretch">
   <div style="background:var(--bg1);width:100%;height:100%;display:flex;flex-direction:column">
     <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--bg2);border-bottom:1px solid var(--brd);flex-wrap:wrap">
-      <span id="seq-title" style="font-weight:700;color:#7dcfff;font-size:13px">🔀 Sequence-диаграмма</span>
+      <span id="seq-title" style="font-weight:700;color:#1a1410;font-size:13px">🔀 Sequence-диаграмма</span>
       <span class="sep"></span>
       <span style="font-size:10.5px;color:var(--txt2)">Сценарий от:</span>
       <select id="seq-start" class="ex-select" onchange="seqFromCanvas(this.value)"></select>
@@ -438,35 +471,41 @@ select.ex-select{background:#faf4e8;color:#1a1410;border:1px solid #7a6e5a;paddi
       <div id="seq-canvas" style="flex:1;overflow:auto;background:#e9edf3;padding:20px"></div>
     </div>
     <div style="background:var(--bg2);border-top:1px solid var(--brd);padding:6px 14px;font-size:10.5px;color:var(--txt2)">
-      💡 <b style="color:#7aa2f7">Клик</b> по тексту — выделяет строку · <b style="color:#9ece6a">2× клик</b> — правка на диаграмме · Бизнес-смысл <b style="color:#c0caf5">над стрелкой</b>, техдеталь <b style="color:#7dcfff">после //</b> · <code>-)</code> = Kafka async · <code>autonumber</code> — нумерация · <code>A -> B++</code>/<code>--</code> — активации · <code>order N</code> — порядок · <code>...пауза...</code>
+      💡 <b style="color:#7aa2f7">Клик</b> по тексту — выделяет строку · <b style="color:#9ece6a">2× клик</b> — правка на диаграмме · Бизнес-смысл <b style="color:#c0caf5">над стрелкой</b>, техдеталь <b style="color:#1a1410">после //</b> · <code>-)</code> = Kafka async · <code>autonumber</code> — нумерация · <code>A -> B++</code>/<code>--</code> — активации · <code>order N</code> — порядок · <code>...пауза...</code>
     </div>
   </div>
 </div>
 
 <!-- библиотека генерации .docx (локально, работает офлайн) -->
 <script src="docx.min.js?v=57"></script>
-<!-- ������ (������� �����: ������/������ ������, bootstrap ���������) -->
+<!-- порядок: engine → catalog → core → render → ... → bootstrap -->
+<script src="locale.js?v=8"></script>
 <script src="engine.js?v=57"></script>
-<script src="catalog.js?v=57"></script>
-<script src="core.js?v=57"></script>
-<script src="render.js?v=57"></script>
-<script src="c4-levels.js?v=57"></script>
+<script src="catalog.js?v=59"></script>
+<script src="core.js?v=59"></script>
+<script src="render.js?v=63"></script>
+<script src="c4-levels.js?v=59"></script>
 <script src="interact.js?v=57"></script>
-<script src="methods.js?v=57"></script>
-<script src="ui.js?v=57"></script>
-<script src="sim-trace.js?v=57"></script>
-<script src="sim.js?v=57"></script>
+<script src="methods.js?v=58"></script>
+<script src="ui.js?v=65"></script>
+<script src="sim-trace.js?v=58"></script>
+<script src="sim.js?v=65"></script>
 <script src="broker-inspector.js?v=57"></script>
-<script src="tasks.js?v=57"></script>
-<script src="seq.js?v=59"></script>
-<script src="routes.js?v=57"></script>
+<script src="tasks.js?v=59"></script>
+<script src="locale-tasks-en.js?v=1"></script>
+<script src="locale-blocks-en.js?v=1"></script>
+<script src="seq.js?v=73"></script>
+<script src="routes.js?v=63"></script>
 <script src="layout.js?v=57"></script>
 <script src="db-templates.js?v=57"></script>
-<script src="db-schema.js?v=57"></script>
+<script src="db-schema.js?v=58"></script>
 <script src="auth-templates.js?v=57"></script>
-<script src="doc-export.js?v=57"></script>
-<script src="bootstrap.js?v=57"></script>
+<script src="doc-export.js?v=59"></script>
+<script src="drawio-export.js?v=1"></script>
+<script src="swagger-export.js?v=2"></script>
+<script src="bootstrap.js?v=67"></script>
 <script src="seq-tests.js?v=57"></script>
+<script src="raptor-ai.js?v=22"></script>
 <script>
 function toggleCanvasTheme(){
   var w=document.getElementById("canvas-wrap");

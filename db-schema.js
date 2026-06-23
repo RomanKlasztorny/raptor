@@ -829,6 +829,7 @@ function _deAddRow(tname){
 }
 function _deDelRow(tname,ri){
   const b=gb(_deId);if(!b)return;
+  if(!b.dbRows||!b.dbRows[tname])return;
   b.dbRows[tname].splice(ri,1);
   _renderDataEditor();
 }

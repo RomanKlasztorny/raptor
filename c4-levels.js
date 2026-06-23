@@ -85,7 +85,7 @@ function renderC4Level(L){
       inner.forEach(b=>{const W=bw(b),H=bh(b);x0=Math.min(x0,b.x);y0=Math.min(y0,b.y);x1=Math.max(x1,b.x+W);y1=Math.max(y1,b.y+H);});
       const pad=32;
       mkEl('rect',{x:x0-pad,y:y0-pad,width:x1-x0+2*pad,height:y1-y0+2*pad,rx:16,fill:'#7aa2f708',stroke:'#7aa2f755','stroke-width':'1.5','stroke-dasharray':'10 5'},L);
-      mkTxt(x0-pad+100,y0-pad-10,(S.meta?.systemName||'Система')+`  [C${level} ${level===1?'Context':'Container'}]`,'font-size:11px;fill:#7aa2f7;font-weight:600',L);
+      mkTxt(x0-pad+100,y0-pad-10,(S.meta?.systemName||'Система')+`  [C${level} ${level===1?'Context':'Container'}]`,'font-size:11px;fill:var(--blue);font-weight:600',L);
     }
   }
 
@@ -107,17 +107,17 @@ function renderC4Level(L){
     if(sel)mkEl('rect',{x:b.x-4,y:b.y-4,width:W+8,height:H+8,rx:11,fill:'none',stroke:'#bb9af7','stroke-width':'1.6','stroke-dasharray':'5 3'},g);
     if(shape==='person'||shape==='role'){
       drawPerson(g,b,W,H,d.clr);
-      mkTxt(b.x+W/2,b.y+H+9,b.customLabel||d.lbl,`font-size:11px;font-weight:700;fill:${d.clr}`,g);
+      mkTxt(b.x+W/2,b.y+H+9,b.customLabel||d.lbl,`font-size:11px;font-weight:700;fill:${darkFor(d.clr)}`,g);
       const sub=level===1?'[Person]':`[${c4Kind(b)}]`;
-      mkTxt(b.x+W/2,b.y+H+20,sub,'font-size:8px;fill:#9aa5ce',g);
+      mkTxt(b.x+W/2,b.y+H+20,sub,'font-size:8px;fill:var(--txt2)',g);
     }else{
       drawBlockShape(g,b,W,H,shape,d.clr,sc,shape==='ext'?'6 4':'none');
       // C4-подпись: имя + [Container: тип]
       const name=b.customLabel||d.lbl;
       const tech=`[Container: ${c4Tech(b)}]`;
       const maxC=Math.max(8,Math.floor((W-12)/4.7));
-      mkTxt(b.x+W/2,b.y+H/2-7,name.length>maxC?name.slice(0,maxC-1)+'…':name,`font-size:10.5px;font-weight:700;fill:${d.clr}`,g);
-      mkTxt(b.x+W/2,b.y+H/2+7,tech,'font-size:7.5px;fill:#9aa5ce',g);
+      mkTxt(b.x+W/2,b.y+H/2-7,name.length>maxC?name.slice(0,maxC-1)+'…':name,`font-size:10.5px;font-weight:700;fill:${darkFor(d.clr)}`,g);
+      mkTxt(b.x+W/2,b.y+H/2+7,tech,'font-size:7.5px;fill:var(--txt2)',g);
       if(sc)mkEl('circle',{cx:b.x+W-8,cy:b.y+8,r:4.5,fill:sc},g);
     }
     // Порт — справа на b.x+bw(b)

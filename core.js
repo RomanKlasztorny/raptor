@@ -21,22 +21,27 @@ let HIST=[],HI=-1,SPEED_MUL=1;
 // ═══════════════════════════════════════════════════════════════
 function defaultMeta(){
   return {
-    systemName:'Платформа менторства',
+    systemName:'Новый проект',
     version:'v1',
     author:'',
-    description:'Система для поиска менторов и прохождения курсов.',
-    userRoles:[
-      {name:'Студент', can:['Просматривать список менторов','Записываться на обучение','Оплачивать курс','Отслеживать прогресс']},
-      {name:'Ментор',  can:['Подтверждать заявки на курс','Создавать и редактировать курсы','Отслеживать прогресс студентов']},
-      {name:'Администратор', can:['Редактировать роли пользователей','Блокировать пользователей']},
-    ],
-    requirements:[
-      {text:'Один ментор может работать в разных направлениях', card:'1:M'},
-      {text:'За одним студентом закреплён один ментор', card:'M:1'},
-    ],
+    description:'',
+    domain:'',
+    problem:'',
+    solution:'',
+    userRoles:[],
+    requirements:[],
   };
 }
 function ensureMeta(){ if(!S.meta) S.meta=defaultMeta(); return S.meta; }
+function newProject(){
+  if(!confirm('Создать новый проект? Текущий холст будет очищен.'))return;
+  S.blocks=[];S.conns=[];S.scenarios=[];S.nid=1000;S.selected=null;S.meta=defaultMeta();
+  localStorage.removeItem('arch4_auto');
+  HIST=[];HI=-1;pushHist();analyze();
+  if(typeof renderRoutesPanel==='function')renderRoutesPanel();
+  toast('🆕 Новый проект');
+  setTimeout(()=>openMetaEditor(),200);
+}
 
 // ═══════════════════════════════════════════════════════════════
 // ХЕЛПЕРЫ МОДЕЛИ БД И МЕТОДОВ (Фаза 0)

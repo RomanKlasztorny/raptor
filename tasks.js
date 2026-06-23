@@ -654,6 +654,7 @@ function trClearCanvas(){S.blocks=[];S.conns=[];S.selected=null;pushHist();analy
 
 function renderTrainer(){
   const list=trList(TR.lv);const task=list[TR.idx];if(!task)return;
+  const taskIdx=TASKS.indexOf(task);
   const p=trProgress();const done=p[TR.lv+'_done']||[];
   if(task.load!==undefined&&task.load!==S.load)setLoad(task.load);
   const lvName={junior:'🟢 Junior',middle:'🔵 Middle',senior:'🟣 Senior',staff:'🔴 Staff/CTO'}[TR.lv];
@@ -666,19 +667,19 @@ function renderTrainer(){
       <div class="tr-lvtab ${TR.lv==='staff'?'on':''}" onclick="trSetLevel('staff')">🔴 Staff</div>
     </div>
     <div class="tr-progress"><div class="tr-progress-bar" style="width:${doneCount/list.length*100}%"></div></div>
-    <div class="tr-meta">${lvName} · Задача ${TR.idx+1}/${list.length} · решено ${doneCount} ${done.includes(TR.idx)?'· ✅ эта решена':''}</div>
-    <div class="tr-title">${task.t}</div>
-    <div class="tr-goal">🎯 ${task.goal}</div>
-    <details class="tr-theory" open><summary>📖 Теория</summary><div>${task.theory}</div></details>
-    <div class="tr-tip">💡 ${task.tip}</div>
+    <div class="tr-meta">${lvName} · ${t('tr_task')} ${TR.idx+1}/${list.length} · ${t('tr_solved')} ${doneCount} ${done.includes(TR.idx)?t('tr_done_this'):''}</div>
+    <div class="tr-title">${tTask({ru:task.t,en:(typeof TASKS_EN!=='undefined'&&TASKS_EN[taskIdx]?.t)||task.t})}</div>
+    <div class="tr-goal">🎯 ${tTask({ru:task.goal,en:(typeof TASKS_EN!=='undefined'&&TASKS_EN[taskIdx]?.goal)||task.goal})}</div>
+    <details class="tr-theory" open><summary>📖 ${t('tr_theory')}</summary><div>${tTask({ru:task.theory,en:(typeof TASKS_EN!=='undefined'&&TASKS_EN[taskIdx]?.theory)||task.theory})}</div></details>
+    <div class="tr-tip">💡 ${tTask({ru:task.tip,en:(typeof TASKS_EN!=='undefined'&&TASKS_EN[taskIdx]?.tip)||task.tip})}</div>
     <div id="tr-result"></div>
     <div class="tr-actions">
-      <button class="tr-btn check" onclick="trCheck()">✓ Проверить</button>
-      <button class="tr-btn" onclick="trClearCanvas()">Очистить холст</button>
+      <button class="tr-btn check" onclick="trCheck()">${t('tr_check')}</button>
+      <button class="tr-btn" onclick="trClearCanvas()">${t('tr_clear_canvas')}</button>
     </div>
     <div class="tr-nav">
-      <button class="tr-btn" onclick="trGo(-1)" ${TR.idx===0?'disabled':''}>◀ Назад</button>
-      <button class="tr-btn" onclick="trGo(1)" ${TR.idx===list.length-1?'disabled':''}>Дальше ▶</button>
+      <button class="tr-btn" onclick="trGo(-1)" ${TR.idx===0?'disabled':''}>${t('tr_prev')}</button>
+      <button class="tr-btn" onclick="trGo(1)" ${TR.idx===list.length-1?'disabled':''}>${t('tr_next')}</button>
     </div>`;
 }
 
