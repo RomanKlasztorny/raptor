@@ -148,6 +148,11 @@ function updateSidebar(){
       h+=`<button onclick="openDBEditor('${sel.id}')" style="margin-top:6px;width:100%;padding:7px;border-radius:6px;border:1px solid #4a90d977;background:#4a90d922;color:#4a90d9;cursor:pointer;font-size:11.5px">🗄 Редактировать схему${tblCnt?` (${tblCnt} табл.)`:''}</button>`;
       h+=`<button onclick="openDBSchemaPicker('${sel.id}')" style="margin-top:6px;width:100%;padding:7px;border-radius:6px;border:1px solid #4a4c6a;background:transparent;color:#787c99;cursor:pointer;font-size:11px">📚 Загрузить готовую схему</button>`;
     }
+    // Redis-редактор паттернов
+    if(sel.type==='redis'){
+      const pCnt=(sel.redisSchema?.patterns||[]).length;
+      h+=`<button onclick="openRedisEditor('${sel.id}')" style="margin-top:6px;width:100%;padding:7px;border-radius:6px;border:1px solid #f7768e77;background:#f7768e18;color:#f7768e;cursor:pointer;font-size:11.5px">⚡ Redis-схема${pCnt?` (${pCnt} паттернов)`:''}</button>`;
+    }
     c.innerHTML=h;return;
   }
   // общий список проблем

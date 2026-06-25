@@ -32,7 +32,7 @@ var AI = {};
 
   function detectGen(t){
     if (detectPatch(t)) return false;
-    if (/^(да|давай|ок|го|генерируй|yes|ok|погнали|вперёд|вперед|generate|жги|поехали|конечно|делай)\b/i.test(t)){
+    if (/^(да|давай|ок|го|генерируй|yes|ok|погнали|вперёд|вперед|generate|жги|поехали|конечно|делай)(\s|$)/i.test(t)){
       var last = chatHistory.slice().reverse().find(function(m){ return m.role==='assistant'; });
       if (last && last.content && last.content.length > 80) return true;
     }

@@ -148,6 +148,7 @@ function openExportChooser(){
     {k:'gw_table',     def:true},
     {k:'svc_desc',     def:true},
     {k:'db_schema',    def:true},
+    {k:'db_erd',       def:true},
     {k:'db_examples',  def:true},
     {k:'api_table',    def:true},
     {k:'input_params', def:true},
@@ -278,6 +279,39 @@ function seqUmlToPng(umlText, scale){
   });
 }
 
+function erdSvgToPng(svgStr, scale){
+  return new Promise(resolve=>{
+    try{
+      const wm=svgStr.match(/width="(\d+(?:\.\d+)?)"/);
+      const hm=svgStr.match(/height="(\d+(?:\.\d+)?)"/);
+      const sw=wm?parseFloat(wm[1]):700;
+      const sh=hm?parseFloat(hm[1]):400;
+      const sc=scale||1.6;
+      const b64=btoa(unescape(encodeURIComponent(svgStr)));
+      const img=new Image();
+      img.onload=()=>{
+        const cv=document.createElement('canvas');
+        cv.width=Math.round(sw*sc);cv.height=Math.round(sh*sc);
+        const ctx=cv.getContext('2d');
+        ctx.fillStyle='#f3f6fa';ctx.fillRect(0,0,cv.width,cv.height);
+        ctx.scale(sc,sc);
+        try{
+          ctx.drawImage(img,0,0);
+          cv.toBlob(b=>{
+            if(!b){resolve(null);return;}
+            const r=new FileReader();
+            r.onload=()=>resolve({data:r.result,w:sw,h:sh});
+            r.onerror=()=>resolve(null);
+            r.readAsArrayBuffer(b);
+          },'image/png');
+        }catch(ex){resolve(null);}
+      };
+      img.onerror=()=>resolve(null);
+      img.src='data:image/svg+xml;base64,'+b64;
+    }catch(e){resolve(null);}
+  });
+}
+
 async function downloadWord(cfg={}){
   // По умолчанию — всё включено
   const has=k=>cfg[k]!==false&&(Object.keys(cfg).length===0||cfg[k]===true);
@@ -383,7 +417,7 @@ async function downloadWord(cfg={}){
 
   // ── Описание сервисов ──
   children.push(new Paragraph({pageBreakBefore:true,heading:HeadingLevel.HEADING_1,children:[new TextRun('Описание сервисов')]}));
-  allServices().forEach(svc=>{
+  for(const svc of allServices()){
     const nm=svc.customLabel||EL[svc.type]?.lbl;
     children.push(p(nm,{heading:HeadingLevel.HEADING_2}));
 
@@ -393,8 +427,8 @@ async function downloadWord(cfg={}){
 
     // ── Схема БД ──
     if(has('db_schema')){
-      serviceDatabases(svc.id).forEach(db=>{
-        const tables=schemaTables(db);if(!tables.length)return;
+      for(const db of serviceDatabases(svc.id)){
+        const tables=schemaTables(db);if(!tables.length)continue;
         children.push(p(`Схема БД — ${db.customLabel||EL[db.type]?.lbl}`,{heading:HeadingLevel.HEADING_3}));
         const rels=[];
         tables.forEach(t=>(t.fields||[]).filter(f=>f.fk).forEach(f=>rels.push(`${t.name}.${f.name} → ${f.fk.table}.${f.fk.field}`)));
@@ -402,7 +436,7 @@ async function downloadWord(cfg={}){
           children.push(p('Связи (FK):',{run:{italics:true,size:18}}));
           rels.forEach(r=>children.push(new Paragraph({numbering:{reference:'bullets',level:0},children:[new TextRun({text:r,size:18})]})));
         }
-        tables.forEach(t=>{
+        for(const t of tables){
           children.push(new Paragraph({spacing:{before:100},children:[new TextRun({text:t.name,bold:true})]}));
           const cols=[1400,1600,1300,1400,2160,1500];
           const dbRows=[new TableRow({children:[
@@ -428,8 +462,20 @@ async function downloadWord(cfg={}){
               children.push(new Table({width:{size:CW,type:WidthType.DXA},columnWidths:ecws,rows:exTblRows}));
             }
           }
-        });
-      });
+        }
+        // ERD-диаграмма — один раз после всех таблиц БД
+        if(has('db_erd')){
+          const erdSvg=renderERDSvg({tables,name:db.customLabel});
+          const erdPng=await erdSvgToPng(erdSvg,1.6);
+          if(erdPng){
+            children.push(p('ER-диаграмма / ER Diagram',{run:{bold:true,italics:true,size:18},spacing:{before:120,after:40}}));
+            const maxPx=624,ratio=erdPng.h/erdPng.w,w=Math.min(maxPx,erdPng.w),h=Math.round(w*ratio);
+            children.push(new Paragraph({children:[new ImageRun({type:'png',data:erdPng.data,
+              transformation:{width:Math.round(w),height:h},
+              altText:{title:'ERD',description:'ER-диаграмма '+(db.customLabel||''),name:'erd_'+db.id}})]}));
+          }
+        }
+      }
     }
 
     // ── Таблица API ──
@@ -494,7 +540,7 @@ async function downloadWord(cfg={}){
         }
       });
     }
-  });
+  }
 
     // ── UML Sequence — отдельный раздел в конце, каждый сценарий = PNG ──
   if(has('seq_uml')&&(S.scenarios||[]).length){

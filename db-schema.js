@@ -261,6 +261,7 @@ const PG_CONSTRAINTS=['PK','NN','UNIQUE','PK, default gen_random_uuid()','NN, UN
 let _dbEditId=null;
 function openDBEditor(blockId){
   const b=gb(blockId);if(!b)return;
+  if(b.type==='redis'){openRedisEditor(blockId);return;}
   if(b.type!=='postgresql'){toast('Реляционная схема (таблицы/FK/ACID) — только для PostgreSQL');return;}
   // Если привязан шаблон — скопировать его схему в собственную (чтобы можно было править)
   if(b.dbTemplate && !b.dbSchema){
@@ -458,61 +459,104 @@ function erdEndSymbol(x,y,dir,kind){
 function renderERDSvg(schema){
   const tables=(schema&&(schema.tables||schema.collections))||[];
   if(!tables.length)return '<svg xmlns="http://www.w3.org/2000/svg" width="340" height="60"><text x="14" y="34" font-family="Arial" font-size="13" fill="#888">Нет таблиц — добавь через редактор</text></svg>';
-  const colW=230,rowH=20,headH=30,gapX=130,gapY=64,perRow=Math.min(3,Math.max(1,tables.length));
-  const pos={};const colY=new Array(perRow).fill(30);
-  tables.forEach((t,i)=>{
-    const col=i%perRow;
-    const h=headH+(t.fields||[]).length*rowH+8;
-    pos[t.name]={x:30+col*(colW+gapX),y:colY[col],w:colW,h,col,fieldsN:(t.fields||[]).length};
-    colY[col]+=h+gapY;
+
+  // ── Размеры ──────────────────────────────────────────────────────
+  const colW=260, rowH=22, headH=34, gapX=160, gapY=56, padL=28, padT=28;
+  const tableNames=new Set(tables.map(t=>t.name));
+
+  // ── Лейаут по FK-графу: глубина = дистанция от "корневой" таблицы ─
+  // Родитель = таблица, на которую ссылается FK → она левее (меньшая глубина)
+  const childDepth={}; // table.name → depth
+  function calcDepth(name,visited=new Set()){
+    if(name in childDepth)return childDepth[name];
+    if(visited.has(name)){childDepth[name]=0;return 0;}
+    visited.add(name);
+    const t=tables.find(x=>x.name===name);
+    const parentNames=(t?.fields||[]).filter(f=>f.fk?.table&&tableNames.has(f.fk.table)).map(f=>f.fk.table);
+    childDepth[name]=parentNames.length?1+Math.max(...parentNames.map(p=>calcDepth(p,new Set(visited)))):0;
+    return childDepth[name];
+  }
+  tables.forEach(t=>calcDepth(t.name));
+
+  // Группируем по колонкам (глубина = X-колонка: 0=родители, 1,2…=потомки)
+  const cols={};
+  tables.forEach(t=>{const d=childDepth[t.name]||0;(cols[d]||(cols[d]=[])).push(t);});
+  const colNums=Object.keys(cols).map(Number).sort((a,b)=>a-b);
+
+  // Рассчитываем позиции
+  const pos={};
+  colNums.forEach(ci=>{
+    const ts=cols[ci];
+    const x=padL+ci*(colW+gapX);
+    let y=padT;
+    ts.forEach(t=>{
+      const h=headH+(t.fields||[]).length*rowH+10;
+      pos[t.name]={x,y,w:colW,h,fieldsN:(t.fields||[]).length};
+      y+=h+gapY;
+    });
   });
-  const totalW=30+perRow*(colW+gapX)+20;
-  const totalH=Math.max(...colY)+20;
+
+  const maxX=Math.max(...Object.values(pos).map(p=>p.x+p.w));
+  const maxY=Math.max(...Object.values(pos).map(p=>p.y+p.h));
+  const totalW=maxX+padL;
+  const totalH=maxY+padT;
+
   let boxes='',lines='';
-  // ── боксы таблиц ──
+
+  // ── Боксы таблиц ─────────────────────────────────────────────────
   tables.forEach(t=>{
     const p=pos[t.name];if(!p)return;
     boxes+=`<rect x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}" rx="7" fill="#ffffff" stroke="#9bb4cf" stroke-width="1.3" filter="url(#erdShadow)"/>`;
     boxes+=`<path d="M${p.x} ${p.y+7} Q ${p.x} ${p.y} ${p.x+7} ${p.y} L ${p.x+p.w-7} ${p.y} Q ${p.x+p.w} ${p.y} ${p.x+p.w} ${p.y+7} L ${p.x+p.w} ${p.y+headH} L ${p.x} ${p.y+headH} Z" fill="#4a90d9"/>`;
-    boxes+=`<text x="${p.x+p.w/2}" y="${p.y+19}" text-anchor="middle" font-family="Arial" font-size="12.5" font-weight="bold" fill="#fff">${escHtml(t.name)}</text>`;
+    // Заголовок: имя + RU-название (если есть)
+    const tLabel=t.label||t.comment||'';
+    if(tLabel){
+      boxes+=`<text x="${p.x+p.w/2}" y="${p.y+16}" text-anchor="middle" font-family="Arial" font-size="11.5" font-weight="bold" fill="#fff">${escHtml(t.name)}</text>`;
+      boxes+=`<text x="${p.x+p.w/2}" y="${p.y+28}" text-anchor="middle" font-family="Arial" font-size="9" fill="#d0e8ff">${escHtml(tLabel.slice(0,32))}</text>`;
+    } else {
+      boxes+=`<text x="${p.x+p.w/2}" y="${p.y+21}" text-anchor="middle" font-family="Arial" font-size="12" font-weight="bold" fill="#fff">${escHtml(t.name)}</text>`;
+    }
     (t.fields||[]).forEach((f,fi)=>{
-      const fy=p.y+headH+fi*rowH+14;
+      const fy=p.y+headH+fi*rowH+15;
       const cons=dbFieldConstraintsStr(f);
       const isPk=/\bPK\b/i.test(cons),isFk=/\bFK\b/i.test(cons)||f.fk;
       const badge=isPk?'🔑':isFk?'🔗':'';
-      boxes+=`<text x="${p.x+9}" y="${fy}" font-family="Arial" font-size="10.5" fill="#1e2030" font-weight="${isPk?'bold':'normal'}">${badge?badge+' ':''}${escHtml(f.name)}</text>`;
-      boxes+=`<text x="${p.x+p.w-9}" y="${fy}" text-anchor="end" font-family="monospace" font-size="9" fill="#8a93a8">${escHtml((f.type||'').slice(0,16))}</text>`;
+      // Билингвальное имя поля: name / RU-label
+      const lbl=(typeof fieldLabel==='function')?fieldLabel(f):'';
+      const fieldTxt=lbl&&lbl!==f.name?`${f.name} / ${lbl}`:f.name;
+      boxes+=`<text x="${p.x+9}" y="${fy}" font-family="Arial" font-size="10" fill="${isPk?'#1a3a70':'#1e2030'}" font-weight="${isPk?'bold':'normal'}">${badge?badge+' ':''}${escHtml(fieldTxt.slice(0,28))}</text>`;
+      boxes+=`<text x="${p.x+p.w-9}" y="${fy}" text-anchor="end" font-family="monospace" font-size="9" fill="#8a93a8">${escHtml((f.type||'').slice(0,14))}</text>`;
       if(fi<(t.fields||[]).length-1)boxes+=`<line x1="${p.x+1}" y1="${p.y+headH+(fi+1)*rowH}" x2="${p.x+p.w-1}" y2="${p.y+headH+(fi+1)*rowH}" stroke="#eef1f5"/>`;
     });
   });
-  // ── связи: ортогональная разводка + кардинальность (crow's foot) ──
+
+  // ── Связи: ортогональные линии + crow's foot ──────────────────────
   tables.forEach(t=>{
     const p=pos[t.name];if(!p)return;
     (t.fields||[]).forEach((f,fi)=>{
-      if(!f.fk||!f.fk.table)return;
+      if(!f.fk?.table)return;
       const tgt=pos[f.fk.table];if(!tgt)return;
-      const card=(f.fk.card||'N:1');
-      const sy=p.y+headH+fi*rowH+10;
-      // сторона выхода у источника — ближе к цели
+      const card=f.fk.card||'N:1';
+      const sy=p.y+headH+fi*rowH+11;
       const srcRight=(p.x+p.w/2)<=(tgt.x+tgt.w/2);
       const sx=srcRight?p.x+p.w:p.x; const sdir=srcRight?1:-1;
-      // цель: входим в ближнюю сторону, по центру таблицы
       const tgtRight=(tgt.x+tgt.w/2)<(p.x+p.w/2);
       const tx=tgtRight?tgt.x+tgt.w:tgt.x; const tdir=tgtRight?1:-1;
-      const ty=tgt.y+headH+Math.min((tgt.fieldsN-1),0)*rowH+10; // у первой строки цели (обычно PK)
-      const mx=sx+sdir*Math.max(28,Math.abs(tx-sx)/2);
-      // ортогональный путь: H до mx, V до ty, H до tx
-      const d=`M ${sx} ${sy} L ${mx} ${sy} L ${mx} ${ty} L ${tx} ${ty}`;
-      lines+=`<path d="${d}" fill="none" stroke="#5a6b8c" stroke-width="1.4"/>`;
-      // символы кардинальности: source-конец и target-конец
+      const ty=tgt.y+headH+10;
+      // Чистый ортогональный путь с достаточным отступом
+      const midX=sx+sdir*Math.max(40,Math.abs(tx-sx)*0.5);
+      const d=`M ${sx} ${sy} L ${midX} ${sy} L ${midX} ${ty} L ${tx} ${ty}`;
+      lines+=`<path d="${d}" fill="none" stroke="#5a6b8c" stroke-width="1.5"/>`;
       const srcKind=(card==='N:1'||card==='N:M')?'many':'one';
       const tgtKind=(card==='1:N'||card==='N:M')?'many':'one';
       lines+=erdEndSymbol(sx,sy,sdir,srcKind);
       lines+=erdEndSymbol(tx,ty,tdir,tgtKind);
-      // подпись кардинальности у середины
-      lines+=`<rect x="${mx-15}" y="${(sy+ty)/2-8}" width="30" height="15" rx="3" fill="#fff" stroke="#cdd6e6"/><text x="${mx}" y="${(sy+ty)/2+3}" text-anchor="middle" font-family="Arial" font-size="9" font-weight="bold" fill="#e0935a">${card}</text>`;
+      // Подпись кардинальности
+      const lx=Math.round(midX);const ly=Math.round((sy+ty)/2);
+      lines+=`<rect x="${lx-16}" y="${ly-9}" width="32" height="16" rx="3" fill="#fff" stroke="#cdd6e6"/><text x="${lx}" y="${ly+4}" text-anchor="middle" font-family="Arial" font-size="9" font-weight="bold" fill="#e0935a">${card}</text>`;
     });
   });
+
   const defs=`<defs><filter id="erdShadow" x="-10%" y="-10%" width="120%" height="125%"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="#9bb4cf" flood-opacity="0.4"/></filter></defs>`;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${Math.round(totalW)}" height="${Math.round(totalH)}" font-family="Arial">${defs}<rect width="100%" height="100%" fill="#f3f6fa"/>${lines}${boxes}</svg>`;
 }
@@ -808,6 +852,7 @@ function _renderDataEditor(){
     <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <button class="modal-btn primary" onclick="closeDataEditor()">✓ Готово</button>
       <button class="modal-btn" onclick="_deCopyAll()" style="color:#9aa5ce">📋 Экспорт ${isRedis?'Redis':'SQL'}</button>
+      ${isRedis?`<button class="modal-btn" onclick="closeDataEditor();openRedisEditor('${_deId}')" style="border-color:#f7768e77;color:#f7768e">⚡ Redis-схема (паттерны)</button>`:''}
       <span style="font-size:10px;color:#4a4c6a;margin-left:auto">Данные сохраняются в блок и экспортируются вместе с проектом</span>
     </div>
   </div>`;
@@ -889,4 +934,234 @@ function showDBSchemaForBlock(blockId,mode){
   </div>`;
   if(!ov){ov=document.createElement('div');ov.id='db-view-modal';ov.className='modal-ov';ov.onclick=e=>{if(e.target===ov)ov.style.display='none';};document.body.appendChild(ov);}
   ov.innerHTML=inner;ov.style.display='flex';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// REDIS EDITOR — паттерны ключей, типы, TTL, Hash-поля из PG
+// ═══════════════════════════════════════════════════════════════
+const REDIS_TYPES=['String','Hash','List','Set','ZSet'];
+let _redisId=null;
+
+// Найти PostgreSQL-блоки связанные с данным Redis (через сервисы или напрямую)
+function _redisPgBlocks(blockId){
+  const svcIds=new Set();
+  S.conns.forEach(c=>{
+    const fb=gb(c.from),tb=gb(c.to);if(!fb||!tb)return;
+    if(c.from===blockId&&BASE[tb.type]?.cat==='svc')svcIds.add(c.to);
+    if(c.to===blockId&&BASE[fb.type]?.cat==='svc')svcIds.add(c.from);
+  });
+  const seen=new Set();const result=[];
+  S.blocks.forEach(b=>{
+    if(b.type!=='postgresql'||seen.has(b.id))return;
+    const direct=S.conns.some(c=>(c.from===blockId&&c.to===b.id)||(c.to===blockId&&c.from===b.id));
+    const viaSvc=S.conns.some(c=>{
+      if(svcIds.has(c.from)&&c.to===b.id)return true;
+      if(svcIds.has(c.to)&&c.from===b.id)return true;
+      return false;
+    });
+    if(direct||viaSvc){seen.add(b.id);result.push(b);}
+  });
+  return result;
+}
+
+// Список опций "таблица.поле" из всех связанных PG-блоков
+function _redisPgOpts(blockId){
+  const pgs=_redisPgBlocks(blockId);
+  if(!pgs.length)return '<option value="">— нет связанных PG —</option>';
+  let opts='<option value="">— выбрать поле PG —</option>';
+  pgs.forEach(pg=>{
+    const lbl=pg.customLabel||EL[pg.type]?.lbl||'PostgreSQL';
+    (pg.dbSchema?.tables||[]).forEach(t=>{
+      opts+=`<optgroup label="${escHtml(lbl+' › '+t.name)}">`;
+      (t.fields||[]).forEach(f=>{
+        opts+=`<option value="${pg.id}::${t.name}.${f.name}">${escHtml(t.name+'.'+f.name+(f.label?' / '+f.label:''))}</option>`;
+      });
+      opts+='</optgroup>';
+    });
+  });
+  return opts;
+}
+
+function openRedisEditor(blockId){
+  const b=gb(blockId);if(!b)return;
+  if(!b.redisSchema)b.redisSchema={patterns:[]};
+  _redisId=blockId;
+  let ov=document.getElementById('redis-edit-modal');
+  if(!ov){ov=document.createElement('div');ov.id='redis-edit-modal';ov.className='modal-ov';
+    ov.onclick=e=>{if(e.target===ov)_closeRedisEditor();};document.body.appendChild(ov);}
+  ov.style.display='flex';
+  _renderRedisEditor();
+}
+function _closeRedisEditor(){
+  const ov=document.getElementById('redis-edit-modal');
+  if(ov)ov.style.display='none';
+  _redisId=null;pushHist();
+}
+
+function _renderRedisEditor(){
+  const b=gb(_redisId);if(!b)return;
+  const ov=document.getElementById('redis-edit-modal');if(!ov)return;
+  if(!b.redisSchema)b.redisSchema={patterns:[]};
+  const ps=b.redisSchema.patterns;
+  const name=b.customLabel||EL[b.type]?.lbl||'Redis';
+  const pgOpts=_redisPgOpts(_redisId);
+
+  const IS='background:#1e2030;border:1px solid #3a3d52;border-radius:4px;padding:3px 7px;font-size:11px;color:#c0caf5;outline:none;font-family:inherit;width:100%';
+  const ISS='background:#1e2030;border:1px solid #3a3d52;border-radius:4px;padding:3px 6px;font-size:11px;color:#c0caf5;outline:none;font-family:inherit';
+
+  const TYPE_CLR={String:'#9ece6a',Hash:'#7dcfff',List:'#e0af68',Set:'#bb9af7',ZSet:'#f7768e'};
+
+  function patternHtml(p,pi){
+    const clr=TYPE_CLR[p.type]||'#c0caf5';
+    const fieldsHtml=p.type==='Hash'?`
+      <div style="margin-top:8px;border-top:1px solid #2a2d3e;padding-top:8px">
+        <div style="font-size:10px;color:#7dcfff;margin-bottom:5px;font-weight:600">🔑 Поля Hash</div>
+        <table style="width:100%;border-collapse:collapse;font-size:10.5px">
+          <thead><tr style="color:#787c99">
+            <th style="padding:2px 4px;text-align:left;font-weight:500">Поле</th>
+            <th style="padding:2px 4px;text-align:left;font-weight:500">Описание / назначение</th>
+            <th style="padding:2px 4px;text-align:left;font-weight:500">Подтянуть из PG</th>
+            <th style="padding:2px 4px;width:24px"></th>
+          </tr></thead><tbody>
+          ${(p.fields||[]).map((f,fi)=>`<tr>
+            <td style="padding:2px 3px"><input style="${IS}" value="${escHtml(f.name||'')}" placeholder="field_name"
+              oninput="_redisSetField(${pi},${fi},'name',this.value)"></td>
+            <td style="padding:2px 3px"><input style="${IS}" value="${escHtml(f.desc||'')}" placeholder="что хранит"
+              oninput="_redisSetField(${pi},${fi},'desc',this.value)"></td>
+            <td style="padding:2px 3px">
+              <select style="${ISS};width:100%" onchange="_redisSetField(${pi},${fi},'fromPg',this.value)">
+                ${pgOpts.replace(`value="${escHtml(f.fromPg||'')}"`,`value="${escHtml(f.fromPg||'')}" selected`)}
+              </select>
+            </td>
+            <td style="padding:2px 3px;text-align:center">
+              <span onclick="_redisDelField(${pi},${fi})" style="cursor:pointer;color:#f7768e;font-size:13px">✕</span>
+            </td>
+          </tr>`).join('')}
+          </tbody>
+        </table>
+        <button onclick="_redisAddField(${pi})" style="margin-top:5px;padding:2px 10px;border:1px solid #7dcfff44;border-radius:4px;background:#7dcfff11;color:#7dcfff;cursor:pointer;font-size:10px">＋ поле</button>
+      </div>`:
+      p.type==='String'?`<div style="margin-top:8px;border-top:1px solid #2a2d3e;padding-top:8px;display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+        <div style="flex:2;min-width:140px">
+          <label style="font-size:9.5px;color:#787c99">Что хранит value:</label>
+          <input style="${IS};margin-top:2px" value="${escHtml(p.valueDesc||'')}" placeholder="напр. user_id (INTEGER)"
+            oninput="_redisSet(${pi},'valueDesc',this.value)">
+        </div>
+        <div style="flex:2;min-width:160px">
+          <label style="font-size:9.5px;color:#9ece6a">↳ value берётся из PG:</label>
+          <select style="${IS};margin-top:2px" onchange="_redisSet(${pi},'valuePg',this.value)">
+            ${pgOpts.replace(`value="${escHtml(p.valuePg||'')}"`,`value="${escHtml(p.valuePg||'')}" selected`)}
+          </select>
+        </div>
+      </div>`:'';
+
+    return `<div style="border:1px solid ${clr}44;border-radius:8px;padding:10px 12px;margin-bottom:8px;background:#1a1d2e">
+      <!-- строка заголовка паттерна -->
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <div style="font-size:13px;color:#e0af68;font-family:monospace;min-width:180px;flex:1">
+          <input style="${IS};font-family:monospace;font-size:12px;color:#e0af68;font-weight:600"
+            value="${escHtml(p.key||'')}" placeholder="session:{token}"
+            oninput="_redisSet(${pi},'key',this.value)">
+        </div>
+        <select style="${ISS};color:${clr};font-weight:600;width:80px" onchange="_redisSet(${pi},'type',this.value)">
+          ${REDIS_TYPES.map(t=>`<option ${p.type===t?'selected':''} style="color:${TYPE_CLR[t]}">${t}</option>`).join('')}
+        </select>
+        <div style="display:flex;align-items:center;gap:4px">
+          <span style="font-size:10px;color:#787c99">TTL:</span>
+          <input style="${ISS};width:80px" value="${escHtml(p.ttl||'')}" placeholder="3600s / —"
+            oninput="_redisSet(${pi},'ttl',this.value)">
+        </div>
+        <span onclick="_redisDelPattern(${pi})" style="cursor:pointer;color:#f7768e;font-size:14px;margin-left:auto" title="Удалить паттерн">✕</span>
+      </div>
+      <!-- переменные ключа {var} → PG -->
+      ${(()=>{const vars=[...(p.key||'').matchAll(/\{(\w+)\}/g)].map(m=>m[1]);if(!vars.length)return '';
+        return `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;align-items:flex-end">
+          ${vars.map(v=>`<div style="min-width:160px;flex:1">
+            <label style="font-size:9.5px;color:#e0af68">{${v}} берётся из PG:</label>
+            <select style="${ISS};width:100%;margin-top:2px" onchange="_redisSetKeyVar(${pi},'${v}',this.value)">
+              ${pgOpts.replace(`value="${escHtml((p.keyVars||{})[v]||'')}"`,`value="${escHtml((p.keyVars||{})[v]||'')}" selected`)}
+            </select>
+          </div>`).join('')}
+        </div>`;})()}
+      <!-- описание + кто пишет/читает -->
+      <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+        <div style="flex:2;min-width:160px">
+          <label style="font-size:9.5px;color:#787c99">Назначение / что хранит</label>
+          <input style="${IS};margin-top:2px" value="${escHtml(p.desc||'')}" placeholder="JWT токен → user_id"
+            oninput="_redisSet(${pi},'desc',this.value)">
+        </div>
+        <div style="flex:1;min-width:100px">
+          <label style="font-size:9.5px;color:#9ece6a">✍ Пишет</label>
+          <input style="${IS};margin-top:2px" value="${escHtml(p.writer||'')}" placeholder="Auth Service"
+            oninput="_redisSet(${pi},'writer',this.value)">
+        </div>
+        <div style="flex:1;min-width:100px">
+          <label style="font-size:9.5px;color:#7dcfff">👁 Читает</label>
+          <input style="${IS};margin-top:2px" value="${escHtml(p.reader||'')}" placeholder="API Gateway"
+            oninput="_redisSet(${pi},'reader',this.value)">
+        </div>
+      </div>
+      ${fieldsHtml}
+    </div>`;
+  }
+
+  ov.innerHTML=`<div class="modal-box" style="max-width:820px;width:97%">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <h2 style="color:#f7768e">⚡ Redis: ${escHtml(name)}</h2>
+      <button class="modal-btn" onclick="_closeRedisEditor()">✕</button>
+    </div>
+    <div style="font-size:10.5px;color:#787c99;margin-bottom:10px">
+      Паттерн ключа = шаблон имени + тип структуры + TTL + кто пишет/читает.
+      ${_redisPgBlocks(_redisId).length
+        ? `<span style="color:#9ece6a">🔗 Найдено ${_redisPgBlocks(_redisId).length} PG — поля доступны в дропдауне Hash.</span>`
+        : '<span style="color:#e0af68">⚠ Нет связанных PostgreSQL — соедини Redis со Service и PostgreSQL для авто-подсказок.</span>'}
+    </div>
+    <div id="redis-patterns-wrap" style="max-height:60vh;overflow-y:auto;padding-right:4px">
+      ${ps.length?ps.map(patternHtml).join('')
+        :`<div style="text-align:center;padding:30px;color:#787c99;font-size:12px">
+            Нет паттернов — нажми «＋ Паттерн»
+          </div>`}
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px;align-items:center">
+      <button class="modal-btn primary" onclick="_closeRedisEditor()">✓ Готово</button>
+      <button class="modal-btn" onclick="_redisAddPattern()" style="border-color:#f7768e;color:#f7768e">⚡ ＋ Паттерн</button>
+      <span style="font-size:10px;color:#787c99;margin-left:auto">${ps.length} паттернов · ${ps.filter(p=>p.type==='Hash').reduce((s,p)=>s+(p.fields||[]).length,0)} Hash-полей</span>
+    </div>
+  </div>`;
+}
+
+function _redisSet(pi,field,val){
+  const b=gb(_redisId);if(!b?.redisSchema)return;
+  b.redisSchema.patterns[pi][field]=val;
+}
+function _redisSetField(pi,fi,field,val){
+  const b=gb(_redisId);if(!b?.redisSchema)return;
+  const p=b.redisSchema.patterns[pi];if(!p?.fields)return;
+  p.fields[fi][field]=val;
+}
+function _redisAddPattern(){
+  const b=gb(_redisId);if(!b?.redisSchema)return;
+  b.redisSchema.patterns.push({key:'',type:'String',ttl:'',desc:'',writer:'',reader:'',fields:[]});
+  _renderRedisEditor();
+}
+function _redisDelPattern(pi){
+  const b=gb(_redisId);if(!b?.redisSchema)return;
+  b.redisSchema.patterns.splice(pi,1);_renderRedisEditor();
+}
+function _redisSetKeyVar(pi,varName,val){
+  const b=gb(_redisId);if(!b?.redisSchema)return;
+  const p=b.redisSchema.patterns[pi];if(!p)return;
+  if(!p.keyVars)p.keyVars={};
+  p.keyVars[varName]=val;
+}
+function _redisAddField(pi){
+  const b=gb(_redisId);if(!b?.redisSchema)return;
+  const p=b.redisSchema.patterns[pi];if(!p)return;
+  if(!p.fields)p.fields=[];
+  p.fields.push({name:'',desc:'',fromPg:''});
+  _renderRedisEditor();
+}
+function _redisDelField(pi,fi){
+  const b=gb(_redisId);if(!b?.redisSchema)return;
+  b.redisSchema.patterns[pi].fields.splice(fi,1);_renderRedisEditor();
 }
