@@ -150,6 +150,7 @@ function openExportChooser(){
     {k:'db_schema',    def:true},
     {k:'db_erd',       def:true},
     {k:'db_examples',  def:true},
+    {k:'redis_schema', def:true},
     {k:'api_table',    def:true},
     {k:'input_params', def:true},
     {k:'output_params',def:true},
@@ -478,6 +479,50 @@ async function downloadWord(cfg={}){
       }
     }
 
+    // ── Redis-схема (паттерны ключей) ──
+    if(has('redis_schema')){
+      const redisBlocks=serviceDatabases(svc.id).filter(b=>b.type==='redis'&&b.redisSchema?.patterns?.length);
+      for(const rb of redisBlocks){
+        children.push(p(`Redis — ${rb.customLabel||'Cache'}`,{heading:HeadingLevel.HEADING_3}));
+        for(const pat of rb.redisSchema.patterns){
+          // Заголовок паттерна
+          children.push(new Paragraph({spacing:{before:120,after:20},children:[
+            new TextRun({text:pat.key||'',bold:true,font:'Courier New',size:20,color:'C0392B'}),
+            new TextRun({text:`  [${pat.type||'String'}]`,size:18,color:'2471A3'}),
+            pat.ttl?new TextRun({text:`  TTL: ${pat.ttl}s`,size:16,color:'7D6608'}):new TextRun(''),
+          ]}));
+          if(pat.desc) children.push(new Paragraph({spacing:{after:40},children:[new TextRun({text:pat.desc,size:18,italics:true})]}));
+          // Строка writer/reader
+          if(pat.writer||pat.reader){
+            children.push(new Paragraph({spacing:{after:60},children:[
+              new TextRun({text:'Пишет: ',bold:true,size:16}),
+              new TextRun({text:(pat.writer||'—')+'   ',size:16}),
+              new TextRun({text:'Читает: ',bold:true,size:16}),
+              new TextRun({text:pat.reader||'—',size:16}),
+            ]}));
+          }
+          // Таблица полей (Hash)
+          if(pat.type==='Hash'&&(pat.fields||[]).length){
+            const fcols=[2000,3500,3860];
+            const frows=[new TableRow({children:[hcell('Поле',fcols[0]),hcell('Описание',fcols[1]),hcell('Источник (PG)',fcols[2])]})];
+            pat.fields.forEach(f=>{
+              const src=f.fromPg?f.fromPg.replace(/^[^:]+::/,''):'—';
+              frows.push(new TableRow({children:[cell(f.name||'',fcols[0]),cell(f.desc||'',fcols[1]),cell(src,fcols[2])]}));
+            });
+            children.push(new Table({width:{size:CW,type:WidthType.DXA},columnWidths:fcols,rows:frows}));
+          }
+          // String — valueField
+          if(pat.type==='String'&&pat.valueField){
+            children.push(new Paragraph({spacing:{before:20,after:60},children:[
+              new TextRun({text:'Value: ',bold:true,size:16}),
+              new TextRun({text:pat.valueField,size:16}),
+              pat.valuePg?new TextRun({text:`  ← ${pat.valuePg.replace(/^[^:]+::/,'')}`,size:16,color:'2471A3'}):new TextRun(''),
+            ]}));
+          }
+        }
+      }
+    }
+
     // ── Таблица API ──
     const eps=serviceEndpoints(svc.id);
     if(has('api_table')&&eps.length){
@@ -547,10 +592,11 @@ async function downloadWord(cfg={}){
     children.push(new Paragraph({pageBreakBefore:true,heading:HeadingLevel.HEADING_1,children:[new TextRun('UML Sequence-диаграммы')]}));
     children.push(p('Sequence-диаграммы для каждого бизнес-процесса системы.'));
     for(const sc of (S.scenarios||[])){
-      if(!sc.uml)continue;
+      const umlText=sc.uml||(typeof generateSeqFromScenario==='function'?generateSeqFromScenario(sc.id):null);
+      if(!umlText)continue;
       children.push(p(sc.name,{heading:HeadingLevel.HEADING_2}));
       // Рендерим UML через seq.js → SVG → PNG
-      const seqPng=await seqUmlToPng(sc.uml,1.8);
+      const seqPng=await seqUmlToPng(umlText,1.8);
       // PNG изображение
       if(seqPng){
         const maxPx=624,ratio=seqPng.h/seqPng.w,w=Math.min(maxPx,seqPng.w),h=Math.round(w*ratio);
@@ -559,7 +605,7 @@ async function downloadWord(cfg={}){
           altText:{title:sc.name,description:'UML Sequence',name:'seq_'+sc.id}})]}));
       }
       // PlantUML текст (всегда после PNG)
-      const umlFull=`@startuml\n${sc.uml.trim()}\n@enduml`;
+      const umlFull=`@startuml\n${umlText.trim()}\n@enduml`;
       children.push(p('PlantUML:',{run:{bold:true,size:16,color:'787c99'},spacing:{before:80}}));
       umlFull.split('\n').forEach(line=>{
         children.push(new Paragraph({spacing:{before:0,after:0},

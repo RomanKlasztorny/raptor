@@ -32,12 +32,20 @@ var AI = {};
 
   function detectGen(t){
     if (detectPatch(t)) return false;
-    if (/^(да|давай|ок|го|генерируй|yes|ok|погнали|вперёд|вперед|generate|жги|поехали|конечно|делай)(\s|$)/i.test(t)){
-      var last = chatHistory.slice().reverse().find(function(m){ return m.role==='assistant'; });
-      if (last && last.content && last.content.length > 80) return true;
-    }
+    // Явные команды генерации
     if (/сгенерируй|генерируй|generate|создай систему|разработай|спроектируй/i.test(t)) return true;
     if (/сделай.{0,20}(систем|всё|все|сразу|json|схем)|всю систем|пришли.{0,10}(json|схем)|сделай всё/i.test(t)) return true;
+    // Подтверждение
+    if (/^(да|давай|ок|го|yes|ok|погнали|вперёд|вперед|жги|поехали|конечно|делай)(\s|$)/i.test(t)) return true;
+    // Описание домена — даже короткое ("создадим зоомагазин", "хочу платформу менторства")
+    var hasDomain = /магазин|платформ|маркетплейс|marketplace|интернет.магазин|соцсет|банк|финтех|доставк|курьер|такси|медицин|клиник|образован|учебн|школ|crm|erp|booking|бронирован|аренд|стриминг|чат|мессенджер|форум|блог|портал|склад|логистик/i.test(t);
+    if (hasDomain) return true;
+    // Структурированное описание системы
+    var hasRoles = /роли|покупатель|пользовател|администратор|клиент|менеджер/i.test(t);
+    var hasSvc   = /сервис|микросервис|service|api\s*[—:\-]/i.test(t);
+    var hasDb    = /бд|базы|таблиц|postgresql|mysql|монго|redis/i.test(t);
+    if (t.length > 300 && hasRoles && hasSvc) return true;
+    if (t.length > 300 && hasSvc && hasDb)    return true;
     return false;
   }
 
@@ -51,29 +59,105 @@ var AI = {};
   // Правила сценариев — единый источник правды, чтобы не расходились
   var SCENARIO_RULES =
     '═══ SCENARIO STEPS — STRICT 1:1 WITH PATH ═══\n' +
-    'CRITICAL: steps.length MUST EQUAL path.length. One step describes the action AT path[i].\n' +
-    'path = ["b1","b2","b3","b4","b8"]  → steps has EXACTLY 5 items, step[i] is what happens when arriving at path[i].\n' +
-    'NEVER pad with duplicate steps to match the count. NEVER repeat the same INSERT twice. If counts would differ, FIX the path, not the steps.\n' +
-    'Per-node verbs:\n' +
-    '- actor (path[0]): verb="", uri="", name="Открывает ...".\n' +
-    '- web_client→api_gw: verb=POST/GET/PUT/DELETE, uri="/api/v1/resource", resp="201 {id}" | "200 {data}" | "204".\n' +
-    '- api_gw→service: same verb, short uri="/resource".\n' +
-    '- service→postgresql: verb=INSERT/SELECT/UPDATE/DELETE, uri="table_name", resp="uuid X" | "rows".\n' +
-    '- service→kafka: verb="PUBLISH", uri="topic.event_name", resp="".\n' +
-    '- kafka→service (consumer): verb="CONSUME", uri="topic.event_name", resp="".\n' +
-    '- service→external: verb=POST, uri="/external/endpoint", resp="200".\n' +
-    'NEVER add a "uml" field to scenarios — RAPTOR generates UML itself.\n';
+    'CRITICAL: steps.length MUST EQUAL path.length. step[i] = action AT path[i].\n' +
+    'NEVER pad with duplicate steps. If counts differ — fix path, not steps.\n' +
+    'Verbs by node type (verb | uri | resp):\n' +
+    '  actor: verb="" uri="" resp="" name="Открывает/Нажимает...".\n' +
+    '  web_client/mob_client: POST/GET/PUT/DELETE | /api/v1/resource | 201{id}/200{data}/204.\n' +
+    '  api_gw: same verb | /resource (no /api/v1) | same code. name="Маршрутизирует".\n' +
+    '  →postgresql read: SELECT | table_name | rows.\n' +
+    '  →postgresql write: INSERT/UPDATE/DELETE | table_name | uuid X.\n' +
+    '  →redis cache-check: GET | key:{id} | hit:{data}|miss:null. Path ENDS at redis on hit.\n' +
+    '  →redis cache-store: SET | key:{id} | OK. name="Кешировать X (TTL 5min)".\n' +
+    '  →redis invalidate: DEL | key:{id} | OK. Call after write to postgresql.\n' +
+    '  →kafka publish: PUBLISH | topic.event | "". Path ENDS at kafka. topics: orders.created, payment.requested.\n' +
+    '  →kafka consume (SEPARATE scenario, no actor): CONSUME | topic.event | "". path=[kafka,consumer_svc,its_db].\n' +
+    '  →rabbitmq: PUBLISH | exchange/key | "". →queue: ENQUEUE | queue_name | job_id.\n' +
+    '  →elasticsearch: GET | /index/_search | [{_source}]. Index sync: POST | /index/_doc | {_id}.\n' +
+    '  →external: POST | /endpoint | 200{result}. \n' +
+    'Structure: 3-5 scenarios: happy path, list/search, async publish+consumer pair, cache HIT, cache MISS.\n' +
+    'Async = 2 scenarios: publisher (ends at kafka) + consumer (starts at kafka).\n' +
+    'Cache MISS path: [...,svc,redis,postgresql,redis] — redis visited twice (check then store).\n' +
+    'Colors: #7aa2f7 #9ece6a #e0af68 #f7768e #bb9af7 #2ac3de #ff9e64.\n' +
+    'NEVER add "uml" field to scenarios.\n';
 
   var DB_RULES =
     '═══ DB SCHEMA — MANDATORY ═══\n' +
     '- EVERY db block has dbSchema with 2+ tables (main + detail/log/history).\n' +
     '- EVERY table has 8+ fields. NO generic name/description/status — use DOMAIN-SPECIFIC fields.\n' +
     '- Required in each table: id UUID PK (default gen_random_uuid()), created_at + updated_at TIMESTAMPTZ NN (default NOW()).\n' +
-    '- FK field MUST carry the fk object: {"name":"order_id","type":"UUID","constraints":"NN, FK","desc":"...","example":"550e8400","fk":{"table":"orders","field":"id"}}.\n' +
+    '- FK within SAME db block → use fk object: {"name":"order_id","type":"UUID","constraints":"NN, FK","fk":{"table":"orders","field":"id"}}.\n' +
+    '- FORBIDDEN: FK.table pointing to a table in a DIFFERENT db block. Cross-service reference = UUID NN, NO fk object, add comment in desc.\n' +
     '- Indexes on every FK column and on status/type/date filter columns.\n' +
     '- Domain examples: goals→deadline/target_value/category; habits→frequency/current_streak/reminder_time;\n' +
-    '  tracking→tracked_date/completion_pct/mood; payments→amount/currency/gateway_tx_id; users→email/password_hash/salt/last_login_at.\n' +
-    '- Each service schema reflects its OWN domain. NEVER copy the same fields across services.\n';
+    '  tracking→tracked_date/completion_pct/mood; payments→amount/currency/gateway_tx_id/idempotency_key; users→email/password_hash/salt/last_login_at.\n' +
+    '- Each service schema reflects its OWN domain. NEVER copy the same fields across services.\n' +
+    '- Soft delete: use deleted_at TIMESTAMPTZ (NULL = active). Optimistic lock: version INTEGER NN default 1.\n' +
+    '- Idempotency: payments/orders must have idempotency_key VARCHAR(64) UNIQUE.\n';
+
+  // ════════════════ БАЗА ЗНАНИЙ АРХИТЕКТУРЫ ════════════════
+  var ARCH_KNOWLEDGE =
+    '═══ ARCHITECTURE PATTERNS (apply where relevant) ═══\n' +
+
+    // Транзакционность и надёжность
+    'OUTBOX PATTERN: after INSERT into main table, also INSERT into outbox table (id,event_type,payload,sent_at). ' +
+    'A separate publisher polls outbox and sends to Kafka. Guarantees at-least-once delivery. Use for orders/payments.\n' +
+
+    'SAGA (choreography): each service listens to Kafka, does its work, emits next event. No central orchestrator. ' +
+    'Topic chain: order.created → payment.requested → payment.completed → order.confirmed. Rollback via compensating events.\n' +
+
+    'IDEMPOTENCY: all POST endpoints that create money/orders must accept idempotency_key header. ' +
+    'Store in DB with UNIQUE constraint. On duplicate key → return original response, skip processing.\n' +
+
+    // Производительность
+    'CQRS: separate read model (for lists/search) from write model. ' +
+    'Write → postgresql. Read → elasticsearch or redis or read-replica. Sync via Kafka event. Use for catalog, feeds, search.\n' +
+
+    'CACHE-ASIDE: service checks redis first. On miss → query postgresql → store in redis with TTL. ' +
+    'On write → DEL cache key (invalidate). Use for product catalog, user profile, session.\n' +
+
+    'CURSOR PAGINATION: for large tables use WHERE id > :cursor ORDER BY id LIMIT N instead of OFFSET. ' +
+    'Return next_cursor in response. OFFSET scans all rows — unusable at scale.\n' +
+
+    // БД и индексы
+    'PARTIAL INDEX: CREATE INDEX idx_orders_pending ON orders(user_id) WHERE status=\'pending\'. ' +
+    'Dramatically faster than full index when filtering by status.\n' +
+
+    'SOFT DELETE: deleted_at TIMESTAMPTZ NULL. Active rows have NULL. ' +
+    'Partial index WHERE deleted_at IS NULL. Hard delete only for GDPR/compliance.\n' +
+
+    'READ REPLICA: add a second postgresql block labeled "DB Read Replica", connect it with dashed conn from primary. ' +
+    'Read-heavy endpoints (GET /products) go to replica. Writes go to primary.\n' +
+
+    // Устойчивость
+    'CIRCUIT BREAKER: after N failures, service stops calling dependency for T seconds (open state). ' +
+    'Then tries one request (half-open). If ok → closed. Prevents cascade failure. Apply on external calls and inter-service sync calls.\n' +
+
+    'BULKHEAD: each downstream dependency gets its own connection pool / thread pool. ' +
+    'Payment slowdown cannot consume all threads and block catalog requests.\n' +
+
+    'DLQ (Dead Letter Queue): Kafka consumer after 3 retries → sends message to topic.DLQ. ' +
+    'Separate consumer processes DLQ for alerting/manual review. Prevents poison pill blocking entire topic.\n' +
+
+    // API
+    'API VERSIONING: /api/v1/resource. Breaking changes → /api/v2/. Keep v1 running for 6 months.\n' +
+
+    'BFF (Backend for Frontend): separate bff block for mobile vs web when responses differ drastically. ' +
+    'Mobile BFF returns compact JSON. Web BFF returns full data. Both call same downstream services.\n' +
+
+    'RATE LIMITING TIERS: api_gw applies different limits per plan: free=10rps, pro=100rps, enterprise=1000rps. ' +
+    'Store limits in redis with sliding window (key: rate:{userId}:{minute}).\n' +
+
+    // Данные
+    'EVENT SOURCING: store every state change as immutable event in events table (id, aggregate_id, event_type, payload, occurred_at). ' +
+    'Current state = replay of all events. Use for audit-critical domains: banking, healthcare, legal.\n' +
+
+    'MATERIALIZED VIEW: for complex reports (daily stats, user summaries) create postgresql MATERIALIZED VIEW. ' +
+    'REFRESH MATERIALIZED VIEW CONCURRENTLY via cron. Avoids heavy JOIN on every request.\n' +
+
+    'STRANGLER FIG: migrating monolith → new microservice handles one domain, legacy handles rest. ' +
+    'API GW routes /orders to new service, everything else to legacy. Gradual migration.\n';
+
 
   // ════════════════ КОНТЕКСТ ТЕКУЩЕЙ СХЕМЫ ════════════════
   function getContext(){
@@ -128,7 +212,9 @@ var AI = {};
       '3. БД каждого сервиса (законы МСА): своя БД у каждого, PK=UUID, FK=копия UUID без JOIN,\n' +
       '   created_at/updated_at в каждой таблице, 2+ таблицы на сервис.\n' +
       '4. Kafka-топики для async-связи между сервисами.\n' +
-      '5. Закончи строкой: "Генерировать JSON?"\n\n' +
+      '5. Предложи уместные паттерны: если платежи → Outbox + Idempotency Key; если читается чаще чем пишется → Cache-aside + Read Replica; если большой список → Cursor Pagination; если сложные транзакции → Saga; если нужен поиск → CQRS с Elasticsearch.\n' +
+      '6. Закончи строкой: "Генерировать JSON?"\n\n' +
+      ARCH_KNOWLEDGE + '\n' +
       'ЗАПРЕЩЕНО: уточняющие вопросы про роли/БД/методы — выводи сам.\n' +
       'ЗАПРЕЩЕНО: JSON в этом режиме. Язык: русский, кратко.';
   }
@@ -148,15 +234,26 @@ var AI = {};
       '5. Coords: actor x=-100, web_client x=100, api_gw x=320, services x=540, kafka x=760, db x=980, external x=1200. y: first=60, each next in same column +160.\n\n' +
       DB_RULES + '\n' +
       SCENARIO_RULES + '\n' +
-      '═══ PATTERNS ═══\n' +
-      'service with external calls: ["retry","timeout"]; high load: ["circuit_breaker"]; api_gw: ["rate_limit"]; kafka consumers: ["retry"].\n\n' +
+      '═══ CONN DIRECTION — MANDATORY ═══\n' +
+      'conns ALWAYS flow client-side → server-side: actor→web_client→api_gw→service→db.\n' +
+      'NEVER generate a conn FROM db/postgresql/redis TO a service. ALWAYS service→db.\n' +
+      'EACH db block belongs to EXACTLY ONE service. NEVER connect service A to db of service B.\n' +
+      'To cross services: service A → api_gw or service A → service B (via conn). NEVER A → B_db.\n' +
+      'FORBIDDEN: service→kafka (auto). Add kafka ONLY when user explicitly asks for async/events/kafka.\n\n' +
+      '═══ SMART PATTERNS (apply where appropriate) ═══\n' +
+      '- Payments/Orders → add idempotency_key VARCHAR(64) UNIQUE + outbox table in same DB.\n' +
+      '- Cross-service async → kafka with DLQ (topic.DLQ consumer block).\n' +
+      '- High-read data (catalog/profile) → add redis block (cache-aside), conn service→redis.\n' +
+      '- Search → add elasticsearch block, conn service→elasticsearch, sync via kafka.\n' +
+      '- Soft delete: deleted_at TIMESTAMPTZ. Optimistic lock: version INTEGER NN default 1.\n' +
+      '- Large lists → use cursor pagination (WHERE id > :cursor), NOT OFFSET.\n\n' +
       '═══ MINIMAL FORMAT EXAMPLE (note steps.length === path.length) ═══\n' +
       '```json\n' +
       '{"blocks":[\n' +
       '  {"id":"b1","type":"actor","customLabel":"Покупатель","x":-100,"y":60,"patterns":[],"settings":{}},\n' +
       '  {"id":"b2","type":"web_client","customLabel":"Веб-приложение","x":100,"y":60,"patterns":[],"settings":{}},\n' +
-      '  {"id":"b3","type":"api_gw","customLabel":"API Gateway","x":320,"y":60,"patterns":["rate_limit"],"settings":{}},\n' +
-      '  {"id":"b4","type":"service","customLabel":"Заказы","x":540,"y":60,"patterns":["retry","timeout"],"settings":{}},\n' +
+      '  {"id":"b3","type":"api_gw","customLabel":"API Gateway","x":320,"y":60,"patterns":[],"settings":{}},\n' +
+      '  {"id":"b4","type":"service","customLabel":"Заказы","x":540,"y":60,"patterns":[],"settings":{}},\n' +
       '  {"id":"b8","type":"postgresql","customLabel":"Orders DB","x":980,"y":60,"patterns":[],"settings":{},"dbSchema":{"tables":[\n' +
       '    {"name":"orders","fields":[\n' +
       '      {"name":"id","type":"UUID","constraints":"PK","desc":"ID заказа","example":"550e8400","default":"gen_random_uuid()"},\n' +
@@ -180,21 +277,29 @@ var AI = {};
       '    ],"indexes":["CREATE INDEX idx_items_order ON order_items(order_id)"]}\n' +
       '  ]}}\n' +
       '],\n' +
-      '"conns":[{"id":"c1","from":"b1","to":"b2"},{"id":"c2","from":"b2","to":"b3"},{"id":"c3","from":"b3","to":"b4"},{"id":"c4","from":"b4","to":"b8"}],\n' +
-      '"scenarios":[{"id":"sc1","name":"Оформить заказ","color":"#7aa2f7","actorId":"b1","volume":100,"visible":true,\n' +
-      '  "path":["b1","b2","b3","b4","b8"],\n' +
-      '  "steps":[\n' +
+      '"conns":[\n' +
+      '  {"id":"c1","from":"b1","to":"b2"},{"id":"c2","from":"b2","to":"b3"},{"id":"c3","from":"b3","to":"b4"},{"id":"c4","from":"b4","to":"b8"}\n' +
+      '],\n' +
+      '"scenarios":[\n' +
+      '  {"id":"sc1","name":"Оформить заказ","color":"#7aa2f7","actorId":"b1","volume":100,"visible":true,\n' +
+      '   "path":["b1","b2","b3","b4","b8"],\n' +
+      '   "steps":[\n' +
       '    {"name":"Открывает корзину","verb":"","uri":"","resp":"","cache":null,"dbTarget":null},\n' +
       '    {"name":"Оформить заказ","verb":"POST","uri":"/api/v1/orders","resp":"201 {orderId}","cache":null,"dbTarget":null},\n' +
       '    {"name":"Маршрутизирует","verb":"POST","uri":"/orders","resp":"201","cache":null,"dbTarget":null},\n' +
       '    {"name":"Создать заказ","verb":"POST","uri":"/orders","resp":"201 {orderId}","cache":null,"dbTarget":null},\n' +
       '    {"name":"Сохранить заказ","verb":"INSERT","uri":"orders","resp":"uuid заказа","cache":null,"dbTarget":null}\n' +
-      '  ]}],\n' +
+      '  ]}\n' +
+      '],\n' +
       '"meta":{"systemName":"Зоомагазин","description":"Микросервисная система","domain":"e-commerce","problem":"","solution":""}}\n' +
       '```\n\n' +
+
+
       'CHECKLIST before output:\n' +
       '[ ] every service has its own DB block\n' +
       '[ ] every DB has 2+ tables, 8+ fields each, FK objects present\n' +
+      '[ ] FK.table only references tables WITHIN THE SAME db block — never cross-DB\n' +
+      '[ ] conns direction: service→db, NEVER db→service\n' +
       '[ ] EVERY scenario: steps.length === path.length, no duplicate steps\n' +
       '[ ] no "uml" field in scenarios\n' +
       '[ ] all ids are strings, conns reference ids not names\n\n' +
@@ -216,7 +321,7 @@ var AI = {};
       '- Free coords: services x=540, db x=980, kafka x=760, external x=1200; y = max existing y + 160.\n' +
       BLOCK_TYPES + '\n' +
       'FORMAT (new items only):\n' +
-      '```json\n{"blocks":[{"id":"b'+n+'","type":"service","customLabel":"Имя","x":540,"y":380,"patterns":["retry"],"settings":{}}],"conns":[{"id":"cn1","from":"b3","to":"b'+n+'"}]}\n```';
+      '```json\n{"blocks":[{"id":"b'+n+'","type":"service","customLabel":"Имя","x":540,"y":380,"patterns":[],"settings":{}}],"conns":[{"id":"cn1","from":"b3","to":"b'+n+'"}]}\n```';
   }
 
   function buildPatchDB(){
@@ -277,6 +382,10 @@ var AI = {};
       patterns:b.patterns||[], settings:b.settings||{}
     };
     if (b.dbSchema) r.dbSchema = b.dbSchema;
+    if (b.redisSchema) r.redisSchema = b.redisSchema;
+    // redisData → dbRows['__redis__'] (формат для редактора данных)
+    if (b.dbRows) r.dbRows = b.dbRows;
+    else if (b.redisData && b.redisData.length) r.dbRows = {'__redis__': b.redisData};
     return r;
   }
   function normConns(raw, blocks, prefix){
@@ -285,11 +394,18 @@ var AI = {};
       var idx = {}; blocks.forEach(function(b){ idx[b.customLabel]=b.id; });
       return raw.map(function(s,i){ var p=s.split('>>'); return {id:prefix+i, from:idx[p[0]&&p[0].trim()]||p[0], to:idx[p[1]&&p[1].trim()]||p[1]}; });
     }
-    return raw.map(function(c,i){ return {id:c.id||(prefix+i), from:c.from||c.source||c.src, to:c.to||c.target||c.dst}; });
+    var result = raw.map(function(c,i){ return {id:c.id||(prefix+i), from:c.from||c.source||c.src, to:c.to||c.target||c.dst}; });
+    // Дедуп по id — берём последний с таким id
+    var seen = {}; result.forEach(function(c){ seen[c.id]=c; });
+    return result.filter(function(c){ return seen[c.id]===c; });
   }
-  // Гарантия steps.length === path.length (на случай если AI всё же ошибся)
+  // Гарантия steps.length === path.length + дедуп по id (keep last)
   function fixScenarios(scs){
-    return (scs||[]).map(function(s){
+    // Дедуп по id — если AI сгенерил один сценарий дважды, берём последний (обычно без uml)
+    var seen = {}, deduped = [];
+    (scs||[]).forEach(function(s){ seen[s.id] = s; });
+    (scs||[]).forEach(function(s){ if (!deduped.find(function(x){return x.id===s.id;})) deduped.push(seen[s.id]); });
+    return deduped.map(function(s){
       delete s.uml;
       if (Array.isArray(s.path) && Array.isArray(s.steps) && s.steps.length !== s.path.length){
         var out = [];
@@ -305,6 +421,66 @@ var AI = {};
     S.nid = max + 1;
   }
 
+  var DB_CATS = ['db','cache'];
+  var SVC_CATS = ['svc','gw','net'];
+  function bcat(id, blocks){ var b=(blocks||S.blocks||[]).find(function(x){return x.id===id;}); return b ? (BASE[b.type]&&BASE[b.type].cat||'') : ''; }
+
+  // Удаляем связи сервис→чужая_БД (нарушение МСА: каждый сервис только своя БД)
+  function fixSharedDbConns(conns, blocks){
+    // Строим карту: dbId → set serviceIds которые к ней подключены
+    var dbOwners = {};
+    conns.forEach(function(c){
+      var fc = bcat(c.from, blocks), tc = bcat(c.to, blocks);
+      if (SVC_CATS.indexOf(fc)>=0 && DB_CATS.indexOf(tc)>=0){
+        (dbOwners[c.to] = dbOwners[c.to]||[]).push(c.from);
+      }
+    });
+    // Если к БД подключено несколько сервисов — оставляем только первого владельца, остальные связи удаляем
+    var remove = {};
+    Object.keys(dbOwners).forEach(function(dbId){
+      var owners = dbOwners[dbId];
+      if (owners.length > 1){
+        owners.slice(1).forEach(function(svcId){ remove[svcId+'>>'+dbId] = true; });
+      }
+    });
+    return conns.filter(function(c){ return !remove[c.from+'>>'+c.to]; });
+  }
+
+  // Фикс неправильных направлений связей (db→service → переворачиваем в service→db)
+  function fixConns(conns, blocks){
+    return (conns||[]).map(function(c){
+      var fc = bcat(c.from, blocks), tc = bcat(c.to, blocks);
+      if (DB_CATS.indexOf(fc)>=0 && SVC_CATS.indexOf(tc)>=0){
+        return Object.assign({}, c, {from: c.to, to: c.from});
+      }
+      return c;
+    });
+  }
+
+  // Убираем fk-ссылки на таблицы из других DB-блоков
+  function fixCrossDbFk(blocks){
+    // Строим карту: tableName → dbBlockId
+    var tableDb = {};
+    blocks.forEach(function(b){
+      var dbCat = BASE[b.type]&&BASE[b.type].cat;
+      if (dbCat!=='db' && dbCat!=='cache') return;
+      ((b.dbSchema&&b.dbSchema.tables)||[]).forEach(function(t){ tableDb[t.name] = b.id; });
+    });
+    blocks.forEach(function(b){
+      ((b.dbSchema&&b.dbSchema.tables)||[]).forEach(function(t){
+        (t.fields||[]).forEach(function(f){
+          if (f.fk && f.fk.table && tableDb[f.fk.table] && tableDb[f.fk.table] !== b.id){
+            // Это кросс-DB FK — удаляем fk объект, оставляем UUID NN
+            delete f.fk;
+            f.constraints = (f.constraints||'').replace(/,?\s*FK/i,'').trim();
+            f.desc = (f.desc ? f.desc+'. ' : '') + 'Ссылка на '+f.name.replace(/_id$/,'')+' из другого сервиса (cross-service UUID)';
+          }
+        });
+      });
+    });
+    return blocks;
+  }
+
   // ════════════════ ЗАГРУЗКА / МЁРЖ ════════════════
   AI.loadJSON = function(data){
     data = unwrapData(data || _lastJSON);
@@ -313,8 +489,11 @@ var AI = {};
     if (!data.blocks || !data.blocks.length){
       toast('❌ Не найдены блоки. Ключи: '+Object.keys(_lastJSON||{}).join(', ')); return;
     }
+    data.blocks = fixCrossDbFk(data.blocks);
     S.blocks    = data.blocks.map(function(b){ return Object.assign({patterns:[],settings:{}}, b); });
-    S.conns     = normConns(data.conns||data.connections||data.edges||data.links, data.blocks, 'c');
+    var rawConns = normConns(data.conns||data.connections||data.edges||data.links, data.blocks, 'c');
+    rawConns = fixConns(rawConns, S.blocks);
+    S.conns  = fixSharedDbConns(rawConns, S.blocks);
     var scs     = fixScenarios(data.scenarios||[]);
     S.scenarios = typeof normalizeScenarios==='function' ? normalizeScenarios(scs) : scs;
     S.meta      = data.meta || (typeof defaultMeta==='function'?defaultMeta():{});
@@ -329,6 +508,7 @@ var AI = {};
     data = unwrapData(data || _lastJSON);
     if (!data || !data.blocks || !data.blocks.length){ toast('❌ Нет блоков для добавления'); return; }
     data.blocks = data.blocks.map(function(b,i){ return normBlock(b,i,300); });
+    data.blocks = fixCrossDbFk(data.blocks);
 
     var added=0, updated=0;
     data.blocks.forEach(function(nb){
@@ -338,6 +518,8 @@ var AI = {};
     });
 
     var raw = normConns(data.conns||data.connections||data.edges||data.links, S.blocks, 'cm'+Date.now()+'_');
+    raw = fixConns(raw, S.blocks);
+    raw = fixSharedDbConns(raw, S.blocks);
     var have = S.conns.map(function(c){ return c.from+'>>'+c.to; });
     var fresh = raw.filter(function(c){ return c.from && c.to && have.indexOf(c.from+'>>'+c.to)<0; });
     S.conns = S.conns.concat(fresh);
@@ -381,7 +563,7 @@ var AI = {};
       var sys   = isAdd ? buildPatchAdd() : buildPatchDB();
       if (sys){
         busy(true, isAdd?'✦ добавляю в схему...':'✦ заполняю схемы БД...');
-        rawCall([{role:'system',content:sys},{role:'user',content:text}], 7000)
+        rawCall([{role:'system',content:sys},{role:'user',content:text}], 6000)
           .then(function(content){ busy(false); _patchNext=true; addMsg('assistant', content); })
           .catch(function(e){ busy(false); addMsg('assistant','Ошибка: '+e.message); });
         return;
@@ -390,9 +572,19 @@ var AI = {};
 
     // GEN / CHAT
     var isGen = detectGen(text);
+    var isConfirm = /^(да|давай|ок|го|yes|ok|погнали|вперёд|вперед|жги|поехали|конечно|делай)(\s|$)/i.test(text.trim());
     chatHistory.push({role:'user', content:text});
     busy(true, isGen?'✦ генерирую схему...':'✦ думает...');
-    var history  = isGen ? chatHistory.slice(-3) : chatHistory.slice(-10);
+    var history;
+    if (!isGen) {
+      history = chatHistory.slice(-10);
+    } else if (isConfirm) {
+      // "Да" после плана — берём последние 3 сообщения (описание + AI-план + "да")
+      history = chatHistory.slice(-3);
+    } else {
+      // Длинное структурированное описание — оно само является контекстом, AI-план не нужен
+      history = chatHistory.filter(function(m){ return m.role==='user'; }).slice(-2);
+    }
     var messages = [{role:'system', content:isGen?buildGen():buildChat()}].concat(history);
 
     rawCall(messages, isGen?7000:2000)
@@ -407,7 +599,7 @@ var AI = {};
             addMsg('assistant','🔄 Обогащаю схемы БД...');
             busy(true,'обогащаю...');
             rawCall([{role:'system',content:buildGen()},{role:'user',content:
-              'Схемы БД бедные:\n'+bad.join('\n')+'\nДобавь минимум 8 полей в каждую таблицу. Верни ТОЛЬКО полный ```json блок со всей схемой.'}], 7000)
+              'Схемы БД бедные:\n'+bad.join('\n')+'\nДобавь минимум 8 полей в каждую таблицу. Верни ТОЛЬКО полный ```json блок со всей схемой.'}], 6000)
               .then(function(c2){ busy(false); addMsg('assistant', c2); })
               .catch(function(e){ busy(false); addMsg('assistant','Ошибка: '+e.message); });
           }

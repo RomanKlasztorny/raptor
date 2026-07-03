@@ -563,10 +563,9 @@ function generateSeqFromScenario(id){
   const isDb=c=>c==='db'||c==='cache';
   const isSvc=c=>c==='svc'||c==='bff'||c==='gw'||c==='auth'||c==='net';
 
-  // steps[i] описывают хопы начиная с первого НЕ-актор хопа.
-  // Если путь начинается с actor/client — смещаем чтение на 1.
-  const off=['actor','client'].includes(cat(path[0]))?1:0;
-  const stepAt=i=>(i-off>=0?steps[i-off]:null)||{};
+  // steps[i] = сообщение на ребре path[i] → path[i+1] (канонический формат UML 2.x).
+  // Нет смещения: step[0] всегда описывает первый хоп (actor→gw или gw→svc и т.д.).
+  const stepAt=i=>steps[i]||{};
 
   // ── Участники: путь + implicit БД каждого сервиса (external — в конец) ──
   // brokerIsLast  — брокер последний в path: Вариант 2 (self-стрелка, нет консьюмера здесь)
@@ -579,8 +578,8 @@ function generateSeqFromScenario(id){
   path.forEach((nid,pi)=>{
     if(!seenOSet.has(nid)){
       seenOSet.add(nid);
-      // Брокер последний — скрываем (self-стрелка); брокер с консьюмером — оставляем участником
-      if(!(brokerIsLast&&pi>0&&isBrk(cat(nid))))seenOrdered.push(nid);
+      // Брокер всегда участник (раньше скрывали и делали self-стрелку — это баг)
+      seenOrdered.push(nid);
     }
     if(isSvc(cat(nid))){
       const dconn=(S.conns||[]).find(c=>c.from===nid&&isDb(cat(c.to))&&!pathSet.has(c.to));
@@ -620,16 +619,15 @@ function generateSeqFromScenario(id){
 
     const gwCtx=(fc==='gw'&&isSvc(tc))?{gwAuthMode:ba.settings?.auth_mode}:null;
 
-    if(off&&i===0) return `${q(nm(a))} -> ${q(nm(b))}: ${bizVerb(fc,tc,false,gwCtx)}`;
-
     const sqlRx=/^(SELECT\b|INSERT\s+INTO\b|UPDATE\b|DELETE\s+FROM\b)/i;
 
     // Publish к брокеру — проверяем ДО isDb(fc), чтобы не потерять стрелку когда в path стоит DB→Kafka
     if(isBrk(tc)){
       if(brokerIsLast){
-        // Вариант 2: self-стрелка
+        // Брокер последний: publisher -> broker async (fire-and-forget)
         const evtName=st.uri||(st.name&&!sqlRx.test(st.name||'')?st.name:null)||('publish '+apiSlug(nm(b)));
-        return `${q(nm(isDb(fc)?publisherNid:a))} ->> ${q(nm(isDb(fc)?publisherNid:a))}: ${evtName}`;
+        const publisher=isDb(fc)?publisherNid:a;
+        return `${q(nm(publisher))} -) ${q(nm(b))}: ${evtName}`;
       }
       if(brokerHasConsumer&&!dbBeforeBrk){
         // Вариант 1 (нормальный): sync publish, ack придёт из ret
@@ -641,6 +639,12 @@ function generateSeqFromScenario(id){
     }
 
     if(isDb(fc))return null;
+
+    // Actor/client → next: только бизнес-смысл, без tech-детали
+    if(fc==='actor'||fc==='client'){
+      const biz0=st.name||bizVerb(fc,tc,false,gwCtx);
+      return `${q(nm(a))} -> ${q(nm(b))}: ${biz0}`;
+    }
 
     const isFromBroker=(fc==='broker'||fc==='queue');
     const isStore=isDb(tc)||isBrk(tc);

@@ -40,19 +40,58 @@ function placeTemplate(key){
   tpl.cs.forEach(cc=>{const a=cc[0],b=cc[1],mth=cc[2];const conn={id:'c'+(S.nid++),from:ids[a],to:ids[b]};
     if(mth)conn.method={verb:mth[0],uri:mth[1],name:mth[2],resp:mth[3]||''};
     S.conns.push(conn);});
+  // сценарии («Линии»): tpl.scenarios — path/steps по индексам bls, переводим в реальные id блоков
+  if(tpl.scenarios&&tpl.scenarios.length){
+    if(!S.scenarios)S.scenarios=[];
+    tpl.scenarios.forEach(sc=>{
+      const path=sc.path.map(i=>ids[i]);
+      S.scenarios.push({
+        id:'sc'+(S.nid++),
+        name:sc.name,
+        color:sc.color||(typeof nextRouteColor==='function'?nextRouteColor():'#7aa2f7'),
+        actorId:path[0],
+        volume:sc.volume!=null?sc.volume:100,
+        path,
+        steps:(sc.steps||[]).map(s=>({name:s.name||'',verb:s.verb||'',uri:s.uri||'',resp:s.resp||''})),
+        visible:true
+      });
+    });
+    if(typeof renderRoutesPanel==='function')renderRoutesPanel();
+  }
   pushHist();analyze();toast('📦 '+tpl.lbl);
 }
-// Меню «Шаблоны» = примеры (готовые системы) + заготовки (Сервисы/Группы) в одном месте
+// Меню «Шаблоны» = примеры (готовые системы) + заготовки (Системы/Элементы), категории — flyout-подменю вправо
+// Элементы дополнительно разбиты на тематические под-подменю (3-й уровень), т.к. их много (40+)
 function buildTemplatesMenu(){
   const m=$('m-tmpl');if(!m)return;
-  const _grpName=g=>({'Сервисы':t('tmpl_g_services'),'Группы':t('tmpl_g_groups')}[g]||g);
-  let h=`<div class="menu-sec">${t('tmpl_examples')}</div>`;
-  EXAMPLES.forEach((ex,i)=>{h+=`<div class="menu-item" onclick="menuDo(function(){loadExampleByIndex(${i})})">🗂 ${ex.name}</div>`;});
+  const _grpName=g=>({'Системы':t('tmpl_g_systems'),'Элементы':t('tmpl_g_elements')}[g]||g);
+  const _grpOrder=['Системы','Элементы'];
+  const _tplItem=([key,tpl])=>{const _lbl=(typeof CURR_LANG!=='undefined'&&CURR_LANG==='en'&&tpl.lbl_en)||tpl.lbl;return `<div class="menu-item" onclick="menuDo(function(){placeTemplate('${key}')})" title="${tpl.bls.length} узлов, ${tpl.cs.length} связей">📦 ${_lbl}</div>`;};
+  let h='';
+  if(EXAMPLES.length){
+    h+=`<div class="menu-sec">${t('tmpl_examples')}</div>`;
+    EXAMPLES.forEach((ex,i)=>{h+=`<div class="menu-item" onclick="menuDo(function(){loadExampleByIndex(${i})})">🗂 ${ex.name}</div>`;});
+    h+=`<div class="menu-sep"></div>`;
+  }
   const groups={};
   Object.entries(TMPLS).forEach(([k,tpl])=>{const g=tpl.g||t('tmpl_group_default');(groups[g]=groups[g]||[]).push([k,tpl]);});
-  Object.entries(groups).forEach(([gname,items])=>{
-    h+=`<div class="menu-sep"></div><div class="menu-sec">📦 ${_grpName(gname)}</div>`;
-    items.forEach(([key,tpl])=>{const _lbl=(typeof CURR_LANG!=='undefined'&&CURR_LANG==='en'&&tpl.lbl_en)||tpl.lbl;h+=`<div class="menu-item" onclick="menuDo(function(){placeTemplate('${key}')})" title="${tpl.bls.length} узлов, ${tpl.cs.length} связей">📦 ${_lbl}</div>`;});
+  const orderedNames=[..._grpOrder.filter(g=>groups[g]),...Object.keys(groups).filter(g=>!_grpOrder.includes(g))];
+  orderedNames.forEach(gname=>{
+    const items=groups[gname];
+    const themed={};let untheme=[];
+    items.forEach(pair=>{const th=pair[1].theme;if(th)(themed[th]=themed[th]||[]).push(pair);else untheme.push(pair);});
+    let sub='';let subScrollable=false;
+    if(Object.keys(themed).length){
+      Object.entries(themed).forEach(([thname,thItems])=>{
+        const thSub=thItems.map(_tplItem).join('');
+        sub+=`<div class="menu-item has-sub">🏷 ${thname}<span class="menu-kbd">▶</span><div class="submenu scrollable">${thSub}</div></div>`;
+      });
+      untheme.forEach(pair=>{sub+=_tplItem(pair);});
+    }else{
+      items.forEach(pair=>{sub+=_tplItem(pair);});
+      subScrollable=true; // плоский список без тем (напр. «Системы») — может быть длинным
+    }
+    h+=`<div class="menu-item has-sub">📦 ${_grpName(gname)}<span class="menu-kbd">▶</span><div class="submenu${subScrollable?' scrollable':''}">${sub}</div></div>`;
   });
   m.innerHTML=h;
 }

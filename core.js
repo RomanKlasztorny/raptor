@@ -90,14 +90,18 @@ function serviceDatabases(serviceId){
 }
 // Все сервисы (cat svc) на схеме
 function allServices(){ return S.blocks.filter(b=>BASE[b.type]?.cat==='svc'); }
-// Эндпоинты сервиса для документа = шаги сценариев, чей шаг ведёт В этот сервис.
-// (API живёт на шаге сценария, не на связи.)
+// Эндпоинты сервиса для документа = шаги сценариев, чей шаг ведёт В этот сервис
+// + шаги, где сервис является отправителем к брокеру (PUBLISH).
 function serviceEndpoints(serviceId){
+  const BROKER_CATS=new Set(['broker','queue']);
+  const isBroker=id=>{const b=S.blocks.find(x=>x.id===id);return b&&BROKER_CATS.has(BASE[b.type]?.cat);};
   const out=[];const seen=new Set();
   (S.scenarios||[]).forEach(s=>{
     const steps=s.steps||[];
     for(let i=0;i<(s.path||[]).length-1;i++){
-      if(s.path[i+1]!==serviceId) continue;
+      const toSvc   = s.path[i+1]===serviceId;
+      const fromSvc = s.path[i]===serviceId && isBroker(s.path[i+1]);
+      if(!toSvc && !fromSvc) continue;
       const st=steps[i]||{};
       if(!(st.uri||st.name)) continue;
       const key=(st.verb||'GET')+' '+(st.uri||st.name);

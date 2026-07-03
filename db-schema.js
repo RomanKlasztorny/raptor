@@ -833,6 +833,7 @@ function _renderDataEditor(){
         <span>${label}</span>
         <span style="color:#787c99;font-size:10px">${rows.length} строк</span>
         <button onclick="_deAddRow('${tn}')" style="margin-left:auto;padding:3px 10px;border:1px solid ${clr};border-radius:5px;background:${clr}18;color:${clr};cursor:pointer;font-size:10.5px">＋ Строка</button>
+        ${isRedis?`<button onclick="_deAutoFillRedisFromSchema()" title="Заполнить примерами из Redis-схемы (паттернов)" style="padding:3px 8px;border:1px solid #f7768e77;border-radius:5px;background:transparent;color:#f7768e;cursor:pointer;font-size:10px">⚡ Из схемы</button>`:''}
         ${!isRedis&&rows.length?`<button onclick="_deCopySql('${tn}')" style="padding:3px 8px;border:1px solid #4a4c6a;border-radius:5px;background:transparent;color:#787c99;cursor:pointer;font-size:10px">📋 SQL</button>`:''}
       </div>
       <div style="overflow-x:auto">
@@ -870,6 +871,25 @@ function _deAddRow(tname){
   const cols=_deCols(b,tname);
   const row={};cols.forEach(c=>row[c]='');
   b.dbRows[tname].push(row);
+  _renderDataEditor();
+}
+
+function _deAutoFillRedisFromSchema(){
+  const b=gb(_deId);if(!b)return;
+  const patterns=b.redisSchema?.patterns;if(!patterns?.length)return toast('Нет Redis-схемы (паттернов)');
+  if(!b.dbRows['__redis__'])b.dbRows['__redis__']=[];
+  const EXAMPLES={UUID:'550e8400-e29b-41d4-a716-446655440000',id:'42',userId:'42',candidateId:'17',vacancyId:'5',interviewId:'9',token:'eyJhbGci...abc',page:'1',minute:'202406281200',sessionId:'sess_abc'};
+  const exVal=v=>EXAMPLES[v]||v;
+  patterns.forEach(p=>{
+    const key=p.key.replace(/\{(\w+)\}/g,(_,v)=>exVal(v));
+    let value='';
+    if(p.type==='Hash'&&p.fields?.length){
+      const obj={};p.fields.forEach(f=>obj[f.name]='');value=JSON.stringify(obj);
+    } else if(p.valueField){
+      value=p.valueField;
+    }
+    b.dbRows['__redis__'].push({key,type:p.type||'String',value,ttl:String(p.ttl||'')});
+  });
   _renderDataEditor();
 }
 function _deDelRow(tname,ri){

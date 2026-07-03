@@ -35,6 +35,13 @@ body{font-family:'Tahoma','Verdana',system-ui,sans-serif;background:var(--bg0);c
 .menu-item.danger{color:#7a1808}.menu-item.danger:hover{background:#7a1808;color:#fff}
 .menu-kbd{font-size:9.5px;color:#6a6050}.menu-item:hover .menu-kbd{color:#c8d8f8}
 .menu-sep{height:0;border-top:1px solid #7a6e5a;border-bottom:1px solid #fffdf9;margin:3px 0}
+#m-tmpl{overflow:visible;max-height:none}
+.menu-item.has-sub{position:relative}
+.submenu{display:none;position:absolute;left:100%;top:-3px;background:#d8d0be;border:2px solid #7a6e5a;box-shadow:3px 3px 0 #4a4030;padding:2px 0;min-width:230px;overflow:visible;z-index:601}
+.submenu.scrollable{max-height:70vh;overflow-y:auto}
+.menu-item.has-sub:hover>.submenu{display:block}
+.menu-item.has-sub:hover{background:#1e4a90;color:#fff}
+.menu-item.has-sub:hover .menu-kbd{color:#c8d8f8}
 .modebtn2{padding:3px 11px;border:none;background:#ccc4b0;color:#6a6050;font-size:11.5px;cursor:pointer;font-family:inherit;white-space:nowrap;box-shadow:inset 1px 1px 0 #ede8e0,inset -1px -1px 0 #6a6050}
 .modebtn2.on{background:#e0d8c8;color:#162850;font-weight:700;box-shadow:inset 1px 1px 0 #4a4030,inset -1px -1px 0 #fff,inset 2px 2px 0 #7a6e5a,inset -2px -2px 0 #ede6d8}
 .modebtn2[data-mode="learn"].on{background:#d0d8e8;color:#162850}
@@ -479,33 +486,33 @@ select.ex-select{background:#faf4e8;color:#1a1410;border:1px solid #7a6e5a;paddi
 <!-- библиотека генерации .docx (локально, работает офлайн) -->
 <script src="docx.min.js?v=57"></script>
 <!-- порядок: engine → catalog → core → render → ... → bootstrap -->
-<script src="locale.js?v=8"></script>
+<script src="locale.js?v=9"></script>
 <script src="engine.js?v=57"></script>
-<script src="catalog.js?v=59"></script>
-<script src="core.js?v=59"></script>
+<script src="catalog.js?v=63"></script>
+<script src="core.js?v=60"></script>
 <script src="render.js?v=63"></script>
 <script src="c4-levels.js?v=59"></script>
 <script src="interact.js?v=57"></script>
 <script src="methods.js?v=58"></script>
-<script src="ui.js?v=66"></script>
+<script src="ui.js?v=71"></script>
 <script src="sim-trace.js?v=58"></script>
 <script src="sim.js?v=65"></script>
 <script src="broker-inspector.js?v=57"></script>
 <script src="tasks.js?v=59"></script>
 <script src="locale-tasks-en.js?v=1"></script>
 <script src="locale-blocks-en.js?v=1"></script>
-<script src="seq.js?v=73"></script>
+<script src="seq.js?v=74"></script>
 <script src="routes.js?v=63"></script>
 <script src="layout.js?v=58"></script>
-<script src="db-templates.js?v=57"></script>
-<script src="db-schema.js?v=62"></script>
+<script src="db-templates.js?v=60"></script>
+<script src="db-schema.js?v=63"></script>
 <script src="auth-templates.js?v=57"></script>
-<script src="doc-export.js?v=61"></script>
+<script src="doc-export.js?v=66"></script>
 <script src="drawio-export.js?v=1"></script>
 <script src="swagger-export.js?v=2"></script>
 <script src="bootstrap.js?v=67"></script>
 <script src="seq-tests.js?v=57"></script>
-<script src="raptor-ai.js?v=23"></script>
+<script src="raptor-ai.js?v=35"></script>
 <script>
 function toggleCanvasTheme(){
   var w=document.getElementById("canvas-wrap");

@@ -497,4 +497,729 @@ const DB_TEMPLATES = [
       ],indexes:['CREATE INDEX idx_appt_patient ON appointments(patient_id)','CREATE INDEX idx_appt_doctor ON appointments(doctor_id,scheduled_at)']},
     ]}
   },
+  {
+    id:'bank_ledger_postgres',name:'Банковский леджер (double-entry)',type:'postgresql',
+    schema:{tables:[
+      {name:'accounts',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'user_id',type:'UUID',notNull:true},
+        {name:'account_number',type:'VARCHAR(34)',unique:true,notNull:true},
+        {name:'currency',type:'CHAR(3)',default:"'RUB'"},
+        {name:'balance',type:'DECIMAL(18,2)',default:'0',notNull:true},
+        {name:'type',type:'VARCHAR(20)',default:"'checking'"},
+        {name:'status',type:'VARCHAR(20)',default:"'active'"},
+        {name:'created_at',type:'TIMESTAMP',default:'NOW()'},
+      ],indexes:['CREATE INDEX idx_accounts_user ON accounts(user_id)','CREATE UNIQUE INDEX idx_accounts_number ON accounts(account_number)']},
+      {name:'ledger_entries',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'account_id',type:'UUID',notNull:true,fk:{table:'accounts',field:'id'}},
+        {name:'transfer_id',type:'UUID',notNull:true},
+        {name:'direction',type:'VARCHAR(6)',notNull:true},
+        {name:'amount',type:'DECIMAL(18,2)',notNull:true},
+        {name:'balance_after',type:'DECIMAL(18,2)',notNull:true},
+        {name:'created_at',type:'TIMESTAMPTZ',default:'NOW()'},
+      ],indexes:['CREATE INDEX idx_ledger_account ON ledger_entries(account_id,created_at DESC)','CREATE UNIQUE INDEX idx_ledger_dedup ON ledger_entries(transfer_id,account_id,direction)']},
+      {name:'transfers',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'from_account_id',type:'UUID',fk:{table:'accounts',field:'id'}},
+        {name:'to_account_id',type:'UUID',fk:{table:'accounts',field:'id'}},
+        {name:'amount',type:'DECIMAL(18,2)',notNull:true},
+        {name:'currency',type:'CHAR(3)',default:"'RUB'"},
+        {name:'status',type:'VARCHAR(20)',default:"'pending'"},
+        {name:'idempotency_key',type:'VARCHAR(64)',unique:true},
+        {name:'created_at',type:'TIMESTAMP',default:'NOW()'},
+      ],indexes:['CREATE UNIQUE INDEX idx_transfers_idem ON transfers(idempotency_key)']},
+    ]}
+  },
+  {
+    id:'cards_postgres',name:'Банковские карты',type:'postgresql',
+    schema:{tables:[
+      {name:'cards',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'account_id',type:'UUID',notNull:true,fk:{table:'accounts',field:'id'}},
+        {name:'pan_last4',type:'CHAR(4)',notNull:true},
+        {name:'card_token',type:'VARCHAR(255)',unique:true,notNull:true},
+        {name:'expiry_month',type:'SMALLINT',notNull:true},
+        {name:'expiry_year',type:'SMALLINT',notNull:true},
+        {name:'status',type:'VARCHAR(20)',default:"'active'"},
+        {name:'issued_at',type:'TIMESTAMP',default:'NOW()'},
+      ],indexes:['CREATE INDEX idx_cards_account ON cards(account_id)']},
+      {name:'card_transactions',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'card_id',type:'UUID',notNull:true,fk:{table:'cards',field:'id'}},
+        {name:'merchant_name',type:'VARCHAR(255)'},
+        {name:'mcc_code',type:'VARCHAR(4)'},
+        {name:'amount',type:'DECIMAL(12,2)',notNull:true},
+        {name:'currency',type:'CHAR(3)',default:"'RUB'"},
+        {name:'status',type:'VARCHAR(20)',default:"'approved'"},
+        {name:'created_at',type:'TIMESTAMP',default:'NOW()'},
+      ],indexes:['CREATE INDEX idx_cardtx_card ON card_transactions(card_id,created_at DESC)']},
+    ]}
+  },
+  {
+    id:'sellers_postgres',name:'Продавцы маркетплейса',type:'postgresql',
+    schema:{tables:[
+      {name:'sellers',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'user_id',type:'UUID',notNull:true},
+        {name:'company_name',type:'VARCHAR(255)',notNull:true},
+        {name:'inn',type:'VARCHAR(12)',unique:true},
+        {name:'commission_rate',type:'DECIMAL(5,2)',default:'10.00'},
+        {name:'rating',type:'DECIMAL(3,2)',default:'0'},
+        {name:'status',type:'VARCHAR(20)',default:"'pending'"},
+        {name:'created_at',type:'TIMESTAMP',default:'NOW()'},
+      ],indexes:['CREATE INDEX idx_sellers_user ON sellers(user_id)','CREATE UNIQUE INDEX idx_sellers_inn ON sellers(inn)']},
+      {name:'seller_documents',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'seller_id',type:'UUID',notNull:true,fk:{table:'sellers',field:'id',onDelete:'CASCADE'}},
+        {name:'doc_type',type:'VARCHAR(50)'},
+        {name:'file_url',type:'TEXT'},
+        {name:'verified',type:'BOOLEAN',default:'false'},
+      ]},
+      {name:'seller_ratings',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'seller_id',type:'UUID',notNull:true,fk:{table:'sellers',field:'id'}},
+        {name:'order_id',type:'UUID'},
+        {name:'rating',type:'SMALLINT',notNull:true},
+        {name:'comment',type:'TEXT'},
+        {name:'created_at',type:'TIMESTAMP',default:'NOW()'},
+      ],indexes:['CREATE INDEX idx_sellerrating_seller ON seller_ratings(seller_id)']},
+    ]}
+  },
+  {
+    id:'video_postgres',name:'Видео и каналы',type:'postgresql',
+    schema:{tables:[
+      {name:'channels',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'user_id',type:'UUID',unique:true,notNull:true},
+        {name:'name',type:'VARCHAR(100)',notNull:true},
+        {name:'description',type:'TEXT'},
+        {name:'subscribers_count',type:'BIGINT',default:'0'},
+        {name:'created_at',type:'TIMESTAMP',default:'NOW()'},
+      ]},
+      {name:'videos',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'channel_id',type:'UUID',notNull:true,fk:{table:'channels',field:'id'}},
+        {name:'title',type:'VARCHAR(255)',notNull:true},
+        {name:'description',type:'TEXT'},
+        {name:'duration_sec',type:'INTEGER'},
+        {name:'status',type:'VARCHAR(20)',default:"'processing'"},
+        {name:'views_count',type:'BIGINT',default:'0'},
+        {name:'likes_count',type:'BIGINT',default:'0'},
+        {name:'published_at',type:'TIMESTAMP'},
+      ],indexes:['CREATE INDEX idx_videos_channel ON videos(channel_id)','CREATE INDEX idx_videos_status ON videos(status)']},
+    ]}
+  },
+  {
+    id:'comments_mongodb',name:'Комментарии (видео/посты)',type:'mongodb',
+    schema:{collections:[
+      {name:'comments',fields:[
+        {name:'_id',type:'ObjectId',pk:true},
+        {name:'target_id',type:'ObjectId'},
+        {name:'target_type',type:'String'},
+        {name:'author_id',type:'ObjectId'},
+        {name:'text',type:'String'},
+        {name:'likes_count',type:'Number',default:'0'},
+        {name:'parent_id',type:'ObjectId'},
+        {name:'created_at',type:'Date'},
+      ],indexes:['db.comments.createIndex({target_id:1,created_at:-1})','db.comments.createIndex({author_id:1})']},
+    ]}
+  },
+  {
+    id:'crawler_postgres',name:'Краулер: очередь и статус URL',type:'postgresql',
+    schema:{tables:[
+      {name:'urls',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'url',type:'TEXT',unique:true,notNull:true},
+        {name:'domain',type:'VARCHAR(255)'},
+        {name:'last_crawled_at',type:'TIMESTAMP'},
+        {name:'status',type:'VARCHAR(20)',default:"'new'"},
+        {name:'content_hash',type:'VARCHAR(64)'},
+        {name:'priority',type:'SMALLINT',default:'0'},
+      ],indexes:['CREATE INDEX idx_urls_domain ON urls(domain)','CREATE INDEX idx_urls_status ON urls(status)']},
+      {name:'crawl_queue',fields:[
+        {name:'id',type:'BIGSERIAL',pk:true},
+        {name:'url_id',type:'UUID',notNull:true,fk:{table:'urls',field:'id'}},
+        {name:'scheduled_at',type:'TIMESTAMP',default:'NOW()'},
+        {name:'attempts',type:'INTEGER',default:'0'},
+        {name:'locked_by',type:'VARCHAR(100)'},
+      ],indexes:['CREATE INDEX idx_queue_scheduled ON crawl_queue(scheduled_at)']},
+    ]}
+  },
+  {
+    id:'todo_postgres',name:'Задачи и списки',type:'postgresql',
+    schema:{tables:[
+      {name:'task_lists',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'owner_id',type:'UUID',notNull:true},
+        {name:'name',type:'VARCHAR(255)',notNull:true},
+        {name:'created_at',type:'TIMESTAMP',default:'NOW()'},
+      ]},
+      {name:'tasks',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'list_id',type:'UUID',notNull:true,fk:{table:'task_lists',field:'id',onDelete:'CASCADE'}},
+        {name:'title',type:'VARCHAR(500)',notNull:true},
+        {name:'description',type:'TEXT'},
+        {name:'is_done',type:'BOOLEAN',default:'false'},
+        {name:'due_date',type:'TIMESTAMP'},
+        {name:'priority',type:'SMALLINT',default:'0'},
+        {name:'assignee_id',type:'UUID'},
+        {name:'created_at',type:'TIMESTAMP',default:'NOW()'},
+        {name:'completed_at',type:'TIMESTAMP'},
+      ],indexes:['CREATE INDEX idx_tasks_list ON tasks(list_id)','CREATE INDEX idx_tasks_due ON tasks(due_date) WHERE NOT is_done']},
+      {name:'list_members',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'list_id',type:'UUID',notNull:true,fk:{table:'task_lists',field:'id',onDelete:'CASCADE'}},
+        {name:'user_id',type:'UUID',notNull:true},
+        {name:'role',type:'VARCHAR(20)',default:"'editor'"},
+      ],indexes:['CREATE UNIQUE INDEX idx_listmembers ON list_members(list_id,user_id)']},
+    ]}
+  },
+  {
+    id:'trips_postgres',name:'Поездки (такси)',type:'postgresql',
+    schema:{tables:[
+      {name:'trips',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'rider_id',type:'UUID',notNull:true},
+        {name:'driver_id',type:'UUID'},
+        {name:'pickup_lat',type:'DOUBLE PRECISION'},
+        {name:'pickup_lng',type:'DOUBLE PRECISION'},
+        {name:'dropoff_lat',type:'DOUBLE PRECISION'},
+        {name:'dropoff_lng',type:'DOUBLE PRECISION'},
+        {name:'status',type:'VARCHAR(20)',default:"'requested'"},
+        {name:'fare_amount',type:'DECIMAL(10,2)'},
+        {name:'distance_km',type:'DECIMAL(6,2)'},
+        {name:'requested_at',type:'TIMESTAMP',default:'NOW()'},
+        {name:'completed_at',type:'TIMESTAMP'},
+      ],indexes:['CREATE INDEX idx_trips_rider ON trips(rider_id)','CREATE INDEX idx_trips_driver ON trips(driver_id)','CREATE INDEX idx_trips_status ON trips(status)']},
+      {name:'trip_status_history',fields:[
+        {name:'id',type:'BIGSERIAL',pk:true},
+        {name:'trip_id',type:'UUID',notNull:true,fk:{table:'trips',field:'id',onDelete:'CASCADE'}},
+        {name:'status',type:'VARCHAR(20)',notNull:true},
+        {name:'changed_at',type:'TIMESTAMP',default:'NOW()'},
+      ]},
+    ]}
+  },
+  {
+    id:'social_graph_postgres',name:'Соцграф (подписки)',type:'postgresql',
+    schema:{tables:[
+      {name:'users',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'username',type:'VARCHAR(50)',unique:true,notNull:true},
+        {name:'display_name',type:'VARCHAR(100)'},
+        {name:'bio',type:'TEXT'},
+        {name:'followers_count',type:'BIGINT',default:'0'},
+        {name:'following_count',type:'BIGINT',default:'0'},
+        {name:'is_private',type:'BOOLEAN',default:'false'},
+      ]},
+      {name:'follows',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'follower_id',type:'UUID',notNull:true,fk:{table:'users',field:'id'}},
+        {name:'followee_id',type:'UUID',notNull:true,fk:{table:'users',field:'id'}},
+        {name:'created_at',type:'TIMESTAMP',default:'NOW()'},
+      ],indexes:['CREATE UNIQUE INDEX idx_follows_pair ON follows(follower_id,followee_id)','CREATE INDEX idx_follows_followee ON follows(followee_id)']},
+    ]}
+  },
+  {
+    id:'posts_mongodb',name:'Публикации (соцсеть)',type:'mongodb',
+    schema:{collections:[
+      {name:'posts',fields:[
+        {name:'_id',type:'ObjectId',pk:true},
+        {name:'author_id',type:'ObjectId'},
+        {name:'caption',type:'String'},
+        {name:'media',type:'Array<String>'},
+        {name:'likes_count',type:'Number',default:'0'},
+        {name:'comments_count',type:'Number',default:'0'},
+        {name:'hashtags',type:'Array<String>'},
+        {name:'created_at',type:'Date'},
+      ],indexes:['db.posts.createIndex({author_id:1,created_at:-1})','db.posts.createIndex({hashtags:1})']},
+    ]}
+  },
+  {
+    id:'feed_cassandra',name:'Лента (fan-out on write)',type:'cassandra',
+    schema:{tables:[
+      {name:'user_feed',fields:[
+        {name:'user_id',type:'UUID',pk:true},
+        {name:'post_id',type:'TIMEUUID',pk:'clustering'},
+        {name:'author_id',type:'UUID'},
+        {name:'cached_caption',type:'TEXT'},
+        {name:'media_url',type:'TEXT'},
+      ],cqlExtra:'WITH CLUSTERING ORDER BY (post_id DESC)'},
+    ]}
+  },
+  {
+    id:'restaurants_postgres',name:'Рестораны и меню',type:'postgresql',
+    schema:{tables:[
+      {name:'restaurants',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'name',type:'VARCHAR(255)',notNull:true},
+        {name:'cuisine_type',type:'VARCHAR(50)'},
+        {name:'address',type:'TEXT'},
+        {name:'rating',type:'DECIMAL(3,2)',default:'0'},
+        {name:'is_open',type:'BOOLEAN',default:'true'},
+        {name:'avg_cook_time_min',type:'INTEGER',default:'20'},
+      ],indexes:['CREATE INDEX idx_restaurants_cuisine ON restaurants(cuisine_type)']},
+      {name:'menu_items',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'restaurant_id',type:'UUID',notNull:true,fk:{table:'restaurants',field:'id',onDelete:'CASCADE'}},
+        {name:'name',type:'VARCHAR(255)',notNull:true},
+        {name:'price',type:'DECIMAL(10,2)',notNull:true},
+        {name:'category',type:'VARCHAR(50)'},
+        {name:'is_available',type:'BOOLEAN',default:'true'},
+      ],indexes:['CREATE INDEX idx_menu_restaurant ON menu_items(restaurant_id)']},
+    ]}
+  },
+  {
+    id:'food_orders_postgres',name:'Заказы еды и доставка',type:'postgresql',
+    schema:{tables:[
+      {name:'orders',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'customer_id',type:'UUID',notNull:true},
+        {name:'restaurant_id',type:'UUID',notNull:true},
+        {name:'courier_id',type:'UUID'},
+        {name:'status',type:'VARCHAR(20)',default:"'placed'"},
+        {name:'total_amount',type:'DECIMAL(10,2)',notNull:true},
+        {name:'delivery_address',type:'TEXT',notNull:true},
+        {name:'eta_minutes',type:'INTEGER'},
+        {name:'created_at',type:'TIMESTAMP',default:'NOW()'},
+      ],indexes:['CREATE INDEX idx_forders_customer ON orders(customer_id)','CREATE INDEX idx_forders_courier ON orders(courier_id)','CREATE INDEX idx_forders_status ON orders(status)']},
+      {name:'order_items',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'order_id',type:'UUID',notNull:true,fk:{table:'orders',field:'id',onDelete:'CASCADE'}},
+        {name:'menu_item_id',type:'UUID',notNull:true},
+        {name:'quantity',type:'INTEGER',default:'1'},
+        {name:'price',type:'DECIMAL(10,2)',notNull:true},
+      ]},
+    ]}
+  },
+  {
+    id:'carsharing_postgres',name:'Каршеринг: автомобили и аренды',type:'postgresql',
+    schema:{tables:[
+      {name:'cars',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'plate_number',type:'VARCHAR(20)',unique:true,notNull:true},
+        {name:'model',type:'VARCHAR(100)'},
+        {name:'status',type:'VARCHAR(20)',default:"'available'"},
+        {name:'fuel_level',type:'SMALLINT',default:'100'},
+        {name:'lat',type:'DOUBLE PRECISION'},
+        {name:'lng',type:'DOUBLE PRECISION'},
+        {name:'price_per_min',type:'DECIMAL(6,2)',default:'9.00'},
+      ],indexes:['CREATE INDEX idx_cars_status ON cars(status)']},
+      {name:'rentals',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'user_id',type:'UUID',notNull:true},
+        {name:'car_id',type:'UUID',notNull:true,fk:{table:'cars',field:'id'}},
+        {name:'started_at',type:'TIMESTAMP',default:'NOW()'},
+        {name:'ended_at',type:'TIMESTAMP'},
+        {name:'distance_km',type:'DECIMAL(8,2)'},
+        {name:'total_cost',type:'DECIMAL(10,2)'},
+        {name:'status',type:'VARCHAR(20)',default:"'active'"},
+      ],indexes:['CREATE INDEX idx_rentals_user ON rentals(user_id)','CREATE INDEX idx_rentals_car ON rentals(car_id)']},
+    ]}
+  },
+  {
+    id:'music_catalog_postgres',name:'Музыкальный каталог',type:'postgresql',
+    schema:{tables:[
+      {name:'artists',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'name',type:'VARCHAR(255)',notNull:true},
+        {name:'monthly_listeners',type:'BIGINT',default:'0'},
+      ]},
+      {name:'albums',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'artist_id',type:'UUID',notNull:true,fk:{table:'artists',field:'id'}},
+        {name:'title',type:'VARCHAR(255)',notNull:true},
+        {name:'released_at',type:'DATE'},
+      ]},
+      {name:'tracks',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'album_id',type:'UUID',notNull:true,fk:{table:'albums',field:'id',onDelete:'CASCADE'}},
+        {name:'title',type:'VARCHAR(255)',notNull:true},
+        {name:'duration_sec',type:'INTEGER'},
+        {name:'plays_count',type:'BIGINT',default:'0'},
+        {name:'audio_url',type:'TEXT'},
+      ],indexes:['CREATE INDEX idx_tracks_album ON tracks(album_id)']},
+    ]}
+  },
+  {
+    id:'playlists_mongodb',name:'Плейлисты',type:'mongodb',
+    schema:{collections:[
+      {name:'playlists',fields:[
+        {name:'_id',type:'ObjectId',pk:true},
+        {name:'owner_id',type:'ObjectId'},
+        {name:'name',type:'String'},
+        {name:'track_ids',type:'Array<ObjectId>'},
+        {name:'is_public',type:'Boolean',default:'true'},
+        {name:'followers_count',type:'Number',default:'0'},
+        {name:'created_at',type:'Date'},
+      ],indexes:['db.playlists.createIndex({owner_id:1})']},
+    ]}
+  },
+  {
+    id:'vod_postgres',name:'Видео по запросу (фильмы/сериалы)',type:'postgresql',
+    schema:{tables:[
+      {name:'titles',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'name',type:'VARCHAR(255)',notNull:true},
+        {name:'type',type:'VARCHAR(20)',default:"'movie'"},
+        {name:'genre',type:'VARCHAR(50)'},
+        {name:'release_year',type:'SMALLINT'},
+        {name:'rating',type:'DECIMAL(3,1)'},
+        {name:'duration_min',type:'INTEGER'},
+      ],indexes:['CREATE INDEX idx_titles_genre ON titles(genre)']},
+      {name:'episodes',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'title_id',type:'UUID',notNull:true,fk:{table:'titles',field:'id',onDelete:'CASCADE'}},
+        {name:'season',type:'SMALLINT'},
+        {name:'episode_number',type:'SMALLINT'},
+        {name:'duration_min',type:'INTEGER'},
+        {name:'video_url',type:'TEXT'},
+      ],indexes:['CREATE INDEX idx_episodes_title ON episodes(title_id)']},
+    ]}
+  },
+  {
+    id:'watch_progress_redis',name:'Продолжить просмотр (Redis)',type:'redis',
+    schema:{keys:[
+      {pattern:'progress:{user_id}:{titleId}',type:'STRING',fields:['position_sec'],ttl:'90 days',note:'Обновляется каждые ~10 сек плеера'},
+      {pattern:'continue_watching:{user_id}',type:'ZSET',fields:['titleId → last_watched_at'],ttl:'90 days'},
+    ]}
+  },
+  {
+    id:'dating_profiles_postgres',name:'Анкеты знакомств',type:'postgresql',
+    schema:{tables:[
+      {name:'profiles',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'user_id',type:'UUID',unique:true,notNull:true},
+        {name:'display_name',type:'VARCHAR(100)'},
+        {name:'age',type:'SMALLINT'},
+        {name:'bio',type:'TEXT'},
+        {name:'photos',type:'TEXT[]'},
+        {name:'lat',type:'DOUBLE PRECISION'},
+        {name:'lng',type:'DOUBLE PRECISION'},
+        {name:'gender',type:'VARCHAR(20)'},
+        {name:'looking_for',type:'VARCHAR(20)'},
+      ],indexes:['CREATE INDEX idx_dating_geo ON profiles(lat,lng)']},
+      {name:'matches',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'user1_id',type:'UUID',notNull:true},
+        {name:'user2_id',type:'UUID',notNull:true},
+        {name:'matched_at',type:'TIMESTAMP',default:'NOW()'},
+      ],indexes:['CREATE UNIQUE INDEX idx_matches_pair ON matches(user1_id,user2_id)']},
+    ]}
+  },
+  {
+    id:'swipes_cassandra',name:'Свайпы (Cassandra)',type:'cassandra',
+    schema:{tables:[
+      {name:'swipes',fields:[
+        {name:'user_id',type:'UUID',pk:true},
+        {name:'swiped_at',type:'TIMEUUID',pk:'clustering'},
+        {name:'target_id',type:'UUID'},
+        {name:'direction',type:'TEXT'},
+      ],cqlExtra:'WITH CLUSTERING ORDER BY (swiped_at DESC)'},
+    ]}
+  },
+  {
+    id:'wallets_postgres',name:'Криптокошельки',type:'postgresql',
+    schema:{tables:[
+      {name:'wallets',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'user_id',type:'UUID',notNull:true},
+        {name:'currency',type:'VARCHAR(10)',notNull:true},
+        {name:'balance',type:'DECIMAL(24,8)',default:'0'},
+        {name:'address',type:'VARCHAR(128)',unique:true},
+      ],indexes:['CREATE INDEX idx_wallets_user ON wallets(user_id)']},
+      {name:'wallet_transactions',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'wallet_id',type:'UUID',notNull:true,fk:{table:'wallets',field:'id'}},
+        {name:'type',type:'VARCHAR(20)'},
+        {name:'amount',type:'DECIMAL(24,8)',notNull:true},
+        {name:'tx_hash',type:'VARCHAR(128)'},
+        {name:'created_at',type:'TIMESTAMP',default:'NOW()'},
+      ],indexes:['CREATE INDEX idx_wtx_wallet ON wallet_transactions(wallet_id)']},
+    ]}
+  },
+  {
+    id:'trading_postgres',name:'Биржевые ордера и сделки',type:'postgresql',
+    schema:{tables:[
+      {name:'orders',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'user_id',type:'UUID',notNull:true},
+        {name:'pair',type:'VARCHAR(20)',notNull:true},
+        {name:'side',type:'VARCHAR(4)',notNull:true},
+        {name:'price',type:'DECIMAL(24,8)',notNull:true},
+        {name:'quantity',type:'DECIMAL(24,8)',notNull:true},
+        {name:'filled_quantity',type:'DECIMAL(24,8)',default:'0'},
+        {name:'status',type:'VARCHAR(20)',default:"'open'"},
+        {name:'created_at',type:'TIMESTAMP',default:'NOW()'},
+      ],indexes:['CREATE INDEX idx_torders_pair ON orders(pair,status)','CREATE INDEX idx_torders_user ON orders(user_id)']},
+      {name:'trades',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'buy_order_id',type:'UUID',notNull:true,fk:{table:'orders',field:'id'}},
+        {name:'sell_order_id',type:'UUID',notNull:true,fk:{table:'orders',field:'id'}},
+        {name:'price',type:'DECIMAL(24,8)',notNull:true},
+        {name:'quantity',type:'DECIMAL(24,8)',notNull:true},
+        {name:'executed_at',type:'TIMESTAMP',default:'NOW()'},
+      ],indexes:['CREATE INDEX idx_trades_time ON trades(executed_at DESC)']},
+    ]}
+  },
+  {
+    id:'orderbook_redis',name:'Стакан заявок (Redis)',type:'redis',
+    schema:{keys:[
+      {pattern:'orderbook:{pair}:bids',type:'ZSET',fields:['orderId → price'],ttl:'never',note:'Отсортированные заявки на покупку'},
+      {pattern:'orderbook:{pair}:asks',type:'ZSET',fields:['orderId → price'],ttl:'never',note:'Отсортированные заявки на продажу'},
+      {pattern:'ticker:{pair}',type:'HASH',fields:['last_price','24h_volume','24h_change'],ttl:'never'},
+    ]}
+  },
+  {
+    id:'courses_postgres',name:'Курсы и зачисления',type:'postgresql',
+    schema:{tables:[
+      {name:'courses',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'title',type:'VARCHAR(255)',notNull:true},
+        {name:'instructor_id',type:'UUID',notNull:true},
+        {name:'description',type:'TEXT'},
+        {name:'price',type:'DECIMAL(10,2)',default:'0'},
+        {name:'category',type:'VARCHAR(50)'},
+      ],indexes:['CREATE INDEX idx_courses_category ON courses(category)']},
+      {name:'lessons',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'course_id',type:'UUID',notNull:true,fk:{table:'courses',field:'id',onDelete:'CASCADE'}},
+        {name:'title',type:'VARCHAR(255)',notNull:true},
+        {name:'order_index',type:'SMALLINT'},
+        {name:'video_url',type:'TEXT'},
+      ],indexes:['CREATE INDEX idx_lessons_course ON lessons(course_id)']},
+      {name:'enrollments',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'user_id',type:'UUID',notNull:true},
+        {name:'course_id',type:'UUID',notNull:true,fk:{table:'courses',field:'id'}},
+        {name:'progress_pct',type:'SMALLINT',default:'0'},
+        {name:'completed_at',type:'TIMESTAMP'},
+        {name:'certificate_url',type:'TEXT'},
+      ],indexes:['CREATE UNIQUE INDEX idx_enroll_pair ON enrollments(user_id,course_id)']},
+    ]}
+  },
+  {
+    id:'lesson_progress_mongodb',name:'Прогресс по урокам/тестам',type:'mongodb',
+    schema:{collections:[
+      {name:'lesson_progress',fields:[
+        {name:'_id',type:'ObjectId',pk:true},
+        {name:'user_id',type:'ObjectId'},
+        {name:'lesson_id',type:'ObjectId'},
+        {name:'watched_sec',type:'Number'},
+        {name:'quiz_answers',type:'Object'},
+        {name:'quiz_score',type:'Number'},
+        {name:'completed',type:'Boolean',default:'false'},
+        {name:'updated_at',type:'Date'},
+      ],indexes:['db.lesson_progress.createIndex({user_id:1,lesson_id:1},{unique:true})']},
+    ]}
+  },
+  {
+    id:'workouts_postgres',name:'Тренировки',type:'postgresql',
+    schema:{tables:[
+      {name:'workouts',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'user_id',type:'UUID',notNull:true},
+        {name:'type',type:'VARCHAR(30)'},
+        {name:'distance_km',type:'DECIMAL(6,2)'},
+        {name:'duration_sec',type:'INTEGER'},
+        {name:'calories',type:'INTEGER'},
+        {name:'avg_pace',type:'DECIMAL(5,2)'},
+        {name:'started_at',type:'TIMESTAMP',default:'NOW()'},
+      ],indexes:['CREATE INDEX idx_workouts_user ON workouts(user_id,started_at DESC)']},
+    ]}
+  },
+  {
+    id:'workout_routes_cassandra',name:'GPS-трек тренировки (Cassandra)',type:'cassandra',
+    schema:{tables:[
+      {name:'route_points',fields:[
+        {name:'workout_id',type:'UUID',pk:true},
+        {name:'recorded_at',type:'TIMEUUID',pk:'clustering'},
+        {name:'lat',type:'DOUBLE'},
+        {name:'lng',type:'DOUBLE'},
+        {name:'elevation',type:'FLOAT'},
+        {name:'pace',type:'FLOAT'},
+      ],cqlExtra:'WITH CLUSTERING ORDER BY (recorded_at ASC)'},
+    ]}
+  },
+  {
+    id:'hotels_postgres',name:'Отели и номера',type:'postgresql',
+    schema:{tables:[
+      {name:'hotels',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'name',type:'VARCHAR(255)',notNull:true},
+        {name:'city',type:'VARCHAR(100)'},
+        {name:'star_rating',type:'SMALLINT'},
+        {name:'amenities',type:'TEXT[]'},
+      ],indexes:['CREATE INDEX idx_hotels_city ON hotels(city)']},
+      {name:'rooms',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'hotel_id',type:'UUID',notNull:true,fk:{table:'hotels',field:'id',onDelete:'CASCADE'}},
+        {name:'room_type',type:'VARCHAR(50)'},
+        {name:'price_per_night',type:'DECIMAL(10,2)',notNull:true},
+        {name:'capacity',type:'SMALLINT',default:'2'},
+      ],indexes:['CREATE INDEX idx_rooms_hotel ON rooms(hotel_id)']},
+    ]}
+  },
+  {
+    id:'cloud_files_postgres',name:'Облачное хранилище: файлы и доступ',type:'postgresql',
+    schema:{tables:[
+      {name:'files',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'owner_id',type:'UUID',notNull:true},
+        {name:'parent_id',type:'UUID'},
+        {name:'name',type:'VARCHAR(500)',notNull:true},
+        {name:'is_folder',type:'BOOLEAN',default:'false'},
+        {name:'size_bytes',type:'BIGINT',default:'0'},
+        {name:'mime_type',type:'VARCHAR(100)'},
+        {name:'version',type:'INTEGER',default:'1'},
+        {name:'storage_key',type:'TEXT'},
+        {name:'updated_at',type:'TIMESTAMP',default:'NOW()'},
+      ],indexes:['CREATE INDEX idx_cfiles_owner ON files(owner_id)','CREATE INDEX idx_cfiles_parent ON files(parent_id)']},
+      {name:'shares',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'file_id',type:'UUID',notNull:true,fk:{table:'files',field:'id',onDelete:'CASCADE'}},
+        {name:'shared_with_user_id',type:'UUID',notNull:true},
+        {name:'permission',type:'VARCHAR(20)',default:"'view'"},
+        {name:'created_at',type:'TIMESTAMP',default:'NOW()'},
+      ],indexes:['CREATE INDEX idx_shares_file ON shares(file_id)','CREATE INDEX idx_shares_user ON shares(shared_with_user_id)']},
+    ]}
+  },
+  {
+    id:'refunds_postgres',name:'Возвраты и рефанды',type:'postgresql',
+    schema:{tables:[
+      {name:'refunds',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'payment_id',type:'UUID',notNull:true},
+        {name:'amount',type:'DECIMAL(12,2)',notNull:true},
+        {name:'reason',type:'VARCHAR(255)'},
+        {name:'status',type:'VARCHAR(20)',default:"'pending'"},
+        {name:'refunded_at',type:'TIMESTAMP'},
+        {name:'created_at',type:'TIMESTAMP',default:'NOW()'},
+      ],indexes:['CREATE INDEX idx_refunds_payment ON refunds(payment_id)','CREATE INDEX idx_refunds_status ON refunds(status)']},
+    ]}
+  },
+  {
+    id:'invoicing_postgres',name:'Инвойсы и счета',type:'postgresql',
+    schema:{tables:[
+      {name:'invoices',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'customer_id',type:'UUID',notNull:true},
+        {name:'number',type:'VARCHAR(30)',unique:true},
+        {name:'amount',type:'DECIMAL(12,2)',notNull:true},
+        {name:'currency',type:'CHAR(3)',default:"'RUB'"},
+        {name:'status',type:'VARCHAR(20)',default:"'draft'"},
+        {name:'due_date',type:'DATE'},
+        {name:'paid_at',type:'TIMESTAMP'},
+        {name:'created_at',type:'TIMESTAMP',default:'NOW()'},
+      ],indexes:['CREATE INDEX idx_invoices_customer ON invoices(customer_id)','CREATE UNIQUE INDEX idx_invoices_number ON invoices(number)']},
+      {name:'invoice_items',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'invoice_id',type:'UUID',notNull:true,fk:{table:'invoices',field:'id',onDelete:'CASCADE'}},
+        {name:'description',type:'TEXT'},
+        {name:'quantity',type:'INTEGER',default:'1'},
+        {name:'unit_price',type:'DECIMAL(10,2)',notNull:true},
+      ]},
+    ]}
+  },
+  {
+    id:'metrics_clickhouse',name:'Метрики (ClickHouse)',type:'clickhouse',
+    schema:{tables:[
+      {name:'metrics',fields:[
+        {name:'metric_name',type:'LowCardinality(String)'},
+        {name:'ts',type:'DateTime'},
+        {name:'value',type:'Float64'},
+        {name:'tags',type:'String'},
+      ],engine:'ENGINE = MergeTree() ORDER BY (metric_name, ts)'},
+    ]}
+  },
+  {
+    id:'tracing_cassandra',name:'Трейсинг запросов (Cassandra)',type:'cassandra',
+    schema:{tables:[
+      {name:'spans',fields:[
+        {name:'trace_id',type:'UUID',pk:true},
+        {name:'span_id',type:'TIMEUUID',pk:'clustering'},
+        {name:'parent_span_id',type:'UUID'},
+        {name:'service',type:'TEXT'},
+        {name:'operation',type:'TEXT'},
+        {name:'duration_ms',type:'INT'},
+        {name:'start_time',type:'TIMESTAMP'},
+      ],cqlExtra:'WITH CLUSTERING ORDER BY (span_id ASC)'},
+    ]}
+  },
+  {
+    id:'webhooks_postgres',name:'Вебхуки (подписки и доставки)',type:'postgresql',
+    schema:{tables:[
+      {name:'webhook_subscriptions',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'url',type:'TEXT',notNull:true},
+        {name:'event_types',type:'TEXT[]'},
+        {name:'secret',type:'VARCHAR(64)'},
+        {name:'is_active',type:'BOOLEAN',default:'true'},
+      ]},
+      {name:'webhook_deliveries',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'subscription_id',type:'UUID',notNull:true,fk:{table:'webhook_subscriptions',field:'id',onDelete:'CASCADE'}},
+        {name:'payload',type:'JSONB'},
+        {name:'status',type:'VARCHAR(20)',default:"'pending'"},
+        {name:'attempts',type:'INTEGER',default:'0'},
+        {name:'created_at',type:'TIMESTAMP',default:'NOW()'},
+      ],indexes:['CREATE INDEX idx_wdeliveries_sub ON webhook_deliveries(subscription_id)']},
+    ]}
+  },
+  {
+    id:'apikeys_postgres',name:'API-ключи',type:'postgresql',
+    schema:{tables:[
+      {name:'api_keys',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'key_hash',type:'VARCHAR(255)',unique:true,notNull:true},
+        {name:'owner_id',type:'UUID',notNull:true},
+        {name:'scopes',type:'TEXT[]'},
+        {name:'rate_limit',type:'INTEGER',default:'1000'},
+        {name:'expires_at',type:'TIMESTAMP'},
+        {name:'revoked_at',type:'TIMESTAMP'},
+        {name:'created_at',type:'TIMESTAMP',default:'NOW()'},
+      ],indexes:['CREATE INDEX idx_apikeys_owner ON api_keys(owner_id)']},
+    ]}
+  },
+  {
+    id:'experiments_postgres',name:'A/B-эксперименты',type:'postgresql',
+    schema:{tables:[
+      {name:'experiments',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'name',type:'VARCHAR(100)',unique:true},
+        {name:'variants',type:'TEXT[]'},
+        {name:'status',type:'VARCHAR(20)',default:"'running'"},
+        {name:'started_at',type:'TIMESTAMP',default:'NOW()'},
+      ]},
+      {name:'assignments',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'experiment_id',type:'UUID',notNull:true,fk:{table:'experiments',field:'id'}},
+        {name:'user_id',type:'UUID',notNull:true},
+        {name:'variant',type:'VARCHAR(50)'},
+        {name:'assigned_at',type:'TIMESTAMP',default:'NOW()'},
+      ],indexes:['CREATE UNIQUE INDEX idx_assignments_pair ON assignments(experiment_id,user_id)']},
+    ]}
+  },
+  {
+    id:'imports_postgres',name:'Импорт/экспорт: задачи',type:'postgresql',
+    schema:{tables:[
+      {name:'import_jobs',fields:[
+        {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
+        {name:'file_url',type:'TEXT',notNull:true},
+        {name:'status',type:'VARCHAR(20)',default:"'pending'"},
+        {name:'rows_total',type:'INTEGER'},
+        {name:'rows_processed',type:'INTEGER',default:'0'},
+        {name:'errors_count',type:'INTEGER',default:'0'},
+        {name:'created_at',type:'TIMESTAMP',default:'NOW()'},
+        {name:'finished_at',type:'TIMESTAMP'},
+      ],indexes:['CREATE INDEX idx_importjobs_status ON import_jobs(status)']},
+    ]}
+  },
+  {
+    id:'otp_redis',name:'Коды OTP (Redis)',type:'redis',
+    schema:{keys:[
+      {pattern:'otp:{phone}:{purpose}',type:'STRING',fields:['6-значный код'],ttl:'5 min'},
+      {pattern:'otp_attempts:{phone}',type:'STRING',fields:['integer counter'],ttl:'15 min',note:'Защита от подбора'},
+    ]}
+  },
 ];
