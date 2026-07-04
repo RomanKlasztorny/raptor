@@ -1,76 +1,94 @@
-# РАПТОР — конструктор архитектуры
+# RAPTOR — Architecture Constructor
 
-Браузерный инструмент для проектирования микросервисных систем, симуляции трафика и генерации документации. Без сборки, без npm — открываешь `index.html` и работаешь.
+> Browser-based tool for designing microservice systems, simulating traffic, and generating documentation. No build step, no npm — open `index.html` and start.
 
-**Запуск:** `npx serve` → `http://localhost:5500`  
-**AI-прокси:** `node copilot-proxy.js` (или `start-proxy.bat`) → порт 8965
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-1e4a90?style=for-the-badge)](https://romanklasztorny.github.io/raptor/)
+[![Release](https://img.shields.io/github/v/release/RomanKlasztorny/raptor?style=for-the-badge&color=2a6010)](https://github.com/RomanKlasztorny/raptor/releases/latest)
+
+![RAPTOR demo](https://github.com/RomanKlasztorny/raptor/assets/232060178/28fc476b-8a9a-49ee-9e74-c893a6720924)
 
 ---
 
-## Что умеет
+## Quick Start
 
-### Схема
-- Блоки: клиенты, Gateway, сервисы, BFF, Auth, PostgreSQL, Redis, MongoDB, Kafka, RabbitMQ, NATS, Queue, Elasticsearch, S3, CDN, LB, External
-- Drag & drop, детект коллизий, двунаправленные стрелки
-- Авторасстановка по слоям — кнопка `Авто`
-- Уровни **C1 / C2 / C3 / Seq** переключаются в тулбаре
+```bash
+npx serve .     # → http://localhost:5500
+```
 
-### Сценарии («Линии»)
-- Вкладка «Линии» — маршруты запросов через систему
-- Каждый сценарий: путь блоков, объём (rps), цвет, шаги с `verb + uri + resp`
-- `Автозаполнение` строит шаги по схеме с учётом `auth_mode` Gateway
+Open `index.html` directly in your browser — or use `npx serve` for full functionality.
 
-### Симуляция
-- Шарики летят по путям сценариев, цвет = цвет сценария
-- Kafka/RabbitMQ/NATS/Queue получают трафик когда шарик проходит через сервис-продюсер
-- Потребление: периодический тик каждые ~500 мс независимо от физики шариков
-- Клик по шарику → детали hop-трейса с задержками
-- Режим **Хаос**: падения узлов, деградация, сброс кэша, перегрузка
+---
 
-### Брокер-инспектор
-- Клик на Kafka/RabbitMQ/NATS/Queue во время симуляции → живая панель
-- SVG-топология: продюсеры → партиции → консьюмеры
-- Счётчики live: опубликовано / обработано / lag / DLQ, обновление 500 мс
-- Consumer groups с офсетами по партициям, кнопка Replay
-- Обоснование для БА: партиции, RF, гарантии доставки
-- Настройки брокера без остановки симуляции
+## Features
+
+### Diagram
+- Blocks: Actor, Client, API Gateway, Load Balancer, CDN, WebSocket GW, BFF, Service, Auth, PostgreSQL, MySQL, MongoDB, Redis, Cassandra, ClickHouse, Elasticsearch, S3, Kafka, RabbitMQ, NATS, Queue, External
+- Drag & drop with collision detection, bidirectional arrows
+- Auto-layout by layers — **Auto** button
+- **C1 / C2 / C3 / Seq** level toggle in toolbar
+
+### Templates
+- **18 Systems**: Bank, Messenger, Marketplace, YouTube, Search Engine, Taxi, Social Feed, Food Delivery, Carsharing, Spotify, Netflix, Tinder, Crypto Exchange, EdTech, Fitness, Booking, Cloud Storage, Todo
+- **44 Elements** across 10 themes: payments, logging, storage, communications, search, analytics, media, security and more
+- **61 DB templates**: PostgreSQL, MongoDB, Cassandra, Redis, ClickHouse
+- 3-level flyout menu
+
+### Scenarios ("Lines")
+- Routes tab — request paths through the system
+- Each scenario: block path, volume (rps), color, steps with `verb + uri + resp`
+- Autofill builds steps from schema respecting Gateway `auth_mode`
+
+### Simulation
+- Balls travel scenario paths, color = scenario color
+- Kafka / RabbitMQ / NATS / Queue receive traffic when a ball passes through a producer service
+- Click a ball → hop-trace details with latencies
+- **Chaos mode**: node failures, degradation, cache reset, overload
+
+### Broker Inspector
+- Click Kafka / RabbitMQ / NATS / Queue during simulation → live panel
+- SVG topology: producers → partitions → consumers
+- Live counters: published / processed / lag / DLQ, updated every 500ms
+- Consumer groups with per-partition offsets, Replay button
 
 ### UML Sequence
-- Генерируется из сценария: бизнес-смысл над стрелкой, `verb uri` под `//`
-- Стандарт PlantUML: `autonumber`, активации `++/--`, `group alt/else`, `...пауза...`
-- Kafka → пунктирная стрелка `-)` без синхронного ответа
-- Кнопка **«📋 PlantUML»** — копирует для Confluence
-- `ref over` блоки с горизонтальным drag (меняет участников) и вертикальным (порядок)
+- Generated from scenario: business meaning above arrow, `verb uri` under `//`
+- PlantUML standard: `autonumber`, `++/--` activations, `group alt/else`, `...pause...`
+- Kafka → dashed arrow `-)` without synchronous response
+- **📋 PlantUML** button — copy for Confluence
 
-### База данных
-- Редактор схемы PostgreSQL для каждого сервиса
-- Визуальный ERD в нотации crow's foot
-- Импорт SQL-DDL
-- 23 готовых шаблона (users, sessions, bookings, products и др.)
-- FK с `REFERENCES + ON DELETE CASCADE`, UUID, `created_at`
+### Database
+- PostgreSQL schema editor per service
+- Visual ERD in crow's foot notation
+- SQL DDL import
+- 61 ready-made templates
+- FK with `REFERENCES + ON DELETE CASCADE`, UUID, `created_at`
+- **Redis editor**: key patterns with type and TTL, "Pull from PG" for Hash fields
 
-### Auth-сервис
-- Типы: `jwt_only` / `oauth2_jwt` / `session_based` / `api_key` / `oidc_sso`
-- Тип меняет схему БД и нагрузку Auth в симуляции
-- Gateway читает `auth_mode` → автоматически строит хоп к Auth или пропускает
+### Auth Service
+- Types: `jwt_only` / `oauth2_jwt` / `session_based` / `api_key` / `oidc_sso`
+- Type changes DB schema and Auth load in simulation
 
-### Шаблоны
-**Сервисы (9):** search, media, chat\_ws, cqrs, b2b\_api, sso, scheduler, reports, saga\_step  
-**Группы (10):** shop, fullmsa, eventdriven, mentorship, cqrs, b2b\_api, sso, multibff, fintech, saga
-
-### Word-экспорт
-- Структура MS-1: описание, C4-диаграмма, API по сервисам, таблицы БД
-- Офлайн через встроенный `docx.min.js`
+### Export
+- **Word (.docx)** — MS-1 structure: description, C4 diagram, API per service, DB tables, ERD diagram, Redis schema
+- **draw.io** — XML for diagrams.net
+- **Swagger / OpenAPI YAML**
+- Offline via built-in `docx.min.js`
 
 ### RAPTOR AI
-- Кнопка `🤖 AI` → панель чата справа
-- Работает через GitHub Copilot (бесплатный план), нужен запущенный `copilot-proxy.js`
-- Умеет: добавлять блоки и связи, создавать сценарии, делать авторасстановку, редактировать UML, менять схему БД
-- Отвечает на русском, видит текущую схему и сценарии
+- `🤖 AI` button → chat panel on the right
+- Powered by **Groq** (llama-3.3-70b, free plan) — paste your API key from [console.groq.com](https://console.groq.com)
+- Three modes: **gen** (generate full system from description), **chat** (plan + Q&A), **patch** (incremental updates)
+- 18 architectural patterns in prompt: Saga, Outbox, CQRS, Cache-aside, Circuit Breaker and more
+- Auto-fix: connection direction, cross-DB FK, deduplication
+- "Add to canvas" and "Replace" buttons on JSON responses
+
+### Localization
+- Russian and English UI
+- Language switch without page reload
 
 ---
 
-## Состояние
+## State
 
-Всё в глобальном объекте `S` (блоки, связи, сценарии, мета).  
-Сохранение → JSON-файл. Загрузка → перетащить JSON на канвас.
+Everything lives in global `S` (blocks, connections, scenarios, metadata).  
+Save → JSON file. Load → drag JSON onto canvas.
