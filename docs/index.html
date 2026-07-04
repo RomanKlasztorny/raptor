@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAPTOR — Architecture Constructor</title>
+<meta name="description" content="Browser-based tool for designing microservice systems, simulating traffic and generating documentation.">
+<meta property="og:title" content="RAPTOR — Architecture Constructor">
+<meta property="og:description" content="Design microservice systems, simulate traffic, generate Word docs. No build step, no npm.">
+<meta property="og:image" content="https://github.com/user-attachments/assets/6ac2d4f1-be78-4d66-9aa0-601ec8934be6">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg0:#e8e0d0;--bg1:#faf4e8;--bg2:#d8d0be;--bg3:#ccc4b0;
+  --brd:#7a6e5a;--txt:#1a1410;--txt2:#6a6050;
+  --blue:#1e4a90;--green:#2a6010;
+}
+body{font-family:'Tahoma','Verdana',system-ui,sans-serif;background:var(--bg0);color:var(--txt);min-height:100vh}
+
+/* TOOLBAR */
+.toolbar{height:36px;background:linear-gradient(180deg,#ede6d8,#d8d0be 55%,#ccc4b0);border-bottom:2px solid var(--brd);box-shadow:inset 0 1px 0 #fff,inset 0 -1px 0 #4a4030;display:flex;align-items:center;padding:0 16px;gap:12px}
+.app-title{font-size:15px;font-weight:700;color:#162850;letter-spacing:.05em;text-shadow:1px 1px 0 #fff9}
+.toolbar-sep{width:1px;height:20px;background:var(--brd);box-shadow:1px 0 0 #fff}
+.toolbar-ver{font-size:11px;color:var(--txt2)}
+.toolbar-links{margin-left:auto;display:flex;gap:6px}
+.tbtn{padding:3px 10px;background:#d4ccc0;color:var(--txt);font-size:11.5px;font-family:inherit;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:5px;
+  box-shadow:inset 1px 1px 0 #fff,inset -1px -1px 0 #4a4030,inset 2px 2px 0 #ede6d8,inset -2px -2px 0 #7a6e5a}
+.tbtn:hover{background:#dcd4c8;color:#162850}
+.tbtn.primary{background:#1e4a90;color:#e0e8f8;font-weight:700;
+  box-shadow:inset 1px 1px 0 #6090d0,inset -1px -1px 0 #08183c,inset 2px 2px 0 #4070b8,inset -2px -2px 0 #122858}
+.tbtn.primary:hover{background:#2a58a8;color:#fff}
+
+/* HERO */
+.hero{padding:20px 16px 0;display:flex;flex-direction:column;align-items:center;gap:12px}
+.release-img{width:100%;max-width:860px;border:2px solid var(--brd);box-shadow:4px 4px 0 #4a4030;display:block}
+
+/* DEMO WINDOW */
+.demo-win{width:100%;max-width:860px;border:2px solid var(--brd);box-shadow:4px 4px 0 #4a4030}
+.demo-titlebar{background:linear-gradient(90deg,#1e4a90,#3a6abf);padding:3px 8px;display:flex;align-items:center;gap:8px}
+.demo-titlebar span{color:#fff;font-size:12px;font-weight:700}
+.demo-dot{width:14px;height:14px;background:#f4c430;border:1px solid #7a6e5a;flex-shrink:0}
+.demo-body{background:#000;line-height:0}
+.demo-body img{width:100%;display:block}
+
+/* CTA BUTTONS */
+.cta-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;padding:8px 0}
+.cta{padding:7px 20px;font-size:13px;font-family:inherit;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:7px;font-weight:700;
+  box-shadow:inset 1px 1px 0 #fff,inset -1px -1px 0 #4a4030,inset 2px 2px 0 #ede6d8,inset -2px -2px 0 #7a6e5a;background:#d4ccc0;color:var(--txt)}
+.cta:hover{background:#dcd4c8}
+.cta.blue{background:#1e4a90;color:#e0e8f8;
+  box-shadow:inset 1px 1px 0 #6090d0,inset -1px -1px 0 #08183c,inset 2px 2px 0 #4070b8,inset -2px -2px 0 #122858}
+.cta.blue:hover{background:#2a58a8;color:#fff}
+.cta.green{background:#2a6010;color:#e0f0d0;
+  box-shadow:inset 1px 1px 0 #60a040,inset -1px -1px 0 #0a1808,inset 2px 2px 0 #408030,inset -2px -2px 0 #1a4008}
+.cta.green:hover{background:#386018;color:#fff}
+
+/* SECTIONS */
+.main{max-width:900px;margin:0 auto;padding:12px 16px 40px}
+
+.win-section{border:2px solid var(--brd);margin-bottom:12px;box-shadow:2px 2px 0 #4a4030}
+.win-head{background:linear-gradient(90deg,#1e4a90,#3a6abf);padding:4px 10px;display:flex;align-items:center;gap:8px}
+.win-head span{color:#fff;font-size:12px;font-weight:700}
+.win-head-dot{width:12px;height:12px;background:#f4c430;border:1px solid #7a6e5a;flex-shrink:0}
+.win-body{background:#e8e0cc;padding:10px 12px}
+
+/* FEATURES GRID */
+.feat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px}
+.feat-card{background:#f4f0e4;border:1px solid #9a8e78;padding:9px 11px;
+  box-shadow:inset 1px 1px 0 #fff,inset -1px -1px 0 #7a6e5a}
+.feat-card h3{font-size:12px;font-weight:700;color:#1e4a90;margin-bottom:5px;display:flex;align-items:center;gap:6px}
+.feat-card ul{padding-left:14px;font-size:11px;color:#3a3020;line-height:1.7}
+
+/* STATS ROW */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px}
+.stat{background:#f4f0e4;border:1px solid #9a8e78;padding:10px;text-align:center;
+  box-shadow:inset 1px 1px 0 #fff,inset -1px -1px 0 #7a6e5a}
+.stat-num{font-size:22px;font-weight:700;color:#1e4a90;display:block}
+.stat-lbl{font-size:10px;color:#6a6050;display:block;margin-top:2px}
+
+/* LANGS */
+.lang-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:11px;color:var(--txt2)}
+.lang-row a{color:#1e4a90;text-decoration:none;padding:2px 6px;background:#f4f0e4;border:1px solid #9a8e78}
+.lang-row a:hover{background:#d8d0be}
+
+/* STATUSBAR */
+.statusbar{height:22px;background:var(--bg2);border-top:2px solid var(--brd);display:flex;align-items:center;padding:0 10px;gap:16px;font-size:10.5px;color:var(--txt2);position:fixed;bottom:0;width:100%}
+.status-item{display:flex;align-items:center;gap:5px}
+.status-dot{width:8px;height:8px;border-radius:50%;background:#2a6010}
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="app-title">RAPTOR</div>
+  <div class="toolbar-sep"></div>
+  <span class="toolbar-ver">v1.1.1</span>
+  <div class="toolbar-links">
+    <a class="tbtn" href="https://github.com/RomanKlasztorny/raptor">GitHub</a>
+    <a class="tbtn" href="https://github.com/RomanKlasztorny/raptor/releases/latest">↓ Download</a>
+    <a class="tbtn primary" href="https://romanklasztorny.github.io/raptor/app/">▶ Open App</a>
+  </div>
+</div>
+
+<div class="hero">
+  <img class="release-img" src="https://github.com/user-attachments/assets/6ac2d4f1-be78-4d66-9aa0-601ec8934be6" alt="RAPTOR v1.1.1 Release Notes">
+
+  <div class="demo-win">
+    <div class="demo-titlebar">
+      <div class="demo-dot"></div>
+      <span>RAPTOR — Architecture Constructor</span>
+    </div>
+    <div class="demo-body">
+      <img src="https://github.com/RomanKlasztorny/raptor/assets/232060178/28fc476b-8a9a-49ee-9e74-c893a6720924" alt="RAPTOR demo">
+    </div>
+  </div>
+
+  <div class="cta-row">
+    <a class="cta blue" href="https://romanklasztorny.github.io/raptor/app/">▶ Open Demo</a>
+    <a class="cta green" href="https://github.com/RomanKlasztorny/raptor/releases/latest">↓ Download v1.1.1</a>
+    <a class="cta" href="https://github.com/RomanKlasztorny/raptor">★ GitHub</a>
+  </div>
+</div>
+
+<div class="main">
+
+  <div class="stats">
+    <div class="stat"><span class="stat-num">18</span><span class="stat-lbl">Architecture Systems</span></div>
+    <div class="stat"><span class="stat-num">44</span><span class="stat-lbl">Elements</span></div>
+    <div class="stat"><span class="stat-num">61</span><span class="stat-lbl">DB Templates</span></div>
+    <div class="stat"><span class="stat-num">0</span><span class="stat-lbl">Dependencies</span></div>
+  </div>
+
+  <div class="win-section">
+    <div class="win-head"><div class="win-head-dot"></div><span>Features</span></div>
+    <div class="win-body">
+      <div class="feat-grid">
+        <div class="feat-card">
+          <h3>🗂 Templates</h3>
+          <ul>
+            <li>18 full architecture systems</li>
+            <li>44 elements across 10 themes</li>
+            <li>61 DB templates</li>
+            <li>3-level flyout menu</li>
+          </ul>
+        </div>
+        <div class="feat-card">
+          <h3>🤖 RAPTOR AI</h3>
+          <ul>
+            <li>gen / chat / patch modes</li>
+            <li>18 arch patterns in prompt</li>
+            <li>Powered by Groq (free)</li>
+            <li>Auto-fix connections & FK</li>
+          </ul>
+        </div>
+        <div class="feat-card">
+          <h3>⚡ Simulation</h3>
+          <ul>
+            <li>Animated traffic on paths</li>
+            <li>Kafka / RabbitMQ / NATS live</li>
+            <li>Hop-trace with latencies</li>
+            <li>Chaos mode</li>
+          </ul>
+        </div>
+        <div class="feat-card">
+          <h3>📐 UML Sequence</h3>
+          <ul>
+            <li>PlantUML standard</li>
+            <li>Generated from scenarios</li>
+            <li>Copy to Confluence</li>
+            <li>Kafka async arrows</li>
+          </ul>
+        </div>
+        <div class="feat-card">
+          <h3>📤 Export</h3>
+          <ul>
+            <li>Word (.docx) — MS-1 format</li>
+            <li>ERD diagram in Word</li>
+            <li>draw.io XML</li>
+            <li>Swagger / OpenAPI YAML</li>
+          </ul>
+        </div>
+        <div class="feat-card">
+          <h3>🗄 Database</h3>
+          <ul>
+            <li>PostgreSQL schema editor</li>
+            <li>Visual ERD (crow's foot)</li>
+            <li>Redis key pattern editor</li>
+            <li>SQL DDL import</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="win-section">
+    <div class="win-head"><div class="win-head-dot"></div><span>Quick Start</span></div>
+    <div class="win-body">
+      <div style="background:#1a1410;color:#c8d8a8;font-family:monospace;font-size:12px;padding:10px 14px;border:1px solid #4a4030;line-height:2">
+        <span style="color:#6a8a6a"># Option 1 — open directly</span><br>
+        open index.html<br><br>
+        <span style="color:#6a8a6a"># Option 2 — local server</span><br>
+        npx serve .&nbsp;&nbsp;&nbsp;<span style="color:#6a8a6a"># → http://localhost:5500</span>
+      </div>
+      <p style="font-size:11px;color:var(--txt2);margin-top:8px">No build step. No npm install. No dependencies. Just open and use.</p>
+    </div>
+  </div>
+
+  <div class="win-section">
+    <div class="win-head"><div class="win-head-dot"></div><span>Languages</span></div>
+    <div class="win-body">
+      <div class="lang-row">
+        <span>Available in:</span>
+        <a href="https://github.com/RomanKlasztorny/raptor/blob/main/README.md">🇬🇧 English</a>
+        <a href="https://github.com/RomanKlasztorny/raptor/blob/main/README_RU.md">🇷🇺 Русский</a>
+        <a href="https://github.com/RomanKlasztorny/raptor/blob/main/README_UA.md">🇺🇦 Українська</a>
+        <a href="https://github.com/RomanKlasztorny/raptor/blob/main/README_DE.md">🇩🇪 Deutsch</a>
+        <a href="https://github.com/RomanKlasztorny/raptor/blob/main/README_FR.md">🇫🇷 Français</a>
+        <a href="https://github.com/RomanKlasztorny/raptor/blob/main/README_ES.md">🇪🇸 Español</a>
+        <a href="https://github.com/RomanKlasztorny/raptor/blob/main/README_PL.md">🇵🇱 Polski</a>
+        <a href="https://github.com/RomanKlasztorny/raptor/blob/main/README_ZH.md">🇨🇳 中文</a>
+        <a href="https://github.com/RomanKlasztorny/raptor/blob/main/README_JA.md">🇯🇵 日本語</a>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="statusbar">
+  <div class="status-item"><div class="status-dot"></div> v1.1.1</div>
+  <div class="status-item">0 dependencies</div>
+  <div class="status-item">Pure HTML + JS</div>
+  <div class="status-item" style="margin-left:auto"><a href="https://github.com/RomanKlasztorny/raptor" style="color:#1e4a90;text-decoration:none">github.com/RomanKlasztorny/raptor</a></div>
+</div>
+
+</body>
+</html>
