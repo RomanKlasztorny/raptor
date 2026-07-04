@@ -21,6 +21,40 @@ npx serve .     # → http://localhost:5500
 
 ---
 
+## ⚡ セットアップ — RAPTOR AI
+
+> 無料 · カード不要 · 30秒
+
+```
+① console.groq.com → 登録 → API Keys → Create API Key
+② キーをコピー  →  gsk_••••••••••••••••••••••••
+③ RAPTOR  →  🤖 AI  →  キーを貼り付け  →  Enter  ✓
+```
+
+キーは `localStorage` に保存されます — ブラウザごとに一度だけ入力。
+
+---
+
+## 🔌 任意の LLM で使用する（ChatGPT、Claude、Gemini…）
+
+Groq を使わなくても OK。**どのモデルでも** JSON を生成してインポートできます：
+
+```
+① RAPTOR_FORMAT.md を開く  ← 完全な JSON スキーマ + 例
+②   ↓
+   ChatGPT / Claude / Gemini に貼り付け：
+   「[あなたのシステム] の RAPTOR JSON を生成して。スキーマ：…」
+③   ↓
+   返答の JSON をコピー
+④ RAPTOR  →  .json をキャンバスにドロップ   （またはファイル → JSON を読み込む）
+   ↓
+   ✦ キャンバスにブロック・接続・DBスキーマ・シナリオが即座に展開される
+```
+
+> **ヒント：** `RAPTOR_FORMAT.md` をファイルとして添付すると、ほとんどのモデルが一度に読み込みます。
+
+---
+
 ## 機能
 
 ### ダイアグラム

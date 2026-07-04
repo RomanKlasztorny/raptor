@@ -13,6 +13,12 @@
 
 ---
 
+## L'idée
+
+Décrivez votre système en un message — RAPTOR AI génère l'architecture complète : blocs, connexions, schémas de BD et scénarios. Le rôle de l'analyste est d'**éditer et affiner**, pas de dessiner des flèches depuis zéro.
+
+---
+
 ## Démarrage rapide
 
 ```bash
@@ -21,40 +27,83 @@ npx serve .     # → http://localhost:5500
 
 ---
 
+## ⚡ Configuration — RAPTOR AI
+
+> Gratuit · Sans carte bancaire · 30 secondes
+
+```
+① console.groq.com → S'inscrire → API Keys → Create API Key
+② Copier la clé  →  gsk_••••••••••••••••••••••••
+③ RAPTOR  →  🤖 AI  →  coller la clé  →  Entrée  ✓
+```
+
+La clé est sauvegardée dans `localStorage` — à saisir une seule fois par navigateur.
+
+---
+
+## 🔌 Utiliser avec n'importe quel LLM (ChatGPT, Claude, Gemini…)
+
+Pas de Groq ? Générez le JSON avec **n'importe quel modèle** et importez-le :
+
+```
+① Ouvrez  RAPTOR_FORMAT.md  ← schéma JSON complet + exemples
+②   ↓
+   Collez dans ChatGPT / Claude / Gemini :
+   « Génère un JSON RAPTOR pour [ton système]. Schéma : … »
+③   ↓
+   Copiez le JSON de la réponse
+④ RAPTOR  →  glissez .json sur le canvas   (ou Fichier → Charger JSON)
+   ↓
+   ✦ Le canvas se remplit instantanément : blocs, connexions, schémas BD, scénarios
+```
+
+> **Astuce :** joignez `RAPTOR_FORMAT.md` en fichier — la plupart des modèles le lisent en entier.
+
+---
+
 ## Fonctionnalités
 
-### Diagramme
+### RAPTOR AI
+- Un message → système microservices complet : blocs, connexions, schémas BD, scénarios
+- Trois modes : **gen** (génération complète), **chat** (planification + Q&R), **patch** (mises à jour incrémentielles)
+- 18 patrons architecturaux dans le prompt : Saga, Outbox, CQRS, Cache-aside, Circuit Breaker et plus
+- Correction automatique : direction des connexions, FK cross-DB, déduplication
+- Alimenté par **Groq** (llama-3.3-70b, plan gratuit) — clé API sur [console.groq.com](https://console.groq.com)
+
+### Diagramme (C4)
 - Blocs : Actor, Client, API Gateway, Load Balancer, CDN, WebSocket GW, BFF, Service, Auth, PostgreSQL, MySQL, MongoDB, Redis, Cassandra, ClickHouse, Elasticsearch, S3, Kafka, RabbitMQ, NATS, Queue, External
 - Drag & drop avec détection de collisions, flèches bidirectionnelles
-- Disposition automatique par couches — bouton **Auto**
-- Niveaux **C1 / C2 / C3 / Seq** dans la barre d'outils
+- Disposition automatique par couches, niveaux C4 dans la barre d'outils
 
 ### Modèles
-- **18 Systèmes** : Banque, Messagerie, Marketplace, YouTube, Moteur de recherche, Taxi, Réseau social, Livraison de repas, Covoiturage, Spotify, Netflix, Tinder, Bourse crypto, EdTech, Fitness, Réservation, Stockage cloud, Todo
-- **44 Éléments** en 10 thèmes
-- **61 modèles DB** : PostgreSQL, MongoDB, Cassandra, Redis, ClickHouse
+- **18 Systèmes** : Banque, Messagerie, Marketplace, YouTube, Moteur de recherche, Taxi, Réseau social, Livraison, Covoiturage, Spotify, Netflix, Tinder, Bourse crypto, EdTech, Fitness, Réservation, Cloud, Todo
+- **44 Éléments** en 10 thèmes · **61 modèles DB**
 - Menu flyout à 3 niveaux
 
+### Scénarios
+- Chemins de requêtes avec `verb + uri + resp` par étape
+- Remplissage automatique respectant le `auth_mode` du Gateway
+
 ### Simulation
-- Les balles suivent les chemins des scénarios
-- Clic sur une balle → détails du hop-trace avec latences
-- **Mode Chaos** : pannes de nœuds, dégradation, réinitialisation du cache
+- Balles animées sur les chemins de scénarios
+- Kafka / RabbitMQ / NATS / Queue reçoivent du trafic en direct
+- Clic sur une balle → hop-trace avec latences · **Mode Chaos**
 
 ### Séquence UML
-- Générée depuis le scénario selon le standard PlantUML
-- Kafka → flèche en pointillés `-)` sans réponse synchrone
-- Bouton **📋 PlantUML** — copier pour Confluence
+- Générée depuis le scénario selon PlantUML
+- Kafka → `-)` · bouton **📋 PlantUML** pour Confluence
 
-### RAPTOR AI
-- Bouton `🤖 AI` → panneau de chat à droite
-- Alimenté par **Groq** (llama-3.3-70b, plan gratuit) — collez votre clé API depuis [console.groq.com](https://console.groq.com)
-- Modes : **gen** (génération complète), **chat** (planification), **patch** (mises à jour incrémentielles)
+### Base de données
+- Éditeur de schéma PostgreSQL avec ERD visuel (patte de corbeau)
+- Éditeur Redis : patterns de clés avec type et TTL
+- Import SQL DDL, 61 modèles prêts à l'emploi
 
 ### Export
-- **Word (.docx)**, **draw.io**, **Swagger/OpenAPI YAML**
+- **Word (.docx)** — structure MS-1 avec diagramme C4, API, tables BD, ERD
+- **draw.io** XML · **Swagger / OpenAPI YAML** · Entièrement hors ligne
 
 ---
 
 ## État
 
-Tout dans l'objet global `S`. Sauvegarde → fichier JSON. Chargement → glisser le JSON sur le canvas.
+Tout dans l'objet global `S`. Sauvegarder → fichier JSON. Charger → glisser le JSON sur le canvas.

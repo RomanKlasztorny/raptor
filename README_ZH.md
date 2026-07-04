@@ -21,6 +21,40 @@ npx serve .     # → http://localhost:5500
 
 ---
 
+## ⚡ 配置 — RAPTOR AI
+
+> 免费 · 无需信用卡 · 30秒完成
+
+```
+① console.groq.com → 注册 → API Keys → Create API Key
+② 复制密钥  →  gsk_••••••••••••••••••••••••
+③ RAPTOR  →  🤖 AI  →  粘贴密钥  →  Enter  ✓
+```
+
+密钥保存在 `localStorage` 中 — 每个浏览器只需输入一次。
+
+---
+
+## 🔌 与任意 LLM 配合使用（ChatGPT、Claude、Gemini…）
+
+不用 Groq？用**任意模型**生成 JSON 然后导入：
+
+```
+① 打开  RAPTOR_FORMAT.md  ← 完整 JSON 结构 + 示例
+②   ↓
+   粘贴到 ChatGPT / Claude / Gemini：
+   「为 [你的系统] 生成 RAPTOR JSON，使用以下结构：…」
+③   ↓
+   复制回复中的 JSON
+④ RAPTOR  →  将 .json 拖到画布   （或 文件 → 加载 JSON）
+   ↓
+   ✦ 画布立即填充：模块、连接、数据库结构、场景
+```
+
+> **提示：** 将 `RAPTOR_FORMAT.md` 作为文件附件上传 — 大多数模型可完整读取。
+
+---
+
 ## 功能特性
 
 ### 架构图

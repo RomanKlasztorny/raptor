@@ -13,6 +13,12 @@
 
 ---
 
+## Die Idee
+
+Beschreibe dein System in einer Nachricht — RAPTOR AI generiert die vollständige Architektur: Blöcke, Verbindungen, DB-Schemas und Szenarien. Die Aufgabe des Analysten ist es, zu **bearbeiten und verfeinern**, nicht Pfeile von Grund auf zu zeichnen.
+
+---
+
 ## Schnellstart
 
 ```bash
@@ -21,37 +27,80 @@ npx serve .     # → http://localhost:5500
 
 ---
 
+## ⚡ Einrichtung — RAPTOR AI
+
+> Kostenlos · Keine Kreditkarte · 30 Sekunden
+
+```
+① console.groq.com → Registrieren → API Keys → Create API Key
+② Schlüssel kopieren  →  gsk_••••••••••••••••••••••••
+③ RAPTOR  →  🤖 AI  →  Schlüssel einfügen  →  Enter  ✓
+```
+
+Schlüssel wird in `localStorage` gespeichert — einmalige Eingabe pro Browser.
+
+---
+
+## 🔌 Mit jedem LLM verwenden (ChatGPT, Claude, Gemini…)
+
+Kein Groq? JSON mit **beliebigem Modell** generieren und laden:
+
+```
+① Öffne  RAPTOR_FORMAT.md  ← vollständiges JSON-Schema + Beispiele
+②   ↓
+   In ChatGPT / Claude / Gemini einfügen:
+   „Generiere RAPTOR JSON für [dein System]. Schema: …"
+③   ↓
+   JSON aus der Antwort kopieren
+④ RAPTOR  →  .json auf Canvas ziehen   (oder Datei → JSON laden)
+   ↓
+   ✦ Canvas füllt sich sofort mit Blöcken, Verbindungen, DB-Schemas, Szenarien
+```
+
+> **Tipp:** `RAPTOR_FORMAT.md` als Datei anhängen — die meisten Modelle lesen sie komplett.
+
+---
+
 ## Funktionen
 
-### Diagramm
+### RAPTOR AI
+- Eine Nachricht → vollständiges Microservice-System: Blöcke, Verbindungen, DB-Schemas, Szenarien
+- Drei Modi: **gen** (von Grund auf generieren), **chat** (Planung + Q&A), **patch** (inkrementelle Updates)
+- 18 Architekturmuster im Prompt: Saga, Outbox, CQRS, Cache-aside, Circuit Breaker u.a.
+- Auto-Fix: Verbindungsrichtung, cross-DB FK, Deduplizierung
+- Betrieben von **Groq** (llama-3.3-70b, kostenloser Plan) — API-Key von [console.groq.com](https://console.groq.com)
+
+### Diagramm (C4)
 - Blöcke: Actor, Client, API Gateway, Load Balancer, CDN, WebSocket GW, BFF, Service, Auth, PostgreSQL, MySQL, MongoDB, Redis, Cassandra, ClickHouse, Elasticsearch, S3, Kafka, RabbitMQ, NATS, Queue, External
 - Drag & Drop mit Kollisionserkennung, bidirektionale Pfeile
-- Automatisches Layer-Layout — Schaltfläche **Auto**
-- **C1 / C2 / C3 / Seq** Ebenen in der Toolbar
+- Automatisches Layer-Layout, C4-Ebenen in der Toolbar
 
 ### Vorlagen
 - **18 Systeme**: Bank, Messenger, Marktplatz, YouTube, Suchmaschine, Taxi, Social Feed, Essenslieferung, Carsharing, Spotify, Netflix, Tinder, Kryptobörse, EdTech, Fitness, Buchung, Cloud-Speicher, Todo
-- **44 Elemente** in 10 Themen
-- **61 DB-Vorlagen**: PostgreSQL, MongoDB, Cassandra, Redis, ClickHouse
+- **44 Elemente** in 10 Themen · **61 DB-Vorlagen**
 - 3-stufiges Flyout-Menü
 
+### Szenarien
+- Anfragepfade durch das System mit `verb + uri + resp` pro Schritt
+- Autofill berücksichtigt Gateway `auth_mode`
+
 ### Simulation
-- Kugeln bewegen sich auf Szenariopfaden
-- Klick auf Kugel → Hop-Trace-Details mit Latenzen
-- **Chaos-Modus**: Knotenausfälle, Degradierung, Cache-Reset
+- Animierte Kugeln auf Szenariopfaden
+- Kafka / RabbitMQ / NATS / Queue erhalten Live-Traffic
+- Klick auf Kugel → Hop-Trace mit Latenzen · **Chaos-Modus**
 
 ### UML-Sequenz
-- Aus Szenario generiert nach PlantUML-Standard
-- Kafka → gestrichelte Pfeile `-)` ohne synchrone Antwort
-- **📋 PlantUML** Schaltfläche — kopieren für Confluence
+- Aus Szenario nach PlantUML-Standard generiert
+- Kafka → `-)` · **📋 PlantUML** für Confluence
 
-### RAPTOR AI
-- `🤖 AI` Schaltfläche → Chat-Panel rechts
-- Betrieben von **Groq** (llama-3.3-70b, kostenloser Plan) — API-Key von [console.groq.com](https://console.groq.com) einfügen
-- Modi: **gen** (vollständige Generierung), **chat** (Planung), **patch** (inkrementelle Updates)
+### Datenbank
+- PostgreSQL-Schema-Editor mit visuellem ERD (Crow's Foot)
+- Redis-Editor: Schlüsselmuster mit Typ und TTL
+- SQL DDL-Import, 61 fertige Vorlagen
 
 ### Export
-- **Word (.docx)**, **draw.io**, **Swagger/OpenAPI YAML**
+- **Word (.docx)** — MS-1-Struktur mit C4-Diagramm, API, DB-Tabellen, ERD
+- **draw.io** XML · **Swagger / OpenAPI YAML** · Vollständig offline
 
 ---
 

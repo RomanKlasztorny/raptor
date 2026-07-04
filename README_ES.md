@@ -21,6 +21,40 @@ npx serve .     # → http://localhost:5500
 
 ---
 
+## ⚡ Configuración — RAPTOR AI
+
+> Gratis · Sin tarjeta · 30 segundos
+
+```
+① console.groq.com → Registrarse → API Keys → Create API Key
+② Copiar la clave  →  gsk_••••••••••••••••••••••••
+③ RAPTOR  →  🤖 AI  →  pegar la clave  →  Enter  ✓
+```
+
+La clave se guarda en `localStorage` — se introduce una sola vez por navegador.
+
+---
+
+## 🔌 Usar con cualquier LLM (ChatGPT, Claude, Gemini…)
+
+¿Sin Groq? Genera el JSON con **cualquier modelo** e impórtalo:
+
+```
+① Abre  RAPTOR_FORMAT.md  ← esquema JSON completo + ejemplos
+②   ↓
+   Pega en ChatGPT / Claude / Gemini:
+   «Genera un JSON RAPTOR para [tu sistema]. Esquema: …»
+③   ↓
+   Copia el JSON de la respuesta
+④ RAPTOR  →  arrastra .json al canvas   (o Archivo → Cargar JSON)
+   ↓
+   ✦ El canvas se llena al instante: bloques, conexiones, esquemas BD, escenarios
+```
+
+> **Consejo:** adjunta `RAPTOR_FORMAT.md` como archivo — la mayoría de los modelos lo leen completo.
+
+---
+
 ## Características
 
 ### Diagrama
