@@ -13,6 +13,20 @@
 
 ---
 
+## Why I built this
+
+I'm a systems analyst and I love the work — but the toolchain was killing me.
+
+Every project had its own flow, its own folder structure, its own interpretation of what a spec should look like. And the actual work of documenting a system meant bouncing between five tools: draw.io for diagrams, some SQL editor for the schema, PlantUML for sequence diagrams (manually typing symbols, then copying a PNG), and then packaging everything into whatever format the stakeholder happened to prefer that day — sometimes a Word doc, sometimes a presentation, sometimes both. A single handoff could eat three days just for assembly and cross-checking, before another analyst or developer could even start reading it.
+
+AI agents helped — until they didn't. They need internet, they hallucinate, and most models can't hold the full context of a real system in one shot. You still had to babysit the output.
+
+So I started building RAPTOR — first just as a more convenient way to draw C4 diagrams and keep the schema in one place. Then it grew: UML sequence generation, Word export in a real MS-1 structure, DB schema editor with ERD, 18 full system templates. Now one message to the AI gives you a working draft of the entire architecture — blocks, connections, database schemas, request scenarios — and the analyst's job becomes editing and refining, not drawing arrows from scratch.
+
+It's also a learning project. I wanted something junior analysts could open without onboarding and immediately understand what a well-structured system looks like.
+
+---
+
 ## The idea
 
 Describe your system in one message — RAPTOR AI generates the full architecture: blocks, connections, DB schemas, and scenarios. The analyst's job is to **edit and refine**, not draw arrows from scratch.
