@@ -1,3 +1,5 @@
+![RAPTOR v1.1.1 Release Notes](https://github.com/user-attachments/assets/6ac2d4f1-be78-4d66-9aa0-601ec8934be6)
+
 # RAPTOR — Architecture Constructor
 
 > Browser-based tool for designing microservice systems, simulating traffic, and generating documentation. No build step, no npm — open `index.html` and start.
