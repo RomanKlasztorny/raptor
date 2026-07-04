@@ -1,0 +1,215 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="700" height="570" font-family="Tahoma,Verdana,sans-serif" font-size="11">
+
+  <!-- Window shadow -->
+  <rect x="14" y="14" width="678" height="552" fill="#4a4030"/>
+
+  <!-- Window body -->
+  <!-- outer bevel highlight -->
+  <rect x="10" y="10" width="678" height="552" fill="#ffffff"/>
+  <!-- outer bevel shadow -->
+  <rect x="11" y="11" width="677" height="551" fill="#4a4030"/>
+  <!-- inner bevel highlight -->
+  <rect x="11" y="11" width="676" height="550" fill="#ede6d8"/>
+  <!-- inner bevel shadow -->
+  <rect x="12" y="12" width="675" height="549" fill="#7a6e5a"/>
+  <!-- window fill -->
+  <rect x="12" y="12" width="674" height="548" fill="#d8d0be"/>
+
+  <!-- Title bar gradient -->
+  <defs>
+    <linearGradient id="tg" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#1e4a90"/>
+      <stop offset="100%" stop-color="#3a6abf"/>
+    </linearGradient>
+  </defs>
+  <rect x="12" y="12" width="674" height="22" fill="url(#tg)"/>
+
+  <!-- Title bar icon (small yellow square) -->
+  <rect x="16" y="15" width="14" height="14" fill="#f4c430"/>
+  <rect x="16" y="15" width="14" height="1" fill="#fff8"/>
+  <rect x="16" y="15" width="1" height="14" fill="#fff8"/>
+  <rect x="16" y="28" width="14" height="1" fill="#0004"/>
+  <rect x="29" y="15" width="1" height="14" fill="#0004"/>
+
+  <text x="34" y="26" fill="#ffffff" font-size="12" font-weight="bold" font-family="Tahoma,sans-serif">RAPTOR v1.1.1 — Release Notes</text>
+
+  <!-- BODY AREA -->
+  <!-- Tag row -->
+  <!-- v1.1.1 tag -->
+  <rect x="18" y="40" width="44" height="16" fill="#c8d8f8"/>
+  <rect x="18" y="40" width="44" height="1" fill="#fff"/>
+  <rect x="18" y="40" width="1" height="16" fill="#fff"/>
+  <rect x="18" y="55" width="44" height="1" fill="#4a4030"/>
+  <rect x="61" y="40" width="1" height="16" fill="#4a4030"/>
+  <text x="40" y="52" fill="#1e4a90" font-size="10" font-weight="bold" text-anchor="middle" font-family="Tahoma,sans-serif">v1.1.1</text>
+
+  <!-- NEW RELEASE tag -->
+  <rect x="68" y="40" width="82" height="16" fill="#2a6010"/>
+  <rect x="68" y="40" width="82" height="1" fill="#4a9020"/>
+  <rect x="68" y="40" width="1" height="16" fill="#4a9020"/>
+  <rect x="68" y="55" width="82" height="1" fill="#1a4008"/>
+  <rect x="149" y="40" width="1" height="16" fill="#1a4008"/>
+  <text x="109" y="52" fill="#ffffff" font-size="10" font-weight="bold" text-anchor="middle" font-family="Tahoma,sans-serif">NEW RELEASE</text>
+
+  <!-- Main title -->
+  <text x="18" y="74" fill="#1a1410" font-size="14" font-weight="bold" font-family="Tahoma,sans-serif">Templates · AI · Sequence · Export · i18n</text>
+  <text x="18" y="90" fill="#6a6050" font-size="10" font-family="Tahoma,sans-serif">July 4, 2026  ·  RomanKlasztorny  ·  10 changed files, 2 new</text>
+
+  <!-- ── SECTION: WHAT'S NEW ── -->
+  <!-- outer bevel -->
+  <rect x="14" y="98" width="672" height="186" fill="#7a6e5a"/>
+  <rect x="14" y="98" width="672" height="1" fill="#ffffff"/>
+  <rect x="14" y="98" width="1" height="186" fill="#ffffff"/>
+  <rect x="14" y="283" width="672" height="1" fill="#4a4030"/>
+  <rect x="685" y="98" width="1" height="186" fill="#4a4030"/>
+  <!-- section header -->
+  <rect x="15" y="99" width="670" height="20" fill="#b0a890"/>
+  <rect x="15" y="99" width="670" height="1" fill="#ede6d8"/>
+  <rect x="15" y="99" width="1" height="20" fill="#ede6d8"/>
+  <text x="24" y="113" fill="#2a2018" font-size="11" font-weight="bold" font-family="Tahoma,sans-serif">What's New</text>
+  <!-- section body -->
+  <rect x="15" y="119" width="670" height="164" fill="#e8e0cc"/>
+
+  <!-- Card: Templates -->
+  <rect x="20" y="124" width="214" height="70" fill="#f4f0e4"/>
+  <rect x="20" y="124" width="214" height="1" fill="#ffffff"/>
+  <rect x="20" y="124" width="1" height="70" fill="#ffffff"/>
+  <rect x="20" y="193" width="214" height="1" fill="#7a6e5a"/>
+  <rect x="233" y="124" width="1" height="70" fill="#7a6e5a"/>
+  <text x="28" y="138" fill="#1e4a90" font-size="11" font-weight="bold" font-family="Tahoma,sans-serif">Templates</text>
+  <text x="28" y="152" fill="#3a3020" font-size="10" font-family="Tahoma,sans-serif">18 architecture systems.</text>
+  <text x="28" y="164" fill="#3a3020" font-size="10" font-family="Tahoma,sans-serif">44 elements across 10 themes.</text>
+  <text x="28" y="176" fill="#3a3020" font-size="10" font-family="Tahoma,sans-serif">61 DB templates. 3-level flyout.</text>
+
+  <!-- Card: RAPTOR AI -->
+  <rect x="240" y="124" width="214" height="70" fill="#f4f0e4"/>
+  <rect x="240" y="124" width="214" height="1" fill="#ffffff"/>
+  <rect x="240" y="124" width="1" height="70" fill="#ffffff"/>
+  <rect x="240" y="193" width="214" height="1" fill="#7a6e5a"/>
+  <rect x="453" y="124" width="1" height="70" fill="#7a6e5a"/>
+  <text x="248" y="138" fill="#1e4a90" font-size="11" font-weight="bold" font-family="Tahoma,sans-serif">RAPTOR AI v33</text>
+  <text x="248" y="152" fill="#3a3020" font-size="10" font-family="Tahoma,sans-serif">Modes: gen / chat / patch.</text>
+  <text x="248" y="164" fill="#3a3020" font-size="10" font-family="Tahoma,sans-serif">18 arch patterns in prompt.</text>
+  <text x="248" y="176" fill="#3a3020" font-size="10" font-family="Tahoma,sans-serif">Auto-fix: connections, FK, dedup.</text>
+
+  <!-- Card: Sequence -->
+  <rect x="460" y="124" width="220" height="70" fill="#f4f0e4"/>
+  <rect x="460" y="124" width="220" height="1" fill="#ffffff"/>
+  <rect x="460" y="124" width="1" height="70" fill="#ffffff"/>
+  <rect x="460" y="193" width="220" height="1" fill="#7a6e5a"/>
+  <rect x="679" y="124" width="1" height="70" fill="#7a6e5a"/>
+  <text x="468" y="138" fill="#1e4a90" font-size="11" font-weight="bold" font-family="Tahoma,sans-serif">UML Sequence v74</text>
+  <text x="468" y="152" fill="#3a3020" font-size="10" font-family="Tahoma,sans-serif">Canonical step format.</text>
+  <text x="468" y="164" fill="#3a3020" font-size="10" font-family="Tahoma,sans-serif">Fixed Kafka self-arrow bug.</text>
+  <text x="468" y="176" fill="#3a3020" font-size="10" font-family="Tahoma,sans-serif">Broker always a participant.</text>
+
+  <!-- Card: Export -->
+  <rect x="20" y="200" width="214" height="76" fill="#f4f0e4"/>
+  <rect x="20" y="200" width="214" height="1" fill="#ffffff"/>
+  <rect x="20" y="200" width="1" height="76" fill="#ffffff"/>
+  <rect x="20" y="275" width="214" height="1" fill="#7a6e5a"/>
+  <rect x="233" y="200" width="1" height="76" fill="#7a6e5a"/>
+  <text x="28" y="214" fill="#1e4a90" font-size="11" font-weight="bold" font-family="Tahoma,sans-serif">Export / Import</text>
+  <text x="28" y="228" fill="#3a3020" font-size="10" font-family="Tahoma,sans-serif">draw.io  ·  Swagger YAML</text>
+  <text x="28" y="240" fill="#3a3020" font-size="10" font-family="Tahoma,sans-serif">ERD diagram in Word.</text>
+  <text x="28" y="252" fill="#3a3020" font-size="10" font-family="Tahoma,sans-serif">Redis schema in Word.</text>
+  <text x="28" y="264" fill="#3a3020" font-size="10" font-family="Tahoma,sans-serif">Paste JSON as text (no file).</text>
+
+  <!-- Card: i18n -->
+  <rect x="240" y="200" width="214" height="76" fill="#f4f0e4"/>
+  <rect x="240" y="200" width="214" height="1" fill="#ffffff"/>
+  <rect x="240" y="200" width="1" height="76" fill="#ffffff"/>
+  <rect x="240" y="275" width="214" height="1" fill="#7a6e5a"/>
+  <rect x="453" y="200" width="1" height="76" fill="#7a6e5a"/>
+  <text x="248" y="214" fill="#1e4a90" font-size="11" font-weight="bold" font-family="Tahoma,sans-serif">Localization</text>
+  <text x="248" y="228" fill="#3a3020" font-size="10" font-family="Tahoma,sans-serif">Russian and English UI.</text>
+  <text x="248" y="240" fill="#3a3020" font-size="10" font-family="Tahoma,sans-serif">Switch without page reload.</text>
+  <text x="248" y="252" fill="#3a3020" font-size="10" font-family="Tahoma,sans-serif">All menu items have</text>
+  <text x="248" y="264" fill="#3a3020" font-size="10" font-family="Tahoma,sans-serif">data-i18n keys.</text>
+
+  <!-- Card: Redis -->
+  <rect x="460" y="200" width="220" height="76" fill="#f4f0e4"/>
+  <rect x="460" y="200" width="220" height="1" fill="#ffffff"/>
+  <rect x="460" y="200" width="1" height="76" fill="#ffffff"/>
+  <rect x="460" y="275" width="220" height="1" fill="#7a6e5a"/>
+  <rect x="679" y="200" width="1" height="76" fill="#7a6e5a"/>
+  <text x="468" y="214" fill="#1e4a90" font-size="11" font-weight="bold" font-family="Tahoma,sans-serif">Redis Editor</text>
+  <text x="468" y="228" fill="#3a3020" font-size="10" font-family="Tahoma,sans-serif">Key patterns with type and TTL.</text>
+  <text x="468" y="240" fill="#3a3020" font-size="10" font-family="Tahoma,sans-serif">"Pull from PG" for Hash fields.</text>
+  <text x="468" y="252" fill="#3a3020" font-size="10" font-family="Tahoma,sans-serif">Exported to Word document.</text>
+
+  <!-- ── SECTION: v1.1.0 → v1.1.1 ── -->
+  <rect x="14" y="292" width="672" height="126" fill="#7a6e5a"/>
+  <rect x="14" y="292" width="672" height="1" fill="#ffffff"/>
+  <rect x="14" y="292" width="1" height="126" fill="#ffffff"/>
+  <rect x="14" y="417" width="672" height="1" fill="#4a4030"/>
+  <rect x="685" y="292" width="1" height="126" fill="#4a4030"/>
+  <rect x="15" y="293" width="670" height="20" fill="#b0a890"/>
+  <rect x="15" y="293" width="670" height="1" fill="#ede6d8"/>
+  <rect x="15" y="293" width="1" height="20" fill="#ede6d8"/>
+  <text x="24" y="307" fill="#2a2018" font-size="11" font-weight="bold" font-family="Tahoma,sans-serif">v1.1.0 → v1.1.1</text>
+  <rect x="15" y="313" width="670" height="104" fill="#e8e0cc"/>
+
+  <!-- Before col -->
+  <rect x="20" y="318" width="325" height="92" fill="#f4f0e4"/>
+  <rect x="20" y="318" width="325" height="1" fill="#ffffff"/>
+  <rect x="20" y="318" width="1" height="92" fill="#ffffff"/>
+  <rect x="20" y="409" width="325" height="1" fill="#7a6e5a"/>
+  <rect x="344" y="318" width="1" height="92" fill="#7a6e5a"/>
+  <text x="28" y="332" fill="#8b1a1a" font-size="11" font-weight="bold" font-family="Tahoma,sans-serif">v1.1.0 — before</text>
+  <text x="28" y="348" fill="#c0392b" font-size="11" font-family="Tahoma,sans-serif">✗  21 templates, flat list</text>
+  <text x="28" y="363" fill="#c0392b" font-size="11" font-family="Tahoma,sans-serif">✗  ai.js — single mode, no post-processing</text>
+  <text x="28" y="378" fill="#c0392b" font-size="11" font-family="Tahoma,sans-serif">✗  Kafka: self-arrow at path end</text>
+  <text x="28" y="393" fill="#c0392b" font-size="11" font-family="Tahoma,sans-serif">✗  JSON export only  ·  RU only  ·  ~10 DB</text>
+
+  <!-- After col -->
+  <rect x="351" y="318" width="328" height="92" fill="#f4f0e4"/>
+  <rect x="351" y="318" width="328" height="1" fill="#ffffff"/>
+  <rect x="351" y="318" width="1" height="92" fill="#ffffff"/>
+  <rect x="351" y="409" width="328" height="1" fill="#7a6e5a"/>
+  <rect x="678" y="318" width="1" height="92" fill="#7a6e5a"/>
+  <text x="359" y="332" fill="#2a6010" font-size="11" font-weight="bold" font-family="Tahoma,sans-serif">v1.1.1 — after</text>
+  <text x="359" y="348" fill="#27ae60" font-size="11" font-family="Tahoma,sans-serif">✓  62 templates, 3-level flyout menu</text>
+  <text x="359" y="363" fill="#27ae60" font-size="11" font-family="Tahoma,sans-serif">✓  raptor-ai.js — gen / chat / patch</text>
+  <text x="359" y="378" fill="#27ae60" font-size="11" font-family="Tahoma,sans-serif">✓  Kafka: correct async arrow  -)</text>
+  <text x="359" y="393" fill="#27ae60" font-size="11" font-family="Tahoma,sans-serif">✓  draw.io / Swagger / ERD  ·  RU+EN  ·  61 DB</text>
+
+  <!-- ── SECTION: CHANGED FILES ── -->
+  <rect x="14" y="426" width="672" height="130" fill="#7a6e5a"/>
+  <rect x="14" y="426" width="672" height="1" fill="#ffffff"/>
+  <rect x="14" y="426" width="1" height="130" fill="#ffffff"/>
+  <rect x="14" y="555" width="672" height="1" fill="#4a4030"/>
+  <rect x="685" y="426" width="1" height="130" fill="#4a4030"/>
+  <rect x="15" y="427" width="670" height="20" fill="#b0a890"/>
+  <rect x="15" y="427" width="670" height="1" fill="#ede6d8"/>
+  <rect x="15" y="427" width="1" height="20" fill="#ede6d8"/>
+  <text x="24" y="441" fill="#2a2018" font-size="11" font-weight="bold" font-family="Tahoma,sans-serif">Changed Files</text>
+  <rect x="15" y="447" width="670" height="108" fill="#e8e0cc"/>
+
+  <!-- divider between label and description columns -->
+  <rect x="155" y="449" width="1" height="104" fill="#9a8e78"/>
+
+  <text x="20" y="462" fill="#1e4a90" font-size="10" font-weight="bold" font-family="Tahoma,sans-serif">catalog.js v63</text>
+  <text x="162" y="462" fill="#3a3020" font-size="10" font-family="Tahoma,sans-serif">62 templates, Systems/Elements categories, 10 themes</text>
+  <rect x="15" y="466" width="670" height="1" fill="#c8c0a8"/>
+
+  <text x="20" y="479" fill="#1e4a90" font-size="10" font-weight="bold" font-family="Tahoma,sans-serif">raptor-ai.js v33</text>
+  <text x="162" y="479" fill="#3a3020" font-size="10" font-family="Tahoma,sans-serif">Full rewrite — gen/chat/patch + post-processing pipeline</text>
+  <rect x="15" y="483" width="670" height="1" fill="#c8c0a8"/>
+
+  <text x="20" y="496" fill="#1e4a90" font-size="10" font-weight="bold" font-family="Tahoma,sans-serif">ui.js v71</text>
+  <text x="162" y="496" fill="#3a3020" font-size="10" font-family="Tahoma,sans-serif">3-level flyout menu, placeTemplate with scenarios</text>
+  <rect x="15" y="500" width="670" height="1" fill="#c8c0a8"/>
+
+  <text x="20" y="513" fill="#1e4a90" font-size="10" font-weight="bold" font-family="Tahoma,sans-serif">seq.js v74</text>
+  <text x="162" y="513" fill="#3a3020" font-size="10" font-family="Tahoma,sans-serif">Canonical step[i], fixed brokerIsLast self-arrow bug</text>
+  <rect x="15" y="517" width="670" height="1" fill="#c8c0a8"/>
+
+  <text x="20" y="530" fill="#1e4a90" font-size="10" font-weight="bold" font-family="Tahoma,sans-serif">db-templates.js v60</text>
+  <text x="162" y="530" fill="#3a3020" font-size="10" font-family="Tahoma,sans-serif">61 DB templates — PostgreSQL / MongoDB / Cassandra / Redis / ClickHouse</text>
+  <rect x="15" y="534" width="670" height="1" fill="#c8c0a8"/>
+
+  <text x="20" y="547" fill="#1e4a90" font-size="10" font-weight="bold" font-family="Tahoma,sans-serif">doc-export.js v61  ·  db-schema.js v60  ·  locale.js v9  ·  layout.js v58  ·  index.html</text>
+  <text x="162" y="547" fill="#6a6050" font-size="10" font-family="Tahoma,sans-serif">ERD/Redis in Word  ·  Redis editor  ·  i18n keys  ·  vertical autoLayout  ·  cache bump</text>
+
+</svg>
