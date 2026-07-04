@@ -76,8 +76,10 @@ La clave se guarda en `localStorage` — se introduce una sola vez por navegador
 
 ### Secuencia UML
 - Generada desde el escenario según el estándar PlantUML
-- Kafka → flecha punteada `-)` sin respuesta síncrona
+- Kafka → `-)` · retornos síncronos · `group alt/else`
 - Botón **📋 PlantUML** — copiar para Confluence
+- ~~Code-to-diagram~~ → **Click-to-diagram**: haz clic en los bloques del canvas — RAPTOR encuentra el camino a través de las conexiones automáticamente, resaltando los nodos disponibles. Tras cada clic aparece un popup para describir el paso (método, URI, respuesta). Enter — el diagrama de secuencia está listo
+- En desarrollo activo; los flujos CRUD simples ya funcionan en dos clics — edita tu proceso a alto y bajo nivel directamente en el canvas
 
 ### RAPTOR AI
 - Botón `🤖 AI` → panel de chat a la derecha

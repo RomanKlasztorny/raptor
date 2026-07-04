@@ -90,8 +90,11 @@ Pas de Groq ? Générez le JSON avec **n'importe quel modèle** et importez-le :
 - Clic sur une balle → hop-trace avec latences · **Mode Chaos**
 
 ### Séquence UML
-- Générée depuis le scénario selon PlantUML
-- Kafka → `-)` · bouton **📋 PlantUML** pour Confluence
+- Générée depuis le scénario selon le standard PlantUML
+- Kafka → `-)` · retours synchrones · `group alt/else`
+- Bouton **📋 PlantUML** — copier pour Confluence
+- ~~Code-to-diagram~~ → **Click-to-diagram**: cliquez sur les blocs du canvas — RAPTOR trace automatiquement le chemin à travers les connexions en surlignant les nœuds disponibles. Après chaque clic, un popup permet de décrire l'étape (méthode, URI, réponse). Entrée — le diagramme de séquence est prêt
+- En développement actif ; les flux CRUD simples fonctionnent déjà en deux clics — éditez votre processus au niveau haut et bas directement sur le canvas
 
 ### Base de données
 - Éditeur de schéma PostgreSQL avec ERD visuel (patte de corbeau)

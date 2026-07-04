@@ -117,8 +117,10 @@ Don't use Groq? Generate the JSON with **any model** and drop it in:
 
 ### UML Sequence
 - Auto-generated from scenario in PlantUML standard
-- Kafka → dashed arrow `-)`, sync returns, `group alt/else`
+- Kafka → `-)` · sync returns · `group alt/else`
 - **📋 PlantUML** button — copy for Confluence
+- ~~Code-to-diagram~~ → **Click-to-diagram**: click blocks on the canvas — RAPTOR finds the path through connections automatically, highlighting available next nodes. After each click a popup appears to describe the step (method, URI, response). Press Enter — sequence diagram is ready
+- Actively in development; simple CRUD flows already work in two clicks — edit your process at high and low level directly on the canvas
 
 ### Database
 - PostgreSQL schema editor with visual ERD (crow's foot notation)

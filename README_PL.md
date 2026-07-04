@@ -76,8 +76,10 @@ Bez Groq? Wygeneruj JSON **dowolnym modelem** i załaduj:
 
 ### Sekwencja UML
 - Generowana ze scenariusza zgodnie ze standardem PlantUML
-- Kafka → przerywana strzałka `-)` bez synchronicznej odpowiedzi
+- Kafka → `-)` · synchroniczne zwroty · `group alt/else`
 - Przycisk **📋 PlantUML** — kopiuj do Confluence
+- ~~Code-to-diagram~~ → **Click-to-diagram**: klikasz bloki na canvasie — RAPTOR automatycznie wyznacza ścieżkę przez połączenia, podświetlając dostępne węzły. Po każdym kliknięciu pojawia się popup do opisania kroku (metoda, URI, odpowiedź). Enter — diagram sekwencji gotowy
+- W aktywnym rozwoju; proste operacje CRUD działają już w dwóch kliknięciach — edytuj proces na wysokim i niskim poziomie bezpośrednio na canvasie
 
 ### RAPTOR AI
 - Przycisk `🤖 AI` → panel czatu po prawej

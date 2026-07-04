@@ -76,8 +76,10 @@ npx serve .     # → http://localhost:5500
 
 ### UML 时序图
 - 从场景自动生成，符合 PlantUML 标准
-- Kafka → 虚线箭头 `-)` 无同步响应
+- Kafka → `-)` · 同步返回 · `group alt/else`
 - **📋 PlantUML** 按钮 — 复制到 Confluence
+- ~~代码生成图表~~ → **点击生成图表**：点击画布上的模块 — RAPTOR 自动沿连接找到路径，高亮显示可选的下一个节点。每次点击后弹出窗口填写步骤（方法、URI、响应）。按 Enter — 时序图即时生成
+- 功能持续开发中；简单 CRUD 流程已支持两次点击完成 — 直接在画布上编辑高层和低层流程
 
 ### RAPTOR AI
 - `🤖 AI` 按钮 → 右侧聊天面板

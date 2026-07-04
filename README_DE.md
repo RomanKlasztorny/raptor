@@ -91,7 +91,10 @@ Kein Groq? JSON mit **beliebigem Modell** generieren und laden:
 
 ### UML-Sequenz
 - Aus Szenario nach PlantUML-Standard generiert
-- Kafka → `-)` · **📋 PlantUML** für Confluence
+- Kafka → `-)` · synchrone Rückgaben · `group alt/else`
+- **📋 PlantUML** für Confluence
+- ~~Code-to-diagram~~ → **Click-to-diagram**: Blöcke auf dem Canvas anklicken — RAPTOR findet den Pfad durch die Verbindungen automatisch und hebt verfügbare nächste Knoten hervor. Nach jedem Klick erscheint ein Popup zum Beschreiben des Schritts (Methode, URI, Antwort). Enter — Sequenzdiagramm fertig
+- In aktiver Entwicklung; einfache CRUD-Abläufe funktionieren bereits in zwei Klicks — Prozesse auf hoher und niedriger Ebene direkt auf dem Canvas bearbeiten
 
 ### Datenbank
 - PostgreSQL-Schema-Editor mit visuellem ERD (Crow's Foot)
