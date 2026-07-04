@@ -46,7 +46,7 @@ Bez Groq? Wygeneruj JSON **dowolnym modelem** i załaduj:
    „Wygeneruj RAPTOR JSON dla [twój system]. Schemat: …"
 ③   ↓
    Skopiuj JSON z odpowiedzi
-④ RAPTOR  →  przeciągnij .json na canvas   (lub Plik → Załaduj JSON)
+④ RAPTOR  →  Plik → Importuj JSON  →  wklej tekst  →  OK
    ↓
    ✦ Canvas wypełnia się natychmiast: bloki, połączenia, schematy BD, scenariusze
 ```
@@ -91,4 +91,4 @@ Bez Groq? Wygeneruj JSON **dowolnym modelem** i załaduj:
 
 ## Stan
 
-Wszystko w globalnym obiekcie `S`. Zapisz → plik JSON. Wczytaj → przeciągnij JSON na canvas.
+Wszystko w globalnym obiekcie `S`. Zapisz → plik JSON. Wczytaj → Plik → Importuj JSON → wklej tekst → OK.

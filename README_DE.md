@@ -52,7 +52,7 @@ Kein Groq? JSON mit **beliebigem Modell** generieren und laden:
    „Generiere RAPTOR JSON für [dein System]. Schema: …"
 ③   ↓
    JSON aus der Antwort kopieren
-④ RAPTOR  →  .json auf Canvas ziehen   (oder Datei → JSON laden)
+④ RAPTOR  →  Datei → JSON importieren  →  Text einfügen  →  OK
    ↓
    ✦ Canvas füllt sich sofort mit Blöcken, Verbindungen, DB-Schemas, Szenarien
 ```
@@ -106,4 +106,4 @@ Kein Groq? JSON mit **beliebigem Modell** generieren und laden:
 
 ## Zustand
 
-Alles im globalen Objekt `S`. Speichern → JSON-Datei. Laden → JSON auf Canvas ziehen.
+Alles im globalen Objekt `S`. Speichern → JSON-Datei. Laden → Datei → JSON importieren → Text einfügen → OK.

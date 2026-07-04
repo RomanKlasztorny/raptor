@@ -52,7 +52,7 @@ Pas de Groq ? Générez le JSON avec **n'importe quel modèle** et importez-le :
    « Génère un JSON RAPTOR pour [ton système]. Schéma : … »
 ③   ↓
    Copiez le JSON de la réponse
-④ RAPTOR  →  glissez .json sur le canvas   (ou Fichier → Charger JSON)
+④ RAPTOR  →  Fichier → Importer JSON  →  coller le texte  →  OK
    ↓
    ✦ Le canvas se remplit instantanément : blocs, connexions, schémas BD, scénarios
 ```

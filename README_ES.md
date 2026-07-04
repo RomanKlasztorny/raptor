@@ -46,7 +46,7 @@ La clave se guarda en `localStorage` — se introduce una sola vez por navegador
    «Genera un JSON RAPTOR para [tu sistema]. Esquema: …»
 ③   ↓
    Copia el JSON de la respuesta
-④ RAPTOR  →  arrastra .json al canvas   (o Archivo → Cargar JSON)
+④ RAPTOR  →  Archivo → Importar JSON  →  pegar texto  →  OK
    ↓
    ✦ El canvas se llena al instante: bloques, conexiones, esquemas BD, escenarios
 ```
@@ -91,4 +91,4 @@ La clave se guarda en `localStorage` — se introduce una sola vez por navegador
 
 ## Estado
 
-Todo en el objeto global `S`. Guardar → archivo JSON. Cargar → arrastrar JSON al canvas.
+Todo en el objeto global `S`. Guardar → archivo JSON. Cargar → Archivo → Importar JSON → pegar texto → OK.

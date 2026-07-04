@@ -54,7 +54,7 @@ Don't use Groq? Generate the JSON with **any model** and drop it in:
    "Generate RAPTOR JSON for [your system]. Schema: …"
 ③   ↓
    Copy JSON from response
-④ RAPTOR  →  drag .json onto canvas   (or File → Load JSON)
+④ RAPTOR  →  File → Import JSON  →  paste  →  OK
    ↓
    ✦ Canvas fills instantly with blocks, connections, DB schemas, scenarios
 ```
@@ -126,4 +126,4 @@ Don't use Groq? Generate the JSON with **any model** and drop it in:
 ## State
 
 Everything lives in global `S` (blocks, connections, scenarios, metadata).
-Save → JSON file. Load → drag JSON onto canvas.
+Save → JSON file. Load → File → Import JSON → paste text → OK.

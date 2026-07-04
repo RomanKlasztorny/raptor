@@ -46,7 +46,7 @@ npx serve .     # → http://localhost:5500
    「为 [你的系统] 生成 RAPTOR JSON，使用以下结构：…」
 ③   ↓
    复制回复中的 JSON
-④ RAPTOR  →  将 .json 拖到画布   （或 文件 → 加载 JSON）
+④ RAPTOR  →  文件 → 导入 JSON  →  粘贴文本  →  确定
    ↓
    ✦ 画布立即填充：模块、连接、数据库结构、场景
 ```
@@ -91,4 +91,4 @@ npx serve .     # → http://localhost:5500
 
 ## 状态管理
 
-所有数据存储在全局对象 `S` 中。保存 → JSON 文件。加载 → 将 JSON 拖到画布上。
+所有数据存储在全局对象 `S` 中。保存 → JSON 文件。加载 → 文件 → 导入 JSON → 粘贴文本 → 确定。
