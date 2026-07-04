@@ -99,7 +99,7 @@ Pas de Groq ? Générez le JSON avec **n'importe quel modèle** et importez-le :
 - Import SQL DDL, 61 modèles prêts à l'emploi
 
 ### Export
-- **Word (.docx)** — structure MS-1 avec diagramme C4, API, tables BD, ERD
+- **Word (.docx)** — format universel que chaque partie prenante possède déjà. Avant l'export vous choisissez ce qui est inclus : diagramme C4, tables API, schéma BD, ERD — prenez ce dont vous avez besoin, ignorez le reste
 - **draw.io** XML · **Swagger / OpenAPI YAML** · Entièrement hors ligne
 
 ---

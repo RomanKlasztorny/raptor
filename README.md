@@ -15,15 +15,17 @@
 
 ## Why I built this
 
-I'm a systems analyst and I love the work — but the toolchain was killing me.
+Working as a systems analyst, I came to a clear conclusion: a significant portion of the time goes not into designing the system, but into preparing and maintaining its documentation.
 
-Every project had its own flow, its own folder structure, its own interpretation of what a spec should look like. And the actual work of documenting a system meant bouncing between five tools: draw.io for diagrams, some SQL editor for the schema, PlantUML for sequence diagrams (manually typing symbols, then copying a PNG), and then packaging everything into whatever format the stakeholder happened to prefer that day — sometimes a Word doc, sometimes a presentation, sometimes both. A single handoff could eat three days just for assembly and cross-checking, before another analyst or developer could even start reading it.
+A single task required juggling multiple tools at once — designing the architecture in one place, describing databases in another, building Sequence diagrams in a third, and then assembling everything into a final document. More often than not, preparing the documentation took longer than designing the system itself.
 
-AI agents helped — until they didn't. They need internet, they hallucinate, and most models can't hold the full context of a real system in one shot. You still had to babysit the output.
+The rise of large language models sped up the creation of individual artifacts, but didn't solve the problem of combining them or keeping them in sync manually.
 
-So I started building RAPTOR — first just as a more convenient way to draw C4 diagrams and keep the schema in one place. Then it grew: UML sequence generation, Word export in a real MS-1 structure, DB schema editor with ERD, 18 full system templates. Now one message to the AI gives you a working draft of the entire architecture — blocks, connections, database schemas, request scenarios — and the analyst's job becomes editing and refining, not drawing arrows from scratch.
+So I started building RAPTOR.
 
-It's also a learning project. I wanted something junior analysts could open without onboarding and immediately understand what a well-structured system looks like.
+RAPTOR is a tool that lets you design a system in one place and derive consistent artifacts from that single model: scenarios, diagrams, and documentation. Instead of manually transferring information between tools, the analyst works with one unified system model.
+
+I built RAPTOR as the tool I wished I had on my first day as a systems analyst.
 
 ---
 
@@ -128,7 +130,7 @@ Don't use Groq? Generate the JSON with **any model** and drop it in:
 - Type affects DB schema and Auth load in simulation
 
 ### Export
-- **Word (.docx)** — MS-1 structure: description, C4 diagram, API per service, DB tables, ERD, Redis schema
+- **Word (.docx)** — universal format every stakeholder already has. Before export you choose what to include: C4 diagram, API tables, DB schema, ERD — take what you need, skip the rest
 - **draw.io** XML, **Swagger / OpenAPI YAML**
 - Fully offline via built-in `docx.min.js`
 
