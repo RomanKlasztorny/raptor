@@ -1,96 +1,96 @@
-![RAPTOR v1.1.1](https://github.com/user-attachments/assets/6ac2d4f1-be78-4d66-9aa0-601ec8934be6)
+﻿![RAPTOR v1.1.1](https://raw.githubusercontent.com/RomanKlasztorny/raptor/main/docs/release-notes.jpg)
 
-**🌐 Idioma:** [🇬🇧 English](README.md) · [🇷🇺 Русский](README_RU.md) · [🇺🇦 Українська](README_UA.md) · [🇩🇪 Deutsch](README_DE.md) · [🇫🇷 Français](README_FR.md) · [🇵🇱 Polski](README_PL.md) · [🇨🇳 中文](README_ZH.md) · [🇯🇵 日本語](README_JA.md)
+**рџЊђ Idioma:** [рџ‡¬рџ‡§ English](README.md) В· [рџ‡·рџ‡є Р СѓСЃСЃРєРёР№](README_RU.md) В· [рџ‡єрџ‡¦ РЈРєСЂР°С—РЅСЃСЊРєР°](README_UA.md) В· [рџ‡©рџ‡Є Deutsch](README_DE.md) В· [рџ‡«рџ‡· FranГ§ais](README_FR.md) В· [рџ‡µрџ‡± Polski](README_PL.md) В· [рџ‡Ёрџ‡і дё­ж–‡](README_ZH.md) В· [рџ‡Їрџ‡µ ж—Ґжњ¬иЄћ](README_JA.md)
 
-# RAPTOR — Constructor de Arquitectura
+# RAPTOR вЂ” Constructor de Arquitectura
 
-> Herramienta basada en navegador para diseñar sistemas de microservicios, simular tráfico y generar documentación. Sin paso de compilación, sin npm — abre `index.html` y empieza.
+> Herramienta basada en navegador para diseГ±ar sistemas de microservicios, simular trГЎfico y generar documentaciГіn. Sin paso de compilaciГіn, sin npm вЂ” abre `index.html` y empieza.
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-1e4a90?style=for-the-badge)](https://romanklasztorny.github.io/raptor/)
 [![Release](https://img.shields.io/github/v/release/RomanKlasztorny/raptor?style=for-the-badge&color=2a6010)](https://github.com/RomanKlasztorny/raptor/releases/latest)
 
-![RAPTOR demo](https://github.com/RomanKlasztorny/raptor/assets/232060178/28fc476b-8a9a-49ee-9e74-c893a6720924)
+![RAPTOR demo](https://raw.githubusercontent.com/RomanKlasztorny/raptor/main/docs/demo.gif)
 
 ---
 
-## Inicio rápido
+## Inicio rГЎpido
 
 ```bash
-npx serve .     # → http://localhost:5500
+npx serve .     # в†’ http://localhost:5500
 ```
 
 ---
 
-## ⚡ Configuración — RAPTOR AI
+## вљЎ ConfiguraciГіn вЂ” RAPTOR AI
 
-> Gratis · Sin tarjeta · 30 segundos
+> Gratis В· Sin tarjeta В· 30 segundos
 
 ```
-① console.groq.com → Registrarse → API Keys → Create API Key
-② Copiar la clave  →  gsk_••••••••••••••••••••••••
-③ RAPTOR  →  🤖 AI  →  pegar la clave  →  Enter  ✓
+в‘  console.groq.com в†’ Registrarse в†’ API Keys в†’ Create API Key
+в‘Ў Copiar la clave  в†’  gsk_вЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂў
+в‘ў RAPTOR  в†’  рџ¤– AI  в†’  pegar la clave  в†’  Enter  вњ“
 ```
 
-La clave se guarda en `localStorage` — se introduce una sola vez por navegador.
+La clave se guarda en `localStorage` вЂ” se introduce una sola vez por navegador.
 
 ---
 
-## 🔌 Usar con cualquier LLM (ChatGPT, Claude, Gemini…)
+## рџ”Њ Usar con cualquier LLM (ChatGPT, Claude, GeminiвЂ¦)
 
-¿Sin Groq? Genera el JSON con **cualquier modelo** e impórtalo:
+ВїSin Groq? Genera el JSON con **cualquier modelo** e impГіrtalo:
 
 ```
-① Abre  RAPTOR_FORMAT.md  ← esquema JSON completo + ejemplos
-②   ↓
+в‘  Abre  RAPTOR_FORMAT.md  в†ђ esquema JSON completo + ejemplos
+в‘Ў   в†“
    Pega en ChatGPT / Claude / Gemini:
-   «Genera un JSON RAPTOR para [tu sistema]. Esquema: …»
-③   ↓
+   В«Genera un JSON RAPTOR para [tu sistema]. Esquema: вЂ¦В»
+в‘ў   в†“
    Copia el JSON de la respuesta
-④ RAPTOR  →  Archivo → Importar JSON  →  pegar texto  →  OK
-   ↓
-   ✦ El canvas se llena al instante: bloques, conexiones, esquemas BD, escenarios
+в‘Ј RAPTOR  в†’  Archivo в†’ Importar JSON  в†’  pegar texto  в†’  OK
+   в†“
+   вњ¦ El canvas se llena al instante: bloques, conexiones, esquemas BD, escenarios
 ```
 
-> **Consejo:** adjunta `RAPTOR_FORMAT.md` como archivo — la mayoría de los modelos lo leen completo.
+> **Consejo:** adjunta `RAPTOR_FORMAT.md` como archivo вЂ” la mayorГ­a de los modelos lo leen completo.
 
 ---
 
-## Características
+## CaracterГ­sticas
 
 ### Diagrama
 - Bloques: Actor, Cliente, API Gateway, Load Balancer, CDN, WebSocket GW, BFF, Servicio, Auth, PostgreSQL, MySQL, MongoDB, Redis, Cassandra, ClickHouse, Elasticsearch, S3, Kafka, RabbitMQ, NATS, Queue, Externo
-- Drag & drop con detección de colisiones, flechas bidireccionales
-- Disposición automática por capas — botón **Auto**
+- Drag & drop con detecciГіn de colisiones, flechas bidireccionales
+- DisposiciГіn automГЎtica por capas вЂ” botГіn **Auto**
 - Niveles **C1 / C2 / C3 / Seq** en la barra de herramientas
 
 ### Plantillas
-- **18 Sistemas**: Banco, Mensajería, Marketplace, YouTube, Motor de búsqueda, Taxi, Red social, Entrega de comida, Carsharing, Spotify, Netflix, Tinder, Bolsa de criptomonedas, EdTech, Fitness, Reservas, Almacenamiento en la nube, Todo
+- **18 Sistemas**: Banco, MensajerГ­a, Marketplace, YouTube, Motor de bГєsqueda, Taxi, Red social, Entrega de comida, Carsharing, Spotify, Netflix, Tinder, Bolsa de criptomonedas, EdTech, Fitness, Reservas, Almacenamiento en la nube, Todo
 - **44 Elementos** en 10 temas
 - **61 plantillas DB**: PostgreSQL, MongoDB, Cassandra, Redis, ClickHouse
-- Menú flyout de 3 niveles
+- MenГє flyout de 3 niveles
 
-### Simulación
+### SimulaciГіn
 - Las bolas siguen los caminos de los escenarios
-- Clic en una bola → detalles de hop-trace con latencias
-- **Modo Caos**: fallos de nodos, degradación, reinicio de caché
+- Clic en una bola в†’ detalles de hop-trace con latencias
+- **Modo Caos**: fallos de nodos, degradaciГіn, reinicio de cachГ©
 
 ### Secuencia UML
-- Generada desde el escenario según el estándar PlantUML
-- Kafka → `-)` · retornos síncronos · `group alt/else`
-- Botón **📋 PlantUML** — copiar para Confluence
-- ~~Code-to-diagram~~ → **Click-to-diagram**: haz clic en los bloques del canvas — RAPTOR encuentra el camino a través de las conexiones automáticamente, resaltando los nodos disponibles. Tras cada clic aparece un popup para describir el paso (método, URI, respuesta). Enter — el diagrama de secuencia está listo
-- En desarrollo activo; los flujos CRUD simples ya funcionan en dos clics — edita tu proceso a alto y bajo nivel directamente en el canvas
+- Generada desde el escenario segГєn el estГЎndar PlantUML
+- Kafka в†’ `-)` В· retornos sГ­ncronos В· `group alt/else`
+- BotГіn **рџ“‹ PlantUML** вЂ” copiar para Confluence
+- ~~Code-to-diagram~~ в†’ **Click-to-diagram**: haz clic en los bloques del canvas вЂ” RAPTOR encuentra el camino a travГ©s de las conexiones automГЎticamente, resaltando los nodos disponibles. Tras cada clic aparece un popup para describir el paso (mГ©todo, URI, respuesta). Enter вЂ” el diagrama de secuencia estГЎ listo
+- En desarrollo activo; los flujos CRUD simples ya funcionan en dos clics вЂ” edita tu proceso a alto y bajo nivel directamente en el canvas
 
 ### RAPTOR AI
-- Botón `🤖 AI` → panel de chat a la derecha
-- Impulsado por **Groq** (llama-3.3-70b, plan gratuito) — pega tu clave API desde [console.groq.com](https://console.groq.com)
-- Modos: **gen** (generación completa), **chat** (planificación), **patch** (actualizaciones incrementales)
+- BotГіn `рџ¤– AI` в†’ panel de chat a la derecha
+- Impulsado por **Groq** (llama-3.3-70b, plan gratuito) вЂ” pega tu clave API desde [console.groq.com](https://console.groq.com)
+- Modos: **gen** (generaciГіn completa), **chat** (planificaciГіn), **patch** (actualizaciones incrementales)
 
-### Exportación
+### ExportaciГіn
 - **Word (.docx)**, **draw.io**, **Swagger/OpenAPI YAML**
 
 ---
 
 ## Estado
 
-Todo en el objeto global `S`. Guardar → archivo JSON. Cargar → Archivo → Importar JSON → pegar texto → OK.
+Todo en el objeto global `S`. Guardar в†’ archivo JSON. Cargar в†’ Archivo в†’ Importar JSON в†’ pegar texto в†’ OK.
