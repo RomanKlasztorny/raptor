@@ -1,90 +1,90 @@
-﻿![RAPTOR v1.1.1](https://raw.githubusercontent.com/RomanKlasztorny/raptor/main/docs/release-notes.jpg)
+![RAPTOR v1.1.1](https://github.com/user-attachments/assets/6ac2d4f1-be78-4d66-9aa0-601ec8934be6)
 
-**рџЊђ JД™zyk:** [рџ‡¬рџ‡§ English](README.md) В· [рџ‡·рџ‡є Р СѓСЃСЃРєРёР№](README_RU.md) В· [рџ‡єрџ‡¦ РЈРєСЂР°С—РЅСЃСЊРєР°](README_UA.md) В· [рџ‡©рџ‡Є Deutsch](README_DE.md) В· [рџ‡«рџ‡· FranГ§ais](README_FR.md) В· [рџ‡Єрџ‡ё EspaГ±ol](README_ES.md) В· [рџ‡Ёрџ‡і дё­ж–‡](README_ZH.md) В· [рџ‡Їрџ‡µ ж—Ґжњ¬иЄћ](README_JA.md)
+**🌐 Język:** [🇬🇧 English](README.md) · [🇷🇺 Русский](README_RU.md) · [🇺🇦 Українська](README_UA.md) · [🇩🇪 Deutsch](README_DE.md) · [🇫🇷 Français](README_FR.md) · [🇪🇸 Español](README_ES.md) · [🇨🇳 中文](README_ZH.md) · [🇯🇵 日本語](README_JA.md)
 
-# RAPTOR вЂ” Konstruktor Architektury
+# RAPTOR — Konstruktor Architektury
 
-> NarzД™dzie przeglД…darkowe do projektowania systemГіw mikroserwisowych, symulowania ruchu i generowania dokumentacji. Bez kroku budowania, bez npm вЂ” otwГіrz `index.html` i zacznij pracД™.
+> Narzędzie przeglądarkowe do projektowania systemów mikroserwisowych, symulowania ruchu i generowania dokumentacji. Bez kroku budowania, bez npm — otwórz `index.html` i zacznij pracę.
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-1e4a90?style=for-the-badge)](https://romanklasztorny.github.io/raptor/)
 [![Release](https://img.shields.io/github/v/release/RomanKlasztorny/raptor?style=for-the-badge&color=2a6010)](https://github.com/RomanKlasztorny/raptor/releases/latest)
 
-![RAPTOR demo](https://raw.githubusercontent.com/RomanKlasztorny/raptor/main/docs/demo.gif)
+![RAPTOR demo](https://github.com/RomanKlasztorny/raptor/assets/232060178/28fc476b-8a9a-49ee-9e74-c893a6720924)
 
 ---
 
 ## Szybki start
 
 ```bash
-npx serve .     # в†’ http://localhost:5500
+npx serve .     # → http://localhost:5500
 ```
 
 ---
 
-## вљЎ Konfiguracja вЂ” RAPTOR AI
+## ⚡ Konfiguracja — RAPTOR AI
 
-> BezpЕ‚atnie В· Bez karty В· 30 sekund
+> Bezpłatnie · Bez karty · 30 sekund
 
 ```
-в‘  console.groq.com в†’ Zarejestruj siД™ в†’ API Keys в†’ Create API Key
-в‘Ў Skopiuj klucz  в†’  gsk_вЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂў
-в‘ў RAPTOR  в†’  рџ¤– AI  в†’  wklej klucz  в†’  Enter  вњ“
+① console.groq.com → Zarejestruj się → API Keys → Create API Key
+② Skopiuj klucz  →  gsk_••••••••••••••••••••••••
+③ RAPTOR  →  🤖 AI  →  wklej klucz  →  Enter  ✓
 ```
 
-Klucz zapisywany w `localStorage` вЂ” wprowadzany raz na przeglД…darkД™.
+Klucz zapisywany w `localStorage` — wprowadzany raz na przeglądarkę.
 
 ---
 
-## рџ”Њ UЕјycie z dowolnym LLM (ChatGPT, Claude, GeminiвЂ¦)
+## 🔌 Użycie z dowolnym LLM (ChatGPT, Claude, Gemini…)
 
-Bez Groq? Wygeneruj JSON **dowolnym modelem** i zaЕ‚aduj:
+Bez Groq? Wygeneruj JSON **dowolnym modelem** i załaduj:
 
 ```
-в‘  OtwГіrz  RAPTOR_FORMAT.md  в†ђ peЕ‚ny schemat JSON + przykЕ‚ady
-в‘Ў   в†“
+① Otwórz  RAPTOR_FORMAT.md  ← pełny schemat JSON + przykłady
+②   ↓
    Wklej do ChatGPT / Claude / Gemini:
-   вЂћWygeneruj RAPTOR JSON dla [twГіj system]. Schemat: вЂ¦"
-в‘ў   в†“
+   „Wygeneruj RAPTOR JSON dla [twój system]. Schemat: …"
+③   ↓
    Skopiuj JSON z odpowiedzi
-в‘Ј RAPTOR  в†’  Plik в†’ Importuj JSON  в†’  wklej tekst  в†’  OK
-   в†“
-   вњ¦ Canvas wypeЕ‚nia siД™ natychmiast: bloki, poЕ‚Д…czenia, schematy BD, scenariusze
+④ RAPTOR  →  Plik → Importuj JSON  →  wklej tekst  →  OK
+   ↓
+   ✦ Canvas wypełnia się natychmiast: bloki, połączenia, schematy BD, scenariusze
 ```
 
-> **WskazГіwka:** zaЕ‚Д…cz `RAPTOR_FORMAT.md` jako plik вЂ” wiД™kszoЕ›Д‡ modeli odczytuje go w caЕ‚oЕ›ci.
+> **Wskazówka:** załącz `RAPTOR_FORMAT.md` jako plik — większość modeli odczytuje go w całości.
 
 ---
 
 ## Funkcje
 
 ### Diagram
-- Bloki: Aktor, Klient, API Gateway, Load Balancer, CDN, WebSocket GW, BFF, Serwis, Auth, PostgreSQL, MySQL, MongoDB, Redis, Cassandra, ClickHouse, Elasticsearch, S3, Kafka, RabbitMQ, NATS, Queue, ZewnД™trzny
-- Drag & drop z wykrywaniem kolizji, dwukierunkowe strzaЕ‚ki
-- Automatyczny ukЕ‚ad warstwowy вЂ” przycisk **Auto**
-- Poziomy **C1 / C2 / C3 / Seq** w pasku narzД™dzi
+- Bloki: Aktor, Klient, API Gateway, Load Balancer, CDN, WebSocket GW, BFF, Serwis, Auth, PostgreSQL, MySQL, MongoDB, Redis, Cassandra, ClickHouse, Elasticsearch, S3, Kafka, RabbitMQ, NATS, Queue, Zewnętrzny
+- Drag & drop z wykrywaniem kolizji, dwukierunkowe strzałki
+- Automatyczny układ warstwowy — przycisk **Auto**
+- Poziomy **C1 / C2 / C3 / Seq** w pasku narzędzi
 
 ### Szablony
-- **18 SystemГіw**: Bank, Komunikator, Marketplace, YouTube, Wyszukiwarka, Taxi, Social Feed, Dostawa jedzenia, Carsharing, Spotify, Netflix, Tinder, GieЕ‚da krypto, EdTech, Fitness, Rezerwacje, Chmura, Todo
+- **18 Systemów**: Bank, Komunikator, Marketplace, YouTube, Wyszukiwarka, Taxi, Social Feed, Dostawa jedzenia, Carsharing, Spotify, Netflix, Tinder, Giełda krypto, EdTech, Fitness, Rezerwacje, Chmura, Todo
 - **44 Elementy** w 10 kategoriach
-- **61 szablonГіw DB**: PostgreSQL, MongoDB, Cassandra, Redis, ClickHouse
+- **61 szablonów DB**: PostgreSQL, MongoDB, Cassandra, Redis, ClickHouse
 - 3-poziomowe menu flyout
 
 ### Symulacja
-- Kulki poruszajД… siД™ po Е›cieЕјkach scenariuszy
-- Klik na kulkД™ в†’ szczegГіЕ‚y hop-trace z opГіЕєnieniami
-- **Tryb Chaos**: awarie wД™zЕ‚Гіw, degradacja, reset cache
+- Kulki poruszają się po ścieżkach scenariuszy
+- Klik na kulkę → szczegóły hop-trace z opóźnieniami
+- **Tryb Chaos**: awarie węzłów, degradacja, reset cache
 
 ### Sekwencja UML
 - Generowana ze scenariusza zgodnie ze standardem PlantUML
-- Kafka в†’ `-)` В· synchroniczne zwroty В· `group alt/else`
-- Przycisk **рџ“‹ PlantUML** вЂ” kopiuj do Confluence
-- ~~Code-to-diagram~~ в†’ **Click-to-diagram**: klikasz bloki na canvasie вЂ” RAPTOR automatycznie wyznacza Е›cieЕјkД™ przez poЕ‚Д…czenia, podЕ›wietlajД…c dostД™pne wД™zЕ‚y. Po kaЕјdym klikniД™ciu pojawia siД™ popup do opisania kroku (metoda, URI, odpowiedЕє). Enter вЂ” diagram sekwencji gotowy
-- W aktywnym rozwoju; proste operacje CRUD dziaЕ‚ajД… juЕј w dwГіch klikniД™ciach вЂ” edytuj proces na wysokim i niskim poziomie bezpoЕ›rednio na canvasie
+- Kafka → `-)` · synchroniczne zwroty · `group alt/else`
+- Przycisk **📋 PlantUML** — kopiuj do Confluence
+- ~~Code-to-diagram~~ → **Click-to-diagram**: klikasz bloki na canvasie — RAPTOR automatycznie wyznacza ścieżkę przez połączenia, podświetlając dostępne węzły. Po każdym kliknięciu pojawia się popup do opisania kroku (metoda, URI, odpowiedź). Enter — diagram sekwencji gotowy
+- W aktywnym rozwoju; proste operacje CRUD działają już w dwóch kliknięciach — edytuj proces na wysokim i niskim poziomie bezpośrednio na canvasie
 
 ### RAPTOR AI
-- Przycisk `рџ¤– AI` в†’ panel czatu po prawej
-- Zasilany przez **Groq** (llama-3.3-70b, darmowy plan) вЂ” wklej klucz API z [console.groq.com](https://console.groq.com)
-- Tryby: **gen** (peЕ‚na generacja), **chat** (planowanie), **patch** (przyrostowe aktualizacje)
+- Przycisk `🤖 AI` → panel czatu po prawej
+- Zasilany przez **Groq** (llama-3.3-70b, darmowy plan) — wklej klucz API z [console.groq.com](https://console.groq.com)
+- Tryby: **gen** (pełna generacja), **chat** (planowanie), **patch** (przyrostowe aktualizacje)
 
 ### Eksport
 - **Word (.docx)**, **draw.io**, **Swagger/OpenAPI YAML**
@@ -93,4 +93,4 @@ Bez Groq? Wygeneruj JSON **dowolnym modelem** i zaЕ‚aduj:
 
 ## Stan
 
-Wszystko w globalnym obiekcie `S`. Zapisz в†’ plik JSON. Wczytaj в†’ Plik в†’ Importuj JSON в†’ wklej tekst в†’ OK.
+Wszystko w globalnym obiekcie `S`. Zapisz → plik JSON. Wczytaj → Plik → Importuj JSON → wklej tekst → OK.

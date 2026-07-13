@@ -1,96 +1,96 @@
-﻿![RAPTOR v1.1.1](https://raw.githubusercontent.com/RomanKlasztorny/raptor/main/docs/release-notes.jpg)
+![RAPTOR v1.1.1](https://github.com/user-attachments/assets/6ac2d4f1-be78-4d66-9aa0-601ec8934be6)
 
-**рџЊђ иЇ­иЁЂ:** [рџ‡¬рџ‡§ English](README.md) В· [рџ‡·рџ‡є Р СѓСЃСЃРєРёР№](README_RU.md) В· [рџ‡єрџ‡¦ РЈРєСЂР°С—РЅСЃСЊРєР°](README_UA.md) В· [рџ‡©рџ‡Є Deutsch](README_DE.md) В· [рџ‡«рџ‡· FranГ§ais](README_FR.md) В· [рџ‡Єрџ‡ё EspaГ±ol](README_ES.md) В· [рџ‡µрџ‡± Polski](README_PL.md) В· [рџ‡Їрџ‡µ ж—Ґжњ¬иЄћ](README_JA.md)
+**🌐 语言:** [🇬🇧 English](README.md) · [🇷🇺 Русский](README_RU.md) · [🇺🇦 Українська](README_UA.md) · [🇩🇪 Deutsch](README_DE.md) · [🇫🇷 Français](README_FR.md) · [🇪🇸 Español](README_ES.md) · [🇵🇱 Polski](README_PL.md) · [🇯🇵 日本語](README_JA.md)
 
-# RAPTOR вЂ” жћ¶жћ„жћ„йЂ е™Ё
+# RAPTOR — 架构构造器
 
-> еџєдєЋжµЏи§€е™Ёзљ„еѕ®жњЌеЉЎзі»з»џи®ѕи®ЎгЂЃжµЃй‡Џд»їзњџе’Њж–‡жЎЈз”џж€ђе·Ґе…·гЂ‚ж— йњЂжћ„е»єж­ҐйЄ¤пјЊж— йњЂ npm вЂ” ж‰“ејЂ `index.html` еЌіеЏЇејЂе§‹дЅїз”ЁгЂ‚
+> 基于浏览器的微服务系统设计、流量仿真和文档生成工具。无需构建步骤，无需 npm — 打开 `index.html` 即可开始使用。
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-1e4a90?style=for-the-badge)](https://romanklasztorny.github.io/raptor/)
 [![Release](https://img.shields.io/github/v/release/RomanKlasztorny/raptor?style=for-the-badge&color=2a6010)](https://github.com/RomanKlasztorny/raptor/releases/latest)
 
-![RAPTOR demo](https://raw.githubusercontent.com/RomanKlasztorny/raptor/main/docs/demo.gif)
+![RAPTOR demo](https://github.com/RomanKlasztorny/raptor/assets/232060178/28fc476b-8a9a-49ee-9e74-c893a6720924)
 
 ---
 
-## еї«йЂџејЂе§‹
+## 快速开始
 
 ```bash
-npx serve .     # в†’ http://localhost:5500
+npx serve .     # → http://localhost:5500
 ```
 
 ---
 
-## вљЎ й…ЌзЅ® вЂ” RAPTOR AI
+## ⚡ 配置 — RAPTOR AI
 
-> е…Ќиґ№ В· ж— йњЂдїЎз”ЁеЌЎ В· 30з§’е®Њж€ђ
+> 免费 · 无需信用卡 · 30秒完成
 
 ```
-в‘  console.groq.com в†’ жіЁе†Њ в†’ API Keys в†’ Create API Key
-в‘Ў е¤Ќе€¶еЇ†й’Ґ  в†’  gsk_вЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂў
-в‘ў RAPTOR  в†’  рџ¤– AI  в†’  зІиґґеЇ†й’Ґ  в†’  Enter  вњ“
+① console.groq.com → 注册 → API Keys → Create API Key
+② 复制密钥  →  gsk_••••••••••••••••••••••••
+③ RAPTOR  →  🤖 AI  →  粘贴密钥  →  Enter  ✓
 ```
 
-еЇ†й’Ґдїќе­ењЁ `localStorage` дё­ вЂ” жЇЏдёЄжµЏи§€е™ЁеЏЄйњЂиѕ“е…ҐдёЂж¬ЎгЂ‚
+密钥保存在 `localStorage` 中 — 每个浏览器只需输入一次。
 
 ---
 
-## рџ”Њ дёЋд»»ж„Џ LLM й…Ќеђ€дЅїз”Ёпј€ChatGPTгЂЃClaudeгЂЃGeminiвЂ¦пј‰
+## 🔌 与任意 LLM 配合使用（ChatGPT、Claude、Gemini…）
 
-дёЌз”Ё Groqпјџз”Ё**д»»ж„ЏжЁЎећ‹**з”џж€ђ JSON з„¶еђЋеЇје…Ґпјљ
+不用 Groq？用**任意模型**生成 JSON 然后导入：
 
 ```
-в‘  ж‰“ејЂ  RAPTOR_FORMAT.md  в†ђ е®Њж•ґ JSON з»“жћ„ + з¤єдѕ‹
-в‘Ў   в†“
-   зІиґґе€° ChatGPT / Claude / Geminiпјљ
-   гЂЊдёє [дЅ зљ„зі»з»џ] з”џж€ђ RAPTOR JSONпјЊдЅїз”Ёд»Ґдё‹з»“жћ„пјљвЂ¦гЂЌ
-в‘ў   в†“
-   е¤Ќе€¶е›ће¤Ќдё­зљ„ JSON
-в‘Ј RAPTOR  в†’  ж–‡д»¶ в†’ еЇје…Ґ JSON  в†’  зІиґґж–‡жњ¬  в†’  зЎ®е®љ
-   в†“
-   вњ¦ з”»еёѓз«‹еЌіеЎ«е……пјљжЁЎеќ—гЂЃиїћжЋҐгЂЃж•°жЌ®еє“з»“жћ„гЂЃењєж™Ї
+① 打开  RAPTOR_FORMAT.md  ← 完整 JSON 结构 + 示例
+②   ↓
+   粘贴到 ChatGPT / Claude / Gemini：
+   「为 [你的系统] 生成 RAPTOR JSON，使用以下结构：…」
+③   ↓
+   复制回复中的 JSON
+④ RAPTOR  →  文件 → 导入 JSON  →  粘贴文本  →  确定
+   ↓
+   ✦ 画布立即填充：模块、连接、数据库结构、场景
 ```
 
-> **жЏђз¤єпјљ** е°† `RAPTOR_FORMAT.md` дЅњдёєж–‡д»¶й™„д»¶дёЉдј  вЂ” е¤§е¤љж•°жЁЎећ‹еЏЇе®Њж•ґиЇ»еЏ–гЂ‚
+> **提示：** 将 `RAPTOR_FORMAT.md` 作为文件附件上传 — 大多数模型可完整读取。
 
 ---
 
-## еЉџиѓЅз‰№жЂ§
+## 功能特性
 
-### жћ¶жћ„е›ѕ
-- з»„д»¶еќ—пјљActorгЂЃClientгЂЃAPI GatewayгЂЃLoad BalancerгЂЃCDNгЂЃWebSocket GWгЂЃBFFгЂЃServiceгЂЃAuthгЂЃPostgreSQLгЂЃMySQLгЂЃMongoDBгЂЃRedisгЂЃCassandraгЂЃClickHouseгЂЃElasticsearchгЂЃS3гЂЃKafkaгЂЃRabbitMQгЂЃNATSгЂЃQueueгЂЃExternal
-- ж‹–ж”ѕж“ЌдЅњпјЊзў°ж’ћжЈЂжµ‹пјЊеЏЊеђ‘з®­е¤ґ
-- жЊ‰е±‚и‡ЄеЉЁеёѓе±Ђ вЂ” **Auto** жЊ‰й’®
-- е·Ґе…·ж Џдё­зљ„ **C1 / C2 / C3 / Seq** е±‚зє§е€‡жЌў
+### 架构图
+- 组件块：Actor、Client、API Gateway、Load Balancer、CDN、WebSocket GW、BFF、Service、Auth、PostgreSQL、MySQL、MongoDB、Redis、Cassandra、ClickHouse、Elasticsearch、S3、Kafka、RabbitMQ、NATS、Queue、External
+- 拖放操作，碰撞检测，双向箭头
+- 按层自动布局 — **Auto** 按钮
+- 工具栏中的 **C1 / C2 / C3 / Seq** 层级切换
 
-### жЁЎжќї
-- **18 дёЄзі»з»џ**пјљй“¶иЎЊгЂЃеЌіж—¶йЂљи®ЇгЂЃз”µе•†е№іеЏ°гЂЃYouTubeгЂЃжђњзґўеј•ж“ЋгЂЃж‰“иЅ¦гЂЃз¤ѕдє¤еЉЁжЂЃгЂЃе¤–еЌ–гЂЃе…±дє«ж±ЅиЅ¦гЂЃSpotifyгЂЃNetflixгЂЃдє¤еЏ‹гЂЃеЉ еЇ†иґ§еёЃдє¤ж“ж‰ЂгЂЃењЁзєїж•™и‚ІгЂЃеЃҐиє«гЂЃй…’еє—йў„и®ўгЂЃдє‘е­е‚ЁгЂЃеѕ…еЉћдє‹йЎ№
-- **44 дёЄз»„д»¶**пјЊе€† 10 дёЄдё»йў
-- **61 дёЄж•°жЌ®еє“жЁЎжќї**пјљPostgreSQLгЂЃMongoDBгЂЃCassandraгЂЃRedisгЂЃClickHouse
-- дё‰зє§йЈће‡єиЏњеЌ•
+### 模板
+- **18 个系统**：银行、即时通讯、电商平台、YouTube、搜索引擎、打车、社交动态、外卖、共享汽车、Spotify、Netflix、交友、加密货币交易所、在线教育、健身、酒店预订、云存储、待办事项
+- **44 个组件**，分 10 个主题
+- **61 个数据库模板**：PostgreSQL、MongoDB、Cassandra、Redis、ClickHouse
+- 三级飞出菜单
 
-### д»їзњџ
-- е°ЏзђѓжІїењєж™Їи·Їеѕ„иїђеЉЁ
-- з‚№е‡»е°Џзђѓ в†’ жџҐзњ‹её¦е»¶иїџзљ„ hop-trace иЇ¦жѓ…
-- **ж··жІЊжЁЎејЏ**пјљиЉ‚з‚№ж•…йљњгЂЃжЂ§иѓЅй™Ќзє§гЂЃзј“е­й‡ЌзЅ®
+### 仿真
+- 小球沿场景路径运动
+- 点击小球 → 查看带延迟的 hop-trace 详情
+- **混沌模式**：节点故障、性能降级、缓存重置
 
-### UML ж—¶еєЏе›ѕ
-- д»Ћењєж™Їи‡ЄеЉЁз”џж€ђпјЊз¬¦еђ€ PlantUML ж ‡е‡†
-- Kafka в†’ `-)` В· еђЊж­Ґиї”е›ћ В· `group alt/else`
-- **рџ“‹ PlantUML** жЊ‰й’® вЂ” е¤Ќе€¶е€° Confluence
-- ~~д»Јз Ѓз”џж€ђе›ѕиЎЁ~~ в†’ **з‚№е‡»з”џж€ђе›ѕиЎЁ**пјљз‚№е‡»з”»еёѓдёЉзљ„жЁЎеќ— вЂ” RAPTOR и‡ЄеЉЁжІїиїћжЋҐж‰ѕе€°и·Їеѕ„пјЊй«дє®жѕз¤єеЏЇйЂ‰зљ„дё‹дёЂдёЄиЉ‚з‚№гЂ‚жЇЏж¬Ўз‚№е‡»еђЋеј№е‡єзЄ—еЏЈеЎ«е†™ж­ҐйЄ¤пј€ж–№жі•гЂЃURIгЂЃе“Ќеє”пј‰гЂ‚жЊ‰ Enter вЂ” ж—¶еєЏе›ѕеЌіж—¶з”џж€ђ
-- еЉџиѓЅжЊЃз»­ејЂеЏ‘дё­пј›з®ЂеЌ• CRUD жµЃзЁ‹е·Іж”ЇжЊЃдё¤ж¬Ўз‚№е‡»е®Њж€ђ вЂ” з›ґжЋҐењЁз”»еёѓдёЉзј–иѕ‘й«е±‚е’ЊдЅЋе±‚жµЃзЁ‹
+### UML 时序图
+- 从场景自动生成，符合 PlantUML 标准
+- Kafka → `-)` · 同步返回 · `group alt/else`
+- **📋 PlantUML** 按钮 — 复制到 Confluence
+- ~~代码生成图表~~ → **点击生成图表**：点击画布上的模块 — RAPTOR 自动沿连接找到路径，高亮显示可选的下一个节点。每次点击后弹出窗口填写步骤（方法、URI、响应）。按 Enter — 时序图即时生成
+- 功能持续开发中；简单 CRUD 流程已支持两次点击完成 — 直接在画布上编辑高层和低层流程
 
 ### RAPTOR AI
-- `рџ¤– AI` жЊ‰й’® в†’ еЏідѕ§иЃЉе¤©йќўжќї
-- з”± **Groq** й©±еЉЁпј€llama-3.3-70bпјЊе…Ќиґ№еҐ—й¤ђпј‰вЂ” д»Ћ [console.groq.com](https://console.groq.com) зІиґґ API еЇ†й’Ґ
-- жЁЎејЏпјљ**gen**пј€е®Њж•ґз”џж€ђпј‰гЂЃ**chat**пј€и§„е€’пј‰гЂЃ**patch**пј€еўћй‡Џж›ґж–°пј‰
+- `🤖 AI` 按钮 → 右侧聊天面板
+- 由 **Groq** 驱动（llama-3.3-70b，免费套餐）— 从 [console.groq.com](https://console.groq.com) 粘贴 API 密钥
+- 模式：**gen**（完整生成）、**chat**（规划）、**patch**（增量更新）
 
-### еЇје‡є
-- **Word (.docx)**гЂЃ**draw.io**гЂЃ**Swagger/OpenAPI YAML**
+### 导出
+- **Word (.docx)**、**draw.io**、**Swagger/OpenAPI YAML**
 
 ---
 
-## зЉ¶жЂЃз®Ўзђ†
+## 状态管理
 
-ж‰Ђжњ‰ж•°жЌ®е­е‚ЁењЁе…Ёе±ЂеЇ№и±Ў `S` дё­гЂ‚дїќе­ в†’ JSON ж–‡д»¶гЂ‚еЉ иЅЅ в†’ ж–‡д»¶ в†’ еЇје…Ґ JSON в†’ зІиґґж–‡жњ¬ в†’ зЎ®е®љгЂ‚
+所有数据存储在全局对象 `S` 中。保存 → JSON 文件。加载 → 文件 → 导入 JSON → 粘贴文本 → 确定。
