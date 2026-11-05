@@ -1,0 +1,14 @@
+{
+  "name": "raptor",
+  "version": "4.0.0",
+  "private": true,
+  "description": "РАПТОР — интерактивный тренажёр архитектуры: схемы, симуляция нагрузки, BPMN, Sequence, визуализация БД",
+  "scripts": {
+    "test": "node tests/run-all.js",
+    "test:engine": "node tests/engine-tests.js"
+  },
+  "devDependencies": {
+    "bpmn-moddle": "^10.3.1",
+    "puppeteer-core": "^25.16.0"
+  }
+}

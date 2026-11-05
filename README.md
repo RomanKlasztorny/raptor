@@ -1,147 +1,158 @@
-![RAPTOR v1.1.1](https://raw.githubusercontent.com/RomanKlasztorny/raptor/main/docs/release-notes.jpg)
+# РАПТОР — конструктор и тренажёр архитектуры
 
-**🌐 Language:** [🇷🇺 Русский](README_RU.md) · [🇺🇦 Українська](README_UA.md) · [🇩🇪 Deutsch](README_DE.md) · [🇫🇷 Français](README_FR.md) · [🇪🇸 Español](README_ES.md) · [🇵🇱 Polski](README_PL.md) · [🇨🇳 中文](README_ZH.md) · [🇯🇵 日本語](README_JA.md)
-
-# RAPTOR — Architecture Constructor
-
-> Browser-based tool for designing microservice systems, simulating traffic, and generating documentation. No build step, no npm — open `index.html` and start.
-
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-1e4a90?style=for-the-badge)](https://romanklasztorny.github.io/raptor/)
-[![Release](https://img.shields.io/github/v/release/RomanKlasztorny/raptor?style=for-the-badge&color=2a6010)](https://github.com/RomanKlasztorny/raptor/releases/latest)
-
-![RAPTOR demo](https://raw.githubusercontent.com/RomanKlasztorny/raptor/main/docs/demo.gif)
+Браузерный инструмент: рисуете микросервисную систему, задаёте нагрузку, и движок показывает,
+что выдержит, а что загорится. Есть C4-зум, BPMN, UML Sequence, визуализация БД, живой
+инспектор Kafka, тренажёр на 117 задач и экспорт в Word/draw.io/Swagger.
+Всё работает локально, без сборки: обычные `.js` и `index.html`.
 
 ---
 
-## Why I built this
-
-Working as a systems analyst, I came to a clear conclusion: a significant portion of the time goes not into designing the system, but into preparing and maintaining its documentation.
-
-A single task required juggling multiple tools at once — designing the architecture in one place, describing databases in another, building Sequence diagrams in a third, and then assembling everything into a final document. More often than not, preparing the documentation took longer than designing the system itself.
-
-The rise of large language models sped up the creation of individual artifacts, but didn't solve the problem of combining them or keeping them in sync manually.
-
-So I started building RAPTOR.
-
-RAPTOR is a tool that lets you design a system in one place and derive consistent artifacts from that single model: scenarios, diagrams, and documentation. Instead of manually transferring information between tools, the analyst works with one unified system model.
-
-I built RAPTOR as the tool I wished I had on my first day as a systems analyst.
-
----
-
-## The idea
-
-Describe your system in one message — RAPTOR AI generates the full architecture: blocks, connections, DB schemas, and scenarios. The analyst's job is to **edit and refine**, not draw arrows from scratch.
-
----
-
-## Quick Start
+## Как запустить
 
 ```bash
-npx serve .     # → http://localhost:5500
+npx serve . -p 5500          # или любой статический сервер
+# открыть http://localhost:5500
 ```
 
-Open `index.html` directly in your browser — or use `npx serve` for full functionality.
+На Windows: `start-raptor.bat` поднимает статический сервер и AI-прокси и открывает браузер.
+
+**AI-прокси** (нужен облачным провайдерам RAPTOR AI): `node llm-proxy.js` или `start-proxy.bat`, порт 8966.
+Провайдер и ключ настраиваются в `raptor-ai.js` / в панели AI. **Ключи в README и в коммитах не публикуются.**
 
 ---
 
-## ⚡ Setup — RAPTOR AI
+## Интерфейс и тема
 
-> Free · No credit card · 30 seconds
+- Стиль «нео-ретро» — Windows 95 + Rhinoceros/MatrixGold (`theme.css`): серые панели с фаской,
+  синие заголовки окон, моноширинные числа и вьюпорт с сеткой.
+- Режимы в тулбаре: **Конструктор**, **Обучение** (тренажёр); нагрузка: **Песочница** (глобальная нагрузка ×N) и **Реализм** (нагрузка из объёмов сценариев).
+- Меню **Notations** переключает канвас: C4/архитектура, **BPMN** и **Sequence**.
+- Язык RU/EN (`locale*.js`).
 
-```
-① console.groq.com → Sign up → API Keys → Create API Key
-② Copy the key  →  gsk_••••••••••••••••••••••••
-③ RAPTOR  →  🤖 AI  →  paste key  →  Enter  ✓
-```
+### Семантический зум C1–C4
+| Уровень | Что видно |
+|---|---|
+| **C1** Context | система целиком, люди и внешние системы |
+| **C2** Container | сервисы, БД, брокеры, нагрузка, ρ и здоровье |
+| **C3** Component | компоненты внутри выбранного контейнера (таблицы, топики, эндпоинты) |
+| **C4** Code | DDL, конфиги топиков, код консьюмеров и эндпоинтов |
 
-Key is saved in `localStorage` — enter once per browser. Done.
+Переключение: кнопки C1–C4 в тулбаре, клавиши `1`–`4` или колесо мыши (над сервисом раскрывает компоненты, над компонентом — код). Esc поднимает на уровень выше (C4 → C3 → C2).
 
----
-
-## 🔌 Use with any LLM (ChatGPT, Claude, Gemini…)
-
-Don't use Groq? Generate the JSON with **any model** and drop it in:
-
-```
-① Open  RAPTOR_FORMAT.md  ← full JSON schema + examples
-②   ↓
-   Paste into ChatGPT / Claude / Gemini:
-   "Generate RAPTOR JSON for [your system]. Schema: …"
-③   ↓
-   Copy JSON from response
-④ RAPTOR  →  File → Import JSON  →  paste  →  OK
-   ↓
-   ✦ Canvas fills instantly with blocks, connections, DB schemas, scenarios
-```
-
-> **Tip:** attach `RAPTOR_FORMAT.md` as a file — most models read it in one shot.
-
----
-
-## Features
-
-### RAPTOR AI
-- One message → full microservice system: blocks, connections, DB schemas, scenarios
-- Three modes: **gen** (generate from scratch), **chat** (plan + Q&A), **patch** (add/edit without full regeneration)
-- 18 architectural patterns in prompt: Saga, Outbox, CQRS, Cache-aside, Circuit Breaker and more
-- Auto-fix: connection direction, cross-DB FK, deduplication
-- Powered by **Groq** (llama-3.3-70b, free plan) — get your key at [console.groq.com](https://console.groq.com)
-
-### Diagram (C4)
-- Blocks: Actor, Client, API Gateway, Load Balancer, CDN, WebSocket GW, BFF, Service, Auth, PostgreSQL, MySQL, MongoDB, Redis, Cassandra, ClickHouse, Elasticsearch, S3, Kafka, RabbitMQ, NATS, Queue, External
-- Drag & drop with collision detection, bidirectional arrows
-- Auto-layout by layers
-- C4 notation levels in toolbar
-
-### Templates
-- **18 Systems**: Bank, Messenger, Marketplace, YouTube, Search Engine, Taxi, Social Feed, Food Delivery, Carsharing, Spotify, Netflix, Tinder, Crypto Exchange, EdTech, Fitness, Booking, Cloud Storage, Todo
-- **44 Elements** across 10 themes: payments, logging, storage, communications, search, analytics, media, security and more
-- **61 DB templates**: PostgreSQL, MongoDB, Cassandra, Redis, ClickHouse
-- 3-level flyout menu
-
-### Scenarios
-- Request paths through the system with `verb + uri + resp` per step
-- Autofill builds steps from schema respecting Gateway `auth_mode`
-- Each scenario has volume (rps), color, and actor
-
-### Simulation
-- Animated balls travel scenario paths
-- Kafka / RabbitMQ / NATS / Queue receive live traffic
-- Click a ball → hop-trace with latencies
-- **Chaos mode**: node failures, degradation, cache reset, overload
-
-### Broker Inspector
-- Live panel: SVG topology, published / processed / lag / DLQ counters (500ms)
-- Consumer groups with per-partition offsets, Replay button
-
-### UML Sequence
-- Auto-generated from scenario in PlantUML standard
-- Kafka → `-)` · sync returns · `group alt/else`
-- **📋 PlantUML** button — copy for Confluence
-- ~~Code-to-diagram~~ → **Click-to-diagram**: click blocks on the canvas — RAPTOR finds the path through connections automatically, highlighting available next nodes. After each click a popup appears to describe the step (method, URI, response). Press Enter — sequence diagram is ready
-- Actively in development; simple CRUD flows already work in two clicks — edit your process at high and low level directly on the canvas
-
-### Database
-- PostgreSQL schema editor with visual ERD (crow's foot notation)
-- Redis editor: key patterns with type, TTL, "Pull from PG" for Hash fields
-- SQL DDL import, 61 ready-made templates
-
-### Auth Service
-- Types: `jwt_only` / `oauth2_jwt` / `session_based` / `api_key` / `oidc_sso`
-- Type affects DB schema and Auth load in simulation
-
-### Export
-- **Word (.docx)** — universal format every stakeholder already has. Before export you choose what to include: C4 diagram, API tables, DB schema, ERD — take what you need, skip the rest
-- **draw.io** XML, **Swagger / OpenAPI YAML**
-- Fully offline via built-in `docx.min.js`
-
-### Localization
-- Russian and English UI, switch without page reload
+### Горячие клавиши
+| Клавиши | Действие |
+|---|---|
+| `Ctrl+Z` / `Ctrl+Y`, `Ctrl+Shift+Z` | отменить / повторить |
+| `Ctrl+S` | сохранить чекпойнт |
+| `Ctrl+L` | авторасстановка |
+| `Ctrl+D` | дублировать выделенное (в BPMN тоже) |
+| `Delete` / `Backspace` | удалить выделенное |
+| `Esc` | снять выделение, закрыть окна, на уровень зума выше |
+| `1` `2` `3` `4` | уровни C1–C4 |
+| `?` | шпаргалка хоткеев |
+| Колесо | зум; над сервисом — компоненты, над компонентом — код |
+| Режим рисования маршрута: `Enter` / `Esc` / `Backspace` | завершить / отменить / убрать последний шаг |
+| Инспектор: `Shift`+клик по ±  | шаг ×10 (реплики, шарды, инстансы) |
 
 ---
 
-## State
+## Движок нагрузки (`engine.js`, `kafka-engine.js`)
 
-Everything lives in global `S` (blocks, connections, scenarios, metadata).
-Save → JSON file. Load → File → Import JSON → paste text → OK.
+- Каждый блок получает поток λ (rps). Его ёмкость μ считается из настроек, нагрузка ρ = λ/μ.
+  Здоровье блока: **ok** при ρ < 0.6, **warn** при 0.6–0.9, **error** при ρ ≥ 0.9.
+  Перегруженный downstream даёт **каскад** вверх по графу. Шлюзы и сети делят поток поровну, сервисы шлют его целиком в каждую исходящую связь.
+- Ёмкость масштабируется так: сервис — 10К × реплики (до 1000); API Gateway — 100К × инстансы;
+  LB — 1М × инстансы; Cassandra — 100К × ноды/3 (до 200 нод); ClickHouse — 500К × шарды (до 50);
+  Kafka — 2М × партиции/3; NATS — 500К × ноды кластера.
+- **PostgreSQL/MySQL, read/write split.** Доля записи `write_share` (по умолчанию 20%) идёт только на праймари.
+  Read Replicas добавляют +70% ёмкости **чтения** на реплику, запись не ускоряют.
+  Есть лаг репликации: он растёт, когда праймари перегружен записью.
+  Если упор в запись, движок подсказывает: «реплики не помогут — шардируйте / кэшируйте / ставьте очередь».
+  PgBouncer снимает лимит `max_connections`: реплики сервиса × `conn_pool` против лимита БД.
+- **Redis.** `hit_rate`, `maxmemory` против `dataset` и политика eviction.
+  Если данные не помещаются, hit rate падает (с LFU меньше, чем с LRU). При `noeviction` и переполнении Redis уходит в **OOM**: записи отклоняются.
+  С паттерном Cache Aside до БД доходят только промахи чтения и все записи.
+- Hit rate, память, OOM, запись/чтение/реплики/лаг видны на блоке, в тултипе и во вкладке **«Анализ»**.
+
+### Инспектор блока
+Двойной клик: по сервису/шлюзу — настройки с подсказками, по БД — окно DB-viz, по брокеру — брокер-инспектор, по актору — сценарий. Настройки любого блока также в контекстном меню. Для каждой настройки виден диапазон, а для «авто» — значение по умолчанию.
+- Сервис/BFF: `replicas`, `conn_pool`, `write_share`, паттерны (cache_aside, circuit breaker, retry и т.д.).
+- PostgreSQL/MySQL: `replicas`, `pgbouncer`, `max_conn`, `write_share`. Отдельно показана ёмкость записи (праймари) и чтения, а также пометка «упор в запись».
+- Redis: `hit_rate`, `maxmemory`, `dataset`, `eviction`, `cluster` / `cluster_shards`.
+
+### Kafka и брокеры
+- Модель Kafka v2: партиционирование по ключу (by-entity, hot-key, round-robin), назначение партиций (range, roundrobin, sticky), idle-консьюмеры и ребаланс.
+  Ещё в модели: лаг по партициям, retention/compaction, ISR и `min.insync.replicas`, acks, хаос брокеров, retry-топики и DLQ с redrive.
+- **Брокер-инспектор.** Двойной клик по Kafka/RabbitMQ/NATS/Queue открывает живую панель: SVG-топологию «продюсеры → партиции → группы».
+  Полосы заполнения партиций показывают лаг, горячая партиция помечена 🔥. Рядом счётчики (опубликовано, обработано, lag, DLQ, retry, rebalance) и настройки «на лету».
+
+### Визуализация БД (`db-viz.js`)
+Схема таблиц сервиса (ERD crow's foot), импорт SQL-DDL, 23 шаблона, FK `REFERENCES … ON DELETE CASCADE`.
+Окно DB-viz показывает таблицы, связи и нагрузку на БД (праймари и реплики).
+
+### BPMN (`bpmn.js`, `bpmn-xml.js`)
+Палитра BPMN 2.0: события, задачи, шлюзы, пулы и дорожки. Маршрутизация стрелок, дублирование и удаление,
+экспорт и импорт BPMN XML, совместимого с bpmn-moddle/Camunda.
+
+### UML Sequence (`seq.js`)
+Генерируется из сценария («Линии»): бизнес-смысл над стрелкой, `verb uri` под ней.
+Поддержаны `autonumber`, активации, `alt/else`, `ref over` и асинхронные стрелки для Kafka.
+Кнопка «📋 PlantUML» копирует диаграмму для Confluence.
+
+### Симуляция и хаос
+Шарики летят по сценариям; клик по шарику показывает hop-трейс с задержками.
+Режим **Хаос**: падения узлов, деградация, сброс кэша, перегрузка.
+
+---
+
+## Тренажёр (`tasks.js`)
+
+117 задач Junior → Middle → Senior: собрать схему под цель и нагрузку (×1К…×10М).
+Каждая проверка возвращает диагностическую подсказку: что именно не так.
+Пример — «Грозовая защита БД»: Cache Aside + Redis Cluster с hit rate ≥ 95% + PgBouncer + 2 и больше Read Replicas под ×1М.
+
+Автотест `tests/trainer-tests.js` для **каждой** задачи проверяет три вещи:
+пустой канвас не засчитывается, **эталонное решение проходит**, наивные решения (31 штука) **падают**.
+Эталоны записаны компактным DSL в `tests/fixtures/trainer-solutions.js`.
+
+---
+
+## Тесты
+
+```bash
+npm install          # puppeteer-core, bpmn-moddle (devDependencies)
+npm test             # = node tests/run-all.js
+ONLY=engine,trainer npm test   # подмножество наборов
+```
+
+`run-all.js` сам поднимает статический сервер на свободном порту и прогоняет наборы:
+
+| Набор | Файл | Что проверяет |
+|---|---|---|
+| engine | `engine-tests.js` | Kafka v2, read/write split, лаг, NATS, регресс computeFlow (Node, без браузера) |
+| bpmn | `bpmn-tests.js` | палитра, связи, XML round-trip |
+| seq | `seq-tests-run.js` | генерация Sequence/PlantUML |
+| dbviz | `dbviz-tests.js` | визуализация БД |
+| smoke | `smoke-tests.js` | headless Chrome: запуск, режимы, отсутствие JS-ошибок |
+| c4zoom | `c4zoom-tests.js` | семантический зум C1–C4 |
+| trainer | `trainer-tests.js` | эталон проходит, наивное падает — все задачи |
+| xss | `xss-probe.js` | stored XSS через импорт и подписи |
+
+Нужны Node 18+ и Chrome/Chromium (`CHROME=/путь/к/chrome`, по умолчанию `/usr/bin/google-chrome`).
+Отдельный набор: `RAPTOR_URL=http://127.0.0.1:5500/index.html node tests/trainer-tests.js`.
+
+---
+
+## Экспорт
+- **Word** (MS-1: описание, C4-диаграмма, API по сервисам, таблицы БД), офлайн через `docx.min.js`.
+- **draw.io**, **Swagger/OpenAPI**, PlantUML.
+- Состояние хранится в глобальном `S`. Сохранение — JSON-файл, загрузка — перетащить JSON на канвас. Формат описан в `RAPTOR_FORMAT.md`.
+
+## RAPTOR AI
+
+Для генерации проекта в любом AI-чате приложите [RAPTOR_AI_JSON_GUIDE.md](RAPTOR_AI_JSON_GUIDE.md)
+и описание архитектуры. Инструкция самодостаточна; готовый JSON загружайте через импорт файла.
+Полный пример: [docs/raptor-full-example.json](docs/raptor-full-example.json).
+
+Кнопка `🤖 AI` открывает чат справа. AI видит текущую схему и умеет добавлять блоки и связи, сценарии, расстановку, UML и схему БД.
+Облачным провайдерам нужен `llm-proxy.js`, локальный Ollama работает напрямую.

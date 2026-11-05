@@ -15,14 +15,15 @@ function runSim(){
     return sc.visible!==false&&sc.path&&sc.path.length>1;
   });
   if(!activeScs.length&&!S.blocks.some(function(b){return !new Set(S.conns.map(function(c){return c.to;})).has(b.id)&&S.conns.some(function(c){return c.from===b.id;});})){
-    toast('Нет сценариев или связей для симуляции');return;
+    toast(t('sim_no_scenarios'));return;
   }
   SIM.running=true;SIM.paused=false;SIM.time=0;SIM.lastT=0;SIM.spawn={};SIM.dots={};SIM.reqs={};
   $('anim-layer').innerHTML='';
+  if(typeof simPatReset==='function'){simPatReset();simPatLegend(true);}
   $('run-btn').style.display='none';$('pause-btn').style.display='';$('stop-btn').style.display='';
   SIM.rafId=requestAnimationFrame(simLoop);updateStatus();
 }
-function stopSim(){if(SIM.rafId)cancelAnimationFrame(SIM.rafId);Object.values(SIM.dots).forEach(d=>d?.remove());SIM.running=false;SIM.paused=false;SIM.dots={};SIM.reqs={};$('anim-layer').innerHTML='';$('run-btn').style.display='';$('pause-btn').style.display='none';$('resume-btn').style.display='none';$('stop-btn').style.display='none';updateStatus();}
+function stopSim(){if(SIM.rafId)cancelAnimationFrame(SIM.rafId);Object.values(SIM.dots).forEach(d=>d?.remove());SIM.running=false;SIM.paused=false;SIM.dots={};SIM.reqs={};$('anim-layer').innerHTML='';if(typeof simPatReset==='function'){simPatReset();simPatLegend(false);}$('run-btn').style.display='';$('pause-btn').style.display='none';$('resume-btn').style.display='none';$('stop-btn').style.display='none';updateStatus();}
 function pauseSim(){SIM.paused=true;$('pause-btn').style.display='none';$('resume-btn').style.display='';}
 function resumeSim(){SIM.paused=false;$('pause-btn').style.display='';$('resume-btn').style.display='none';closeInsp();$('dot-modal').style.display='none';}
 
@@ -33,6 +34,7 @@ function simLoop(now){
   if(!SIM.running)return;
   if(!SIM.paused){
     const dt=SIM.lastT?Math.min(now-SIM.lastT,80):16;SIM.time+=dt;SIM.lastT=now;
+    if(typeof simPatTick==='function')simPatTick(dt); // эффекты паттернов, backoff ретраев
     // Спавн по сценариям — каждый сценарий с шагами порождает шарики своего цвета
     const load=effLoad();
     const hasScs=(S.scenarios||[]).some(function(sc){return sc.visible!==false&&sc.path&&sc.path.length>1;});
@@ -62,11 +64,14 @@ function simLoop(now){
     Object.values(SIM.reqs).forEach(req=>{
       if(req.status!=='flying'||!req.pts)return;
       const dot=SIM.dots[req.id];if(!dot)return;
-      req.t+=req.speed;if(req.t>=1){onArrive(req);return;}
-      const idx=Math.min(Math.floor(req.t*(req.pts.length-1)),req.pts.length-2);
-      const fr=req.t*(req.pts.length-1)-idx;const p1=req.pts[idx],p2=req.pts[idx+1];
-      const px=(p1.x+(p2.x-p1.x)*fr+S.panX).toFixed(1);
-      const py=(p1.y+(p2.y-p1.y)*fr+S.panY).toFixed(1);
+      req.t+=req.speed;
+      if(req.stopAt!=null&&req.t>=req.stopAt&&typeof simPatStop==='function'){simPatStop(req);return;} // паттерн оборвал хоп
+      if(req.t>=1){if(req.rev&&typeof simPatRevDone==='function'){simPatRevDone(req);return;}onArrive(req);return;}
+      const tt=req.rev?1-req.t:req.t; // rev — шарик идёт по ребру назад (retry, cache miss)
+      const idx=Math.min(Math.floor(tt*(req.pts.length-1)),req.pts.length-2);
+      const fr=tt*(req.pts.length-1)-idx;const p1=req.pts[idx],p2=req.pts[idx+1];
+      const px=(p1.x+(p2.x-p1.x)*fr).toFixed(1); // pan/zoom даёт transform слоя anim-layer
+      const py=(p1.y+(p2.y-p1.y)*fr).toFixed(1);
       if(req.isResponse){
         const angle=(Math.atan2(p2.y-p1.y,p2.x-p1.x)*180/Math.PI).toFixed(0);
         dot.setAttribute('transform',`translate(${px},${py}) rotate(${angle})`);
@@ -77,7 +82,7 @@ function simLoop(now){
     });
     // Тик консьюмеров: каждые 30 кадров (~500мс при 60fps)
     SIM._btick=(SIM._btick||0)+1;
-    if(SIM._btick%30===0&&typeof tickBrokerConsumers==='function')tickBrokerConsumers();
+    if(SIM._btick%30===0&&typeof tickBrokerConsumers==='function'){tickBrokerConsumers();if(typeof simPatKafka==='function')simPatKafka();}
   }
   SIM.rafId=requestAnimationFrame(simLoop);updateStatus();
 }
@@ -112,7 +117,7 @@ function spawnScenario(sc){
   SIM.reqs[id]=req;
   const dot=document.createElementNS(NS,'circle');
   dot.setAttribute('r','6.5');dot.setAttribute('cx','-200');dot.setAttribute('cy','-200');
-  dot.style.fill=color;dot.style.filter=`drop-shadow(0 0 5px ${color})`;dot.style.opacity='0';dot.style.cursor='pointer';
+  dot.style.fill=req.color;dot.style.filter=`drop-shadow(0 0 5px ${req.color})`;dot.style.opacity='0';dot.style.cursor='pointer';
   dot.addEventListener('click',e=>{e.stopPropagation();showDotInfo(id);});
   dot.addEventListener('mousemove',e=>{showHoverTip(id,e.clientX,e.clientY);});
   dot.addEventListener('mouseleave',()=>{hideHoverTip();});
@@ -161,9 +166,13 @@ function decideFate(req,toId){
   if(!req.dead&&Math.random()<rt.dropRate){req.dead=true;req.color='#f7768e';req.deadAt=toId;}
   else if(rt.health==='warn'&&!req.dead){req.color='#e0af68';}
   const dot=SIM.dots[req.id];if(dot){dot.style.fill=req.color;dot.style.filter=`drop-shadow(0 0 5px ${req.color})`;}
+  if(typeof simPatFate==='function')simPatFate(req,toId); // CB / retry / timeout / rate limit / cache / bulkhead
 }
 function onArrive(req){
   req.t=0;
+  // C3: в раскрытом сервисе шарик сначала проходит цепочку контроллер → сервис → адаптер
+  if(typeof zsSimArrive==='function'&&zsSimArrive(req))return;
+  if(typeof simPatArrive==='function'&&simPatArrive(req))return; // паттерн/Kafka-парковка обработали прибытие
   if(req.dead&&!req.isResponse){const d=SIM.dots[req.id];if(d)setTimeout(()=>{d.remove();delete SIM.dots[req.id];delete SIM.reqs[req.id];},200);return;}
   if(req.idx>=req.path.length-1){
     if(req.isResponse){
@@ -175,8 +184,8 @@ function onArrive(req){
       flash(lastId,req.color);
       // Конец пути = брокер: событие опубликовано, но читать некому → копится lag
       if(['broker','queue'].includes(ld?.cat)&&typeof brokerProduce==='function')
-        brokerProduce(lastId,{value:{req:req.id},key:req.id});
-      if(req.trace)pushLog({run:req.run,hdr2:true,text:'✓ Запрос дошёл до '+(gb(lastId)?.customLabel||EL[gb(lastId)?.type]?.lbl)+(['db','cache'].includes(ld?.cat)?' — формируется ответ ◀':'')});
+        brokerProduce(lastId,{value:{req:req.id},reqId:req.id});
+      if(req.trace)pushLog({run:req.run,hdr2:true,text:t('sim_arrived').replace('{lbl}',gb(lastId)?.customLabel||EL[gb(lastId)?.type]?.lbl)+(['db','cache'].includes(ld?.cat)?t('sim_forming_response'):'')});
       if(!req.dead&&['db','cache'].includes(ld?.cat))spawnResponse(req.path,req.color,req.trace?{run:req.run}:null);
     }
     const d=SIM.dots[req.id];if(d)setTimeout(()=>{d.remove();delete SIM.dots[req.id];delete SIM.reqs[req.id];},250);return;
@@ -198,15 +207,15 @@ function onArrive(req){
   const fromCat=BASE[fromB?.type]?.cat;
   if(typeof brokerProduce==='function'){
     // [1] broker-in-path: шарик прошёл через брокер — produce
-    if(['broker','queue'].includes(fromCat)){
-      brokerProduce(from,{value:{req:req.id},key:req.id});
+    if(['broker','queue'].includes(fromCat)&&req.kDone!==from){ // Kafka: уже записано при парковке
+      brokerProduce(from,{value:{req:req.id},reqId:req.id});
     }
     // [2] implicit: сервис/gw/auth → боковая связь на брокер (Kafka не в sc.path)
     if(!req.dead&&(fromCat==='svc'||fromCat==='gw'||fromCat==='auth')){
       S.conns.filter(c=>c.from===from).forEach(c=>{
         const bt=gb(c.to);
         if(bt&&['broker','queue'].includes(BASE[bt.type]?.cat)&&!req.path.includes(c.to)){
-          brokerProduce(c.to,{value:{req:req.id,src:from},key:req.id});
+          brokerProduce(c.to,{value:{req:req.id,src:from},reqId:req.id}); // без ключа — key_strategy брокера
         }
       });
     }
@@ -236,63 +245,43 @@ function spawnResponse(path,color,opts){
   tri.addEventListener('mouseleave',()=>{hideHoverTip();});
   $('anim-layer').appendChild(tri);SIM.dots[id]=tri;
 }
-function flash(nid,color){const b=gb(nid);if(!b)return;const fl=document.createElementNS(NS,'circle');fl.setAttribute('cx',b.x+bw(b)/2+S.panX);fl.setAttribute('cy',b.y+bh(b)/2+S.panY);fl.setAttribute('r','8');fl.style.fill=color;fl.style.opacity='0.55';$('anim-layer').appendChild(fl);let r=8;const iv=setInterval(()=>{r+=3;fl.setAttribute('r',r);fl.style.opacity=Math.max(0,0.55-(r-8)/30);if(r>34){clearInterval(iv);fl.remove();}},22);}
+function flash(nid,color){const b=gb(nid);if(!b)return;const fl=document.createElementNS(NS,'circle');fl.setAttribute('cx',b.x+bw(b)/2);fl.setAttribute('cy',b.y+bh(b)/2);fl.setAttribute('r','8');fl.style.fill=color;fl.style.opacity='0.55';$('anim-layer').appendChild(fl);let r=8;const iv=setInterval(()=>{r+=3;fl.setAttribute('r',r);fl.style.opacity=Math.max(0,0.55-(r-8)/30);if(r>34){clearInterval(iv);fl.remove();}},22);}
 let _deShown={};
-function showDeadEnd(nodeId){const b=gb(nodeId);if(!b)return;if(_deShown[nodeId]&&Date.now()-_deShown[nodeId]<4000)return;_deShown[nodeId]=Date.now();const r=svgRct();const el=document.createElement('div');el.style.cssText=`position:fixed;left:${b.x+bw(b)/2+S.panX+r.left}px;top:${b.y-14+S.panY+r.top}px;transform:translateX(-50%);background:#1a1b26;border:1.5px solid #e0af68;border-radius:8px;padding:7px 11px;font-size:11px;color:#e0af68;z-index:200;white-space:nowrap;pointer-events:none`;el.textContent=`⚠ Тупик: ${EL[b.type].lbl} — запросу некуда идти дальше`;document.body.appendChild(el);setTimeout(()=>el.remove(),3500);}
+function showDeadEnd(nodeId){const b=gb(nodeId);if(!b)return;if(_deShown[nodeId]&&Date.now()-_deShown[nodeId]<4000)return;_deShown[nodeId]=Date.now();const r=svgRct();const z=S.zoom||1;const el=document.createElement('div');el.style.cssText=`position:fixed;left:${(b.x+bw(b)/2)*z+S.panX+r.left}px;top:${(b.y-14)*z+S.panY+r.top}px;transform:translateX(-50%);background:#1a1b26;border:1.5px solid #e0af68;border-radius:8px;padding:7px 11px;font-size:11px;color:#e0af68;z-index:200;white-space:nowrap;pointer-events:none`;el.textContent=t('sim_dead_end').replace('{lbl}',EL[b.type].lbl);document.body.appendChild(el);setTimeout(()=>el.remove(),3500);}
 
 // ═══════════════════════════════════════════════════════════════
 // 📋 ТРАССИРОВКА — лог пути запроса: бизнес-смысл + технический вызов
 // ═══════════════════════════════════════════════════════════════
 let LOG=[],TRACE_RUN=0;
-const HOP_BIZ={
-  'actor>client':'Пользователь открывает приложение',
-  'actor>gw':'Пользователь отправляет запрос в систему',
-  'actor>net':'Пользователь обращается к системе через сеть',
-  'actor>svc':'Пользователь работает с сервисом напрямую',
-  'actor>bff':'Пользователь работает через приложение',
-  'client>gw':'Приложение шлёт запрос на бэкенд',
-  'client>net':'Запрос идёт через сеть (CDN/балансировщик)',
-  'client>svc':'Приложение обращается к сервису',
-  'client>bff':'Приложение шлёт запрос своему BFF',
-  'bff>gw':'BFF идёт за данными через шлюз',
-  'bff>net':'BFF обращается к сервисам через балансировщик',
-  'bff>db':'BFF читает/пишет данные',
-  'bff>cache':'BFF проверяет кэш',
-  'gw>bff':'Шлюз направляет в BFF',
-  'net>bff':'Балансировщик выбрал реплику BFF',
-  'net>net':'Передаёт дальше по сети',
-  'gw>cache':'Шлюз проверяет токен/лимиты в кэше',
-  'gw>svc':'Gateway проверяет доступ и направляет в нужный сервис',
-  'gw>net':'Gateway передаёт балансировщику',
-  'net>svc':'Балансировщик выбирает свободную реплику сервиса',
-  'svc>db':'Сервис читает или записывает данные в БД',
-  'svc>cache':'Сервис проверяет кэш — быстрый ответ без БД',
-  'svc>broker':'Сервис публикует событие (асинхронно, не ждёт)',
-  'svc>queue':'Сервис ставит фоновую задачу в очередь',
-  'svc>svc':'Сервис синхронно вызывает другой сервис',
-  'svc>external':'Сервис обращается к внешней системе',
-  'bff>svc':'BFF собирает данные из сервиса под клиент',
-  'broker>svc':'Консьюмер читает событие из брокера и обрабатывает',
-  'queue>svc':'Worker забирает задачу из очереди',
+const HOP_BIZ_KEYS={
+  'actor>client':'hb_actor_client','actor>gw':'hb_actor_gw','actor>net':'hb_actor_net',
+  'actor>svc':'hb_actor_svc','actor>bff':'hb_actor_bff',
+  'client>gw':'hb_client_gw','client>net':'hb_client_net','client>svc':'hb_client_svc','client>bff':'hb_client_bff',
+  'bff>gw':'hb_bff_gw','bff>net':'hb_bff_net','bff>db':'hb_bff_db','bff>cache':'hb_bff_cache',
+  'gw>bff':'hb_gw_bff','net>bff':'hb_net_bff','net>net':'hb_net_net',
+  'gw>cache':'hb_gw_cache','gw>svc':'hb_gw_svc','gw>net':'hb_gw_net','net>svc':'hb_net_svc',
+  'svc>db':'hb_svc_db','svc>cache':'hb_svc_cache','svc>broker':'hb_svc_broker','svc>queue':'hb_svc_queue',
+  'svc>svc':'hb_svc_svc','svc>external':'hb_svc_external','bff>svc':'hb_bff_svc',
+  'broker>svc':'hb_broker_svc','queue>svc':'hb_queue_svc',
 };
-function hopBiz(fc,tc){return HOP_BIZ[fc+'>'+tc]||(tc==='db'?'Работает с данными':tc==='cache'?'Обращается к кэшу':tc==='broker'?'Публикует событие':'Вызывает следующий узел');}
+function hopBiz(fc,tc){const k=HOP_BIZ_KEYS[fc+'>'+tc];if(k)return t(k);return tc==='db'?t('hb_fallback_db'):tc==='cache'?t('hb_fallback_cache'):tc==='broker'?t('hb_fallback_broker'):t('hb_fallback_default');}
 function hopTech(from,to,conn,isResp){
   if(conn){
     if(isResp){const r=connResp(conn)||conn.respLabel;if(r)return r;}
     else{const a=conn.label||connApi(conn)||conn.reqLabel;if(a)return a;}
   }
   const tc=BASE[to.type]?.cat,fc=BASE[from.type]?.cat;
-  if(isResp)return BASE[to.type]?.cat==='actor'?'результат пользователю (200 OK)':'возврат: 200 OK (данные)';
-  if(tc==='db')return 'SQL: SELECT / INSERT';
-  if(tc==='cache')return 'GET key (Redis)';
-  if(tc==='broker')return 'produce(topic, event)';
-  if(tc==='queue')return 'enqueue(task)';
-  if(tc==='gw')return 'HTTPS запрос';
-  if(tc==='external')return 'внешний API / SMTP вызов';
-  if(fc==='gw'&&tc==='svc')return 'проксирует HTTP → сервис';
-  if(tc==='svc')return 'вызов внутреннего API (REST/gRPC)';
-  if(tc==='net')return 'маршрутизация трафика';
-  return 'HTTP-запрос';
+  if(isResp)return BASE[to.type]?.cat==='actor'?t('tech_result_user'):t('tech_return_data');
+  if(tc==='db')return t('tech_sql');
+  if(tc==='cache')return t('tech_cache_get');
+  if(tc==='broker')return t('tech_produce');
+  if(tc==='queue')return t('tech_enqueue');
+  if(tc==='gw')return t('tech_https');
+  if(tc==='external')return t('tech_external');
+  if(fc==='gw'&&tc==='svc')return t('tech_gw_proxy');
+  if(tc==='svc')return t('tech_internal_api');
+  if(tc==='net')return t('tech_net_route');
+  return t('tech_http_generic');
 }
 function logHopFor(req,fromId,toId,conn){
   const from=gb(fromId),to=gb(toId);if(!from||!to)return;
@@ -300,7 +289,7 @@ function logHopFor(req,fromId,toId,conn){
   const status=(req.dead&&req.deadAt===toId)?'fail':(to.rt?.health==='error'?'fail':to.rt?.health==='warn'?'slow':'ok');
   pushLog({run:req.run,reqId:req.id,resp:!!req.isResponse,
     from:from.customLabel||EL[from.type]?.lbl, to:to.customLabel||EL[to.type]?.lbl,
-    biz:req.isResponse?'Ответ возвращается отправителю':hopBiz(fc,tc),
+    biz:req.isResponse?t('log_biz_resp_return'):hopBiz(fc,tc),
     tech:hopTech(from,to,conn,req.isResponse), status});
 }
 // ОБХОД ДЕРЕВА ВЫЗОВОВ — детерминированный (вызов → вглубь → возврат)
@@ -343,11 +332,11 @@ function logFromEvents(events,runId){
     let biz,tech,status,arrow;
     if(ev.kind==='return'){
       const toActor=BASE[to.type]?.cat==='actor';
-      biz=toActor?'Пользователь видит результат':'Возвращает результат вызвавшему';
-      tech=connResp(ev.conn)||ev.conn.respLabel||'200 OK (данные)';
+      biz=toActor?t('log_biz_user_sees'):t('log_biz_return_caller');
+      tech=connResp(ev.conn)||ev.conn.respLabel||t('tech_return_data');
       status=from.rt?.health==='error'?'fail':from.rt?.health==='warn'?'slow':'ok';arrow='◀';
     }else if(ev.kind==='async'){
-      biz=hopBiz(fc,tc);tech=ev.conn.label||ev.conn.reqLabel||'publish событие (async)';status='ok';arrow='⇢';
+      biz=hopBiz(fc,tc);tech=ev.conn.label||ev.conn.reqLabel||t('tech_publish_async');status='ok';arrow='⇢';
     }else{
       biz=hopBiz(fc,tc);tech=hopTech(from,to,ev.conn,false);
       status=to.rt?.health==='error'?'fail':to.rt?.health==='warn'?'slow':'ok';arrow='→';
@@ -372,14 +361,14 @@ function logFromScenario(text,runId){
   const out=[];let depth=0;
   model.events.forEach(ev=>{
     if(ev.type==='frag'){out.push({run:runId,frag:true,depth,text:ev.kind.toUpperCase()+(ev.label?': '+ev.label:'')});depth++;return;}
-    if(ev.type==='else'){out.push({run:runId,frag:true,depth:Math.max(0,depth-1),text:'иначе'+(ev.label?': '+ev.label:'')});return;}
+    if(ev.type==='else'){out.push({run:runId,frag:true,depth:Math.max(0,depth-1),text:t('log_else')+(ev.label?': '+ev.label:'')});return;}
     if(ev.type==='end'){depth=Math.max(0,depth-1);return;}
     if(ev.type==='note')return;
     if(ev.type==='msg'){
       const from=model.lanes[ev.from]?.name||'?',to=model.lanes[ev.to]?.name||'?';
       out.push({run:runId,depth,kind:ev.dashed?'return':(ev.async?'async':'call'),
         arrow:ev.dashed?'◀':ev.async?'⇢':'→',from,to,
-        biz:ev.note||(ev.dashed?'Возврат результата':'Шаг сценария'),
+        biz:ev.note||(ev.dashed?t('log_return_result'):t('log_scenario_step')),
         tech:ev.text||'—',status:ev.dashed?statusForName(from):statusForName(to)});
     }
   });
@@ -419,15 +408,15 @@ function traceRequest(scId){
     // fallback: авто-обход от первого источника
     var hasInc=new Set(S.conns.map(function(c){return c.to;}));
     var src=S.blocks.find(function(b){return !hasInc.has(b.id)&&S.conns.some(function(c){return c.from===b.id;});});
-    if(!src){toast('Нет сценариев и источников на схеме');return;}
+    if(!src){toast(t('sim_no_src'));return;}
     var ev=walkCalls(src.id);
-    if(!ev.length){toast('У источника нет связей');return;}
+    if(!ev.length){toast(t('sim_no_src_conns'));return;}
     entries=logFromEvents(ev,0);
   }
   const runId=++TRACE_RUN;entries.forEach(function(e){e.run=runId;});
   const calls=entries.filter(function(e){return !e.frag&&e.kind!=='return';}).length;
-  const label=sc?sc.name:'авто из схемы';
-  LOG.push({hdr:true,run:runId,text:'▶ '+label+' · '+calls+' шагов'+(fromScenario?'':' (авто из схемы)')});
+  const label=sc?sc.name:t('sim_auto_from_scheme');
+  LOG.push({hdr:true,run:runId,text:'▶ '+label+' · '+calls+' '+t('sim_steps')+(fromScenario?'':t('sim_auto_suffix'))});
   if(TRACE_TIMER)clearInterval(TRACE_TIMER);
   switchTab('logs');renderLogs();
   let i=0;
@@ -440,7 +429,7 @@ function renderLogs(){
   const c=$('side-logs');if(!c)return;
   // Сценарии вместо блоков-источников — трассировка идёт по scenario.steps
   const scOpts=(S.scenarios||[]).filter(function(sc){return sc.visible!==false&&sc.path&&sc.path.length>1;})
-    .map(function(sc){return `<option value="${sc.id}">${sc.name||sc.id}</option>`;}).join('')
+    .map(function(sc){return `<option value="${esc(sc.id)}">${esc(sc.name||sc.id)}</option>`;}).join('')
     ||(typeof t==='function'?`<option value="">${t('log_no_scenarios')}</option>`:'<option value=""></option>');
   let h=`<div style="margin-bottom:8px">
     <select id="trace-src" style="width:100%;background:var(--bg3);color:var(--txt);border:1px solid var(--brd2);border-radius:6px;padding:5px 7px;font-size:11px;margin-bottom:6px">${scOpts}</select>
@@ -451,17 +440,17 @@ function renderLogs(){
   </div>`;
   if(!LOG.length){h+=`<div style="color:var(--txt2);font-size:11px;line-height:1.7">${typeof t==='function'?t('log_empty_hint'):''}</div>`;c.innerHTML=h;return;}
   LOG.forEach(e=>{
-    if(e.hdr){h+=`<div style="margin:10px 0 4px;font-size:11px;font-weight:700;color:var(--yellow);border-bottom:1px solid var(--brd);padding-bottom:3px">${e.text}</div>`;return;}
-    if(e.hdr2){h+=`<div style="font-size:10.5px;color:var(--green);font-weight:600;margin:3px 0 8px;padding-left:2px">${e.text}</div>`;return;}
-    if(e.frag){h+=`<div style="margin-left:${(e.depth||0)*11}px;font-size:10px;color:var(--purple);font-weight:600;margin-top:3px;margin-bottom:2px">⎇ ${e.text}</div>`;return;}
+    if(e.hdr){h+=`<div style="margin:10px 0 4px;font-size:11px;font-weight:700;color:var(--yellow);border-bottom:1px solid var(--brd);padding-bottom:3px">${esc(e.text)}</div>`;return;}
+    if(e.hdr2){h+=`<div style="font-size:10.5px;color:var(--green);font-weight:600;margin:3px 0 8px;padding-left:2px">${esc(e.text)}</div>`;return;}
+    if(e.frag){h+=`<div style="margin-left:${(e.depth||0)*11}px;font-size:10px;color:var(--purple);font-weight:600;margin-top:3px;margin-bottom:2px">⎇ ${esc(e.text)}</div>`;return;}
     const clr=e.status==='fail'?'#f7768e':e.status==='slow'?'#e0af68':'#9ece6a';
-    const st=e.status==='fail'?'ошибка':e.status==='slow'?'медленно':'ok';
+    const st=e.status==='fail'?t('status_error'):e.status==='slow'?t('status_slow'):t('status_ok');
     const ind=(e.depth||0)*11;
     const dashed=e.kind==='return'?'border-left-style:dashed;':'';
     h+=`<div style="margin-left:${ind}px;background:var(--bg1);border-left:2px solid ${clr};${dashed}border-radius:5px;padding:5px 7px;margin-bottom:4px;font-size:10.5px;line-height:1.45">
-      <div style="color:var(--txt);font-weight:600">${e.arrow} ${e.from} → ${e.to} <span style="float:right;color:${clr};font-size:9px">${st}</span></div>
-      <div style="color:var(--txt2)">🧩 ${e.biz}</div>
-      <div style="color:var(--blue)">⚙ ${e.tech}</div>
+      <div style="color:var(--txt);font-weight:600">${e.arrow} ${esc(e.from)} → ${esc(e.to)} <span style="float:right;color:${clr};font-size:9px">${st}</span></div>
+      <div style="color:var(--txt2)">🧩 ${esc(e.biz)}</div>
+      <div style="color:var(--blue)">⚙ ${esc(e.tech)}</div>
     </div>`;
   });
   c.innerHTML=h;c.scrollTop=c.scrollHeight;
@@ -473,7 +462,7 @@ function showBrokerInspector(blockId){ openBrokerInspector(blockId); }
 
 function doReplay(blockId,groupId){
   brokerReplay(blockId,groupId);
-  toast('↺ Offset сброшен — консьюмер перечитает с начала');
+  toast(t('sim_offset_reset'));
   // refreshBrokerInspector вызовется автоматически через setInterval
 }
 
@@ -484,143 +473,28 @@ function showDotInfo(id){
   const req=SIM.reqs[id];if(!req)return;pauseSim();hideHoverTip();
   const curId=req.path[req.idx-1]||req.path[0],nextId=req.path[req.idx];
   const cur=gb(curId),next=nextId?gb(nextId):null;
-  const pathHtml=req.path.map((pid,i)=>{const b=gb(pid),d=EL[b?.type];const cls=i===req.idx-1?'path-cur':i<req.idx-1?'path-done':'path-next';return `<span class="path-step ${cls}">${b?.customLabel||d?.lbl||pid}</span>`;}).join('<span style="color:#6c7086">→</span>');
-  const verdict=req.dead?'❌ Упадёт на '+(EL[gb(req.deadAt)?.type]?.lbl||'?')+' — перегружен':req.color==='#e0af68'?'⚠ Идёт медленно (узел под давлением)':'✅ Дойдёт успешно';
+  const pathHtml=req.path.map((pid,i)=>{const b=gb(pid),d=EL[b?.type];const cls=i===req.idx-1?'path-cur':i<req.idx-1?'path-done':'path-next';return `<span class="path-step ${cls}">${b?bLabel(b):esc(pid)}</span>`;}).join('<span style="color:#6c7086">→</span>');
+  const verdict=req.dead?t('dot_will_fail')+' '+(EL[gb(req.deadAt)?.type]?.lbl||'?')+' '+t('dot_overloaded'):req.color==='#e0af68'?t('dot_slow_going'):t('dot_will_arrive');
   const vClr=req.dead?'#f7768e':req.color==='#e0af68'?'#e0af68':'#9ece6a';
   const timeline=renderTraceTimeline(req);
   $('dot-info').innerHTML=`
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="font-size:14px;font-weight:600">${req.isResponse?'▶ Ответ':'🔵 Запрос'} #${id.slice(1)}</div><button onclick="resumeSim()" style="background:transparent;border:none;color:#787c99;cursor:pointer;font-size:16px">✕</button></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="font-size:14px;font-weight:600">${req.isResponse?t('dot_response'):t('dot_request')} #${id.slice(1)}</div><button onclick="resumeSim()" style="background:transparent;border:none;color:#787c99;cursor:pointer;font-size:16px">✕</button></div>
     <div style="font-size:11.5px;margin-bottom:12px;line-height:2">${pathHtml}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;font-size:11px;margin-bottom:10px">
-      <div><div style="color:var(--txt2);margin-bottom:3px">СЕЙЧАС НА</div><b style="color:var(--txt)">${cur?.customLabel||EL[cur?.type]?.lbl||'?'}</b></div>
-      <div><div style="color:var(--txt2);margin-bottom:3px">ДАЛЬШЕ</div><b style="color:var(--txt)">${next?(next.customLabel||EL[next.type].lbl):'конец'}</b></div>
-      <div><div style="color:var(--txt2);margin-bottom:3px">НАКОПЛЕНО</div><b style="color:var(--txt)">${req.accLat.toFixed(1)} мс</b></div>
+      <div><div style="color:var(--txt2);margin-bottom:3px">${t('dot_now_at')}</div><b style="color:var(--txt)">${bLabel(cur)}</b></div>
+      <div><div style="color:var(--txt2);margin-bottom:3px">${t('dot_next')}</div><b style="color:var(--txt)">${next?bLabel(next):t('dot_end')}</b></div>
+      <div><div style="color:var(--txt2);margin-bottom:3px">${t('dot_accumulated')}</div><b style="color:var(--txt)">${req.accLat.toFixed(1)} ${CURR_LANG==='en'?'ms':'мс'}</b></div>
     </div>
     <div style="padding:9px;border-radius:7px;background:${vClr}1a;border-left:2px solid ${vClr};font-size:11.5px;color:${vClr};margin-bottom:12px">${verdict}</div>
     <div style="margin-bottom:8px">
       <div style="font-size:11.5px;font-weight:700;color:var(--txt);margin-bottom:8px;display:flex;align-items:center;gap:7px">
-        <span>📋 Трейс запроса</span>
-        <span style="font-size:9.5px;color:#4a4c6a;font-weight:400">нажми ▶ Продолжить — трейс обновится в реальном времени</span>
+        <span>${t('dot_trace_title')}</span>
+        <span style="font-size:9.5px;color:#4a4c6a;font-weight:400">${t('dot_trace_hint')}</span>
       </div>
       ${timeline}
     </div>
-    <button onclick="resumeSim()" style="margin-top:6px;width:100%;padding:7px;border:1px solid #9ece6a77;border-radius:6px;background:#9ece6a22;color:#9ece6a;cursor:pointer;font-size:11.5px">▶ Продолжить</button>
+    <button onclick="resumeSim()" style="margin-top:6px;width:100%;padding:7px;border:1px solid #9ece6a77;border-radius:6px;background:#9ece6a22;color:#9ece6a;cursor:pointer;font-size:11.5px">${t('dot_continue')}</button>
   `;
   $('dot-modal').style.display='flex';
-}
-
-// ═══════════════════════════════════════════════════════════════
-// 🔥 DEVOPS-РЕЖИМ — построй систему и удержи её под хаосом
-// ═══════════════════════════════════════════════════════════════
-let CHAOS={active:false,loadMul:1,budget:100,survived:0,goalT:90,tickId:null,events:[],startMul:1};
-const EVT_POOL=[
-  {id:'spike',title:'📈 Всплеск трафика',desc:'Распродажа/вирусный пост — входящий трафик резко вырос.',
-   fix:'Масштабируй ВСЮ цепочку: инстансы Gateway, реплики сервисов, ёмкость БД.',dur:16,
-   can:()=>true,apply:()=>{CHAOS.loadMul=Math.min(50,CHAOS.loadMul* (4+Math.random()*4));},revert:()=>{CHAOS.loadMul=CHAOS.startMul;}},
-  {id:'crash',title:'💥 Падение ноды',desc:'Под/инстанс упал (OOM, краш). Ёмкость узла почти ноль.',
-   fix:'Реплики/инстансы спасают: кластер переживает смерть ноды. Жди рестарта.',dur:12,
-   can:()=>pickChaosNode(['svc','gw','db','cache','broker','net']),
-   apply:e=>{const b=pickChaosNode(['svc','gw','db','cache','broker','net']);if(b){b.down=true;e.targetId=b.id;e.title='💥 '+(b.customLabel||EL[b.type].lbl)+' упал';}},
-   revert:e=>{const b=gb(e.targetId);if(b)b.down=false;}},
-  {id:'slow',title:'🐌 Деградация',desc:'Узел жив, но тормозит (диск/GC/сеть) — задержка ×3.',
-   fix:'Circuit Breaker и Timeout у зовущих остановят каскад. Или ускорь зависимость.',dur:14,
-   can:()=>pickChaosNode(['db','svc','cache']),
-   apply:e=>{const b=pickChaosNode(['db','svc','cache']);if(b){b.chaosLat=3;e.targetId=b.id;e.title='🐌 '+(b.customLabel||EL[b.type].lbl)+' тормозит';}},
-   revert:e=>{const b=gb(e.targetId);if(b)delete b.chaosLat;}},
-  {id:'cacheflush',title:'🧊 Сброс кэша',desc:'Redis перезапущен — кэш пуст, вся нагрузка ринулась в БД (thundering herd).',
-   fix:'Кэш защищал БД. Переживи окно: добавь ёмкость БД (PgBouncer, реплики) пока кэш греется.',dur:12,
-   can:()=>S.blocks.some(b=>BASE[b.type]?.cat==='cache'),
-   apply:e=>{const b=S.blocks.find(x=>BASE[x.type]?.cat==='cache');if(b){b.down=true;e.targetId=b.id;}},
-   revert:e=>{const b=gb(e.targetId);if(b)b.down=false;}},
-];
-function pickChaosNode(cats){
-  const cand=S.blocks.filter(b=>cats.includes(BASE[b.type]?.cat)&&!b.down&&!b.chaosLat);
-  return cand.length?cand[Math.floor(Math.random()*cand.length)]:null;
-}
-function toggleChaos(){CHAOS.active?stopChaos(true):startChaos();}
-function startChaos(){
-  const hasInc=new Set(S.conns.map(c=>c.to));
-  if(!S.blocks.length||!S.blocks.some(b=>!hasInc.has(b.id))){toast('Сначала построй систему с клиентом');return;}
-  if(!S.blocks.some(b=>['db','cache','queue','broker'].includes(BASE[b.type]?.cat))){toast('Добавь хранилище — цепочке некуда вести');return;}
-  closeTrainer&&closeTrainer();
-  CHAOS.active=true;CHAOS.budget=100;CHAOS.survived=0;CHAOS.loadMul=1;CHAOS.startMul=1;CHAOS.events=[];
-  S.blocks.forEach(b=>{b.down=false;delete b.chaosLat;});
-  if(!SIM.running)runSim();else{SIM.paused=false;}
-  const _cb=$('chaos-btn');if(_cb){_cb.textContent='⏹ Стоп';_cb.style.color='#f7768e';}
-  CHAOS.tickId=setInterval(chaosTick,1000);
-  CHAOS.nextEvt=4; // первое событие через 4с
-  renderChaosBar();toast('🔥 DevOps: держи систему живой '+CHAOS.goalT+' секунд!',3000);
-}
-function stopChaos(manual){
-  CHAOS.active=false;if(CHAOS.tickId)clearInterval(CHAOS.tickId);CHAOS.tickId=null;
-  CHAOS.loadMul=1;S.blocks.forEach(b=>{b.down=false;delete b.chaosLat;});
-  const _cb=$('chaos-btn');if(_cb){_cb.textContent='🔥 DevOps';_cb.style.color='#f7768e';}
-  $('chaos-bar').style.display='none';
-  // вернуть переключатель режима на «Конструктор»
-  if(typeof activateBuildMode==='function')activateBuildMode();
-  analyze();if(manual)stopSim();
-}
-function chaosTick(){
-  CHAOS.survived++;
-  // завершить истёкшие события
-  CHAOS.events=CHAOS.events.filter(e=>{if(CHAOS.survived>=e.until){e.def.revert(e);return false;}return true;});
-  // запустить новое событие по расписанию (чем дальше — тем чаще)
-  if(CHAOS.survived>=CHAOS.nextEvt){
-    fireEvent();
-    const gap=Math.max(6,13-Math.floor(CHAOS.survived/15)); // ускоряемся со временем
-    CHAOS.nextEvt=CHAOS.survived+gap;
-  }
-  analyze(); // пересчёт с учётом упавших/медленных узлов и спайка
-  const reds=S.blocks.filter(b=>b.rt.health==='error').length;
-  const warns=S.blocks.filter(b=>b.rt.health==='warn').length;
-  if(reds>0)CHAOS.budget-=(4+reds*4);
-  else if(warns>0)CHAOS.budget-=1;
-  else CHAOS.budget=Math.min(100,CHAOS.budget+3); // восстановление SLA когда всё зелёное
-  if(CHAOS.budget<=0){CHAOS.budget=0;renderChaosBar();return chaosEnd(false);}
-  if(CHAOS.survived>=CHAOS.goalT)return chaosEnd(true);
-  renderChaosBar();
-}
-function fireEvent(){
-  const avail=EVT_POOL.filter(d=>d.can());
-  if(!avail.length)return;
-  const def=avail[Math.floor(Math.random()*avail.length)];
-  const e={def,title:def.title,desc:def.desc,fix:def.fix,until:CHAOS.survived+def.dur,targetId:null};
-  def.apply(e);
-  CHAOS.events.push(e);
-  toast('⚠ '+e.title,3500);
-}
-function chaosEnd(win){
-  const survived=CHAOS.survived,budget=Math.round(CHAOS.budget);
-  stopChaos(false);stopSim();
-  const score=Math.round(survived*10+budget*5);
-  $('dot-info').innerHTML=`
-    <div style="text-align:center">
-      <div style="font-size:34px;margin-bottom:6px">${win?'🏆':'💀'}</div>
-      <div style="font-size:17px;font-weight:700;color:${win?'#9ece6a':'#f7768e'};margin-bottom:10px">${win?'Система выстояла!':'Система легла'}</div>
-      <div style="font-size:12px;color:#c0caf5;line-height:1.8;margin-bottom:14px">
-        Продержался: <b>${survived}</b> сек${win?' / '+CHAOS.goalT:''}<br>
-        Остаток SLA-бюджета: <b style="color:${budget>30?'#9ece6a':'#e0af68'}">${budget}%</b><br>
-        Очки: <b style="color:#7aa2f7">${score}</b>
-      </div>
-      <div style="font-size:11px;color:#787c99;line-height:1.6;margin-bottom:12px">${win?'Ты держал нагрузку под хаосом — это и есть работа дежурного инженера (on-call).':'Узлы краснели быстрее, чем ты успевал масштабировать. Заложи запас ёмкости и паттерны устойчивости ЗАРАНЕЕ.'}</div>
-      <button onclick="$('dot-modal').style.display='none'" style="width:100%;padding:9px;border-radius:7px;border:1px solid #7aa2f7;background:#7aa2f722;color:#7aa2f7;cursor:pointer;font-size:12.5px">Закрыть</button>
-    </div>`;
-  $('dot-modal').style.display='flex';
-}
-function renderChaosBar(){
-  const bar=$('chaos-bar');if(!bar)return;bar.style.display='block';
-  const b=Math.round(CHAOS.budget);
-  const bClr=b>50?'#9ece6a':b>25?'#e0af68':'#f7768e';
-  const reds=S.blocks.filter(x=>x.rt.health==='error');
-  const evHtml=CHAOS.events.map(e=>`<div style="font-size:10.5px;color:#f7768e;margin-top:3px">${e.title} <span style="color:#787c99">· ${Math.max(0,e.until-CHAOS.survived)}с</span><br><span style="color:#e0af68">→ ${e.fix}</span></div>`).join('');
-  bar.innerHTML=`
-    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-      <span style="font-weight:700;color:#f7768e;font-size:12px">🔥 DevOps</span>
-      <span style="font-size:11px;color:#787c99">⏱ ${CHAOS.survived}/${CHAOS.goalT}с</span>
-      <span style="font-size:11px">SLA: <b style="color:${bClr}">${b}%</b></span>
-      <div style="flex:1;min-width:80px;height:6px;background:#11121a;border-radius:3px;overflow:hidden"><div style="height:100%;width:${b}%;background:${bClr};transition:width .3s"></div></div>
-      <span style="font-size:11px;color:${reds.length?'#f7768e':'#9ece6a'}">${reds.length?'🔴 горит: '+reds.map(x=>x.customLabel||EL[x.type].lbl).join(', '):'✓ всё зелёное'}</span>
-    </div>
-    ${evHtml?`<div style="margin-top:6px;border-top:1px solid #3d3f5266;padding-top:5px">${evHtml}</div>`:'<div style="font-size:10.5px;color:#787c99;margin-top:5px">Ждём инцидент… крути реплики и паттерны заранее.</div>'}`;
 }
 

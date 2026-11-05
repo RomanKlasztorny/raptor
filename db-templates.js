@@ -2,7 +2,7 @@
 
 const DB_TEMPLATES = [
   {
-    id:'auth_postgres',name:'Аутентификация и пользователи',type:'postgresql',
+    id:'auth_postgres',name:{ru:'Аутентификация и пользователи',en:'Authentication & users'},type:'postgresql',
     schema:{tables:[
       {name:'users',fields:[
         {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
@@ -29,7 +29,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'ecommerce_orders',name:'E-commerce: Заказы',type:'postgresql',
+    id:'ecommerce_orders',name:{ru:'E-commerce: Заказы',en:'E-commerce: Orders'},type:'postgresql',
     schema:{tables:[
       {name:'orders',fields:[
         {name:'id',label:'ID заказа',type:'UUID',constraints:'PK',default:'gen_random_uuid()',desc:'Идентификатор заказа',example:'a1b2c3d4-...'},
@@ -62,7 +62,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'catalog_mongodb',name:'Каталог товаров',type:'mongodb',
+    id:'catalog_mongodb',name:{ru:'Каталог товаров',en:'Product catalog'},type:'mongodb',
     schema:{collections:[
       {name:'products',fields:[
         {name:'_id',type:'ObjectId',pk:true},
@@ -71,7 +71,11 @@ const DB_TEMPLATES = [
         {name:'description',type:'String'},
         {name:'price',type:'Decimal128'},
         {name:'category_id',type:'ObjectId'},
-        {name:'attributes',type:'Object'},
+        {name:'attributes',type:'Object',fields:[
+          {name:'color',type:'String'},
+          {name:'size',type:'String'},
+          {name:'specs',type:'Object',fields:[{name:'weight_g',type:'Number'},{name:'material',type:'String'}]},
+        ]},
         {name:'images',type:'Array<String>'},
         {name:'stock',type:'Number'},
         {name:'is_active',type:'Boolean',default:'true'},
@@ -87,7 +91,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'cart_redis',name:'Корзина (Redis)',type:'redis',
+    id:'cart_redis',name:{ru:'Корзина (Redis)',en:'Cart (Redis)'},type:'redis',
     schema:{keys:[
       {pattern:'cart:{user_id}',type:'HASH',fields:['product_id → {qty, price}'],ttl:'7 days'},
       {pattern:'cart:{user_id}:count',type:'STRING',fields:['integer'],ttl:'7 days'},
@@ -95,7 +99,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'payment_postgres',name:'Финансы и платежи',type:'postgresql',
+    id:'payment_postgres',name:{ru:'Финансы и платежи',en:'Finance & payments'},type:'postgresql',
     schema:{tables:[
       {name:'payments',fields:[
         {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
@@ -120,7 +124,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'chat_mongodb',name:'Чат и сообщения',type:'mongodb',
+    id:'chat_mongodb',name:{ru:'Чат и сообщения',en:'Chat & messages'},type:'mongodb',
     schema:{collections:[
       {name:'messages',fields:[
         {name:'_id',type:'ObjectId',pk:true},
@@ -143,7 +147,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'booking_postgres',name:'Бронирование',type:'postgresql',
+    id:'booking_postgres',name:{ru:'Бронирование',en:'Booking'},type:'postgresql',
     schema:{tables:[
       {name:'slots',fields:[
         {name:'id',type:'UUID',pk:true},
@@ -164,7 +168,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'logs_cassandra',name:'Логи и события (Cassandra)',type:'cassandra',
+    id:'logs_cassandra',name:{ru:'Логи и события (Cassandra)',en:'Logs & events (Cassandra)'},type:'cassandra',
     schema:{tables:[
       {name:'events',fields:[
         {name:'service',type:'TEXT',pk:true},
@@ -185,7 +189,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'analytics_clickhouse',name:'Аналитика (ClickHouse)',type:'clickhouse',
+    id:'analytics_clickhouse',name:{ru:'Аналитика (ClickHouse)',en:'Analytics (ClickHouse)'},type:'clickhouse',
     schema:{tables:[
       {name:'events',fields:[
         {name:'event_date',type:'Date'},
@@ -209,7 +213,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'profile_postgres',name:'Профили пользователей',type:'postgresql',
+    id:'profile_postgres',name:{ru:'Профили пользователей',en:'User profiles'},type:'postgresql',
     schema:{tables:[
       {name:'profiles',fields:[
         {name:'user_id',type:'UUID',pk:true},
@@ -232,7 +236,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'notifications_postgres',name:'Уведомления',type:'postgresql',
+    id:'notifications_postgres',name:{ru:'Уведомления',en:'Notifications'},type:'postgresql',
     schema:{tables:[
       {name:'notifications',fields:[
         {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
@@ -255,7 +259,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'geodata_postgres',name:'Геоданные и локации',type:'postgresql',
+    id:'geodata_postgres',name:{ru:'Геоданные и локации',en:'Geodata & locations'},type:'postgresql',
     schema:{tables:[
       {name:'locations',fields:[
         {name:'id',type:'UUID',pk:true},
@@ -277,7 +281,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'files_postgres',name:'Файлы и медиа',type:'postgresql',
+    id:'files_postgres',name:{ru:'Файлы и медиа',en:'Files & media'},type:'postgresql',
     schema:{tables:[
       {name:'files',fields:[
         {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
@@ -294,7 +298,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'audit_postgres',name:'Аудит и история изменений',type:'postgresql',
+    id:'audit_postgres',name:{ru:'Аудит и история изменений',en:'Audit & change history'},type:'postgresql',
     schema:{tables:[
       {name:'audit_log',fields:[
         {name:'id',type:'BIGSERIAL',pk:true},
@@ -311,7 +315,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'ratelimit_redis',name:'Rate Limiting (Redis)',type:'redis',
+    id:'ratelimit_redis',name:{ru:'Rate Limiting (Redis)',en:'Rate limiting (Redis)'},type:'redis',
     schema:{keys:[
       {pattern:'rl:{ip}:{endpoint}:{minute}',type:'STRING',fields:['integer counter'],ttl:'60 sec',note:'INCR + EXPIRE'},
       {pattern:'rl:user:{user_id}:{hour}',type:'STRING',fields:['integer counter'],ttl:'3600 sec'},
@@ -320,14 +324,14 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'sessions_redis',name:'Сессии (Redis)',type:'redis',
+    id:'sessions_redis',name:{ru:'Сессии (Redis)',en:'Sessions (Redis)'},type:'redis',
     schema:{keys:[
       {pattern:'sess:{session_id}',type:'HASH',fields:['user_id','roles','email','locale','created_at','ip'],ttl:'30 days'},
       {pattern:'user:sessions:{user_id}',type:'SET',fields:['session_id1','session_id2','...'],ttl:'never',note:'Список сессий пользователя'},
     ]}
   },
   {
-    id:'iot_cassandra',name:'IoT / Временные ряды (Cassandra)',type:'cassandra',
+    id:'iot_cassandra',name:{ru:'IoT / Временные ряды (Cassandra)',en:'IoT / time series (Cassandra)'},type:'cassandra',
     schema:{tables:[
       {name:'sensor_data',fields:[
         {name:'device_id',type:'UUID',pk:true},
@@ -350,7 +354,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'mentorship_postgres',name:'Менторство: Цели и Привычки',type:'postgresql',
+    id:'mentorship_postgres',name:{ru:'Менторство: Цели и Привычки',en:'Mentorship: Goals & Habits'},type:'postgresql',
     schema:{tables:[
       {name:'goals',fields:[
         {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
@@ -381,7 +385,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'warehouse_postgres',name:'Склад и инвентарь',type:'postgresql',
+    id:'warehouse_postgres',name:{ru:'Склад и инвентарь',en:'Warehouse & inventory'},type:'postgresql',
     schema:{tables:[
       {name:'warehouses',fields:[
         {name:'id',type:'UUID',pk:true},
@@ -408,7 +412,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'subscriptions_postgres',name:'Подписки и биллинг',type:'postgresql',
+    id:'subscriptions_postgres',name:{ru:'Подписки и биллинг',en:'Subscriptions & billing'},type:'postgresql',
     schema:{tables:[
       {name:'plans',fields:[
         {name:'id',label:'ID тарифа',type:'UUID',constraints:'PK',default:'gen_random_uuid()',desc:'Идентификатор тарифа'},
@@ -437,7 +441,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'reviews_postgres',name:'Отзывы и рейтинги',type:'postgresql',
+    id:'reviews_postgres',name:{ru:'Отзывы и рейтинги',en:'Reviews & ratings'},type:'postgresql',
     schema:{tables:[
       {name:'reviews',fields:[
         {name:'id',label:'ID отзыва',type:'UUID',constraints:'PK',default:'gen_random_uuid()'},
@@ -452,7 +456,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'promo_postgres',name:'Промокоды и скидки',type:'postgresql',
+    id:'promo_postgres',name:{ru:'Промокоды и скидки',en:'Promo codes & discounts'},type:'postgresql',
     schema:{tables:[
       {name:'promo_codes',fields:[
         {name:'id',label:'ID',type:'UUID',constraints:'PK',default:'gen_random_uuid()'},
@@ -474,7 +478,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'medical_postgres',name:'Медицина: Пациенты',type:'postgresql',
+    id:'medical_postgres',name:{ru:'Медицина: Пациенты',en:'Medical: Patients'},type:'postgresql',
     schema:{tables:[
       {name:'patients',fields:[
         {name:'id',type:'UUID',pk:true},
@@ -498,7 +502,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'bank_ledger_postgres',name:'Банковский леджер (double-entry)',type:'postgresql',
+    id:'bank_ledger_postgres',name:{ru:'Банковский леджер (double-entry)',en:'Bank ledger (double-entry)'},type:'postgresql',
     schema:{tables:[
       {name:'accounts',fields:[
         {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
@@ -532,7 +536,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'cards_postgres',name:'Банковские карты',type:'postgresql',
+    id:'cards_postgres',name:{ru:'Банковские карты',en:'Bank cards'},type:'postgresql',
     schema:{tables:[
       {name:'cards',fields:[
         {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
@@ -557,7 +561,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'sellers_postgres',name:'Продавцы маркетплейса',type:'postgresql',
+    id:'sellers_postgres',name:{ru:'Продавцы маркетплейса',en:'Marketplace sellers'},type:'postgresql',
     schema:{tables:[
       {name:'sellers',fields:[
         {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
@@ -587,7 +591,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'video_postgres',name:'Видео и каналы',type:'postgresql',
+    id:'video_postgres',name:{ru:'Видео и каналы',en:'Video & channels'},type:'postgresql',
     schema:{tables:[
       {name:'channels',fields:[
         {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
@@ -611,7 +615,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'comments_mongodb',name:'Комментарии (видео/посты)',type:'mongodb',
+    id:'comments_mongodb',name:{ru:'Комментарии (видео/посты)',en:'Comments (video/posts)'},type:'mongodb',
     schema:{collections:[
       {name:'comments',fields:[
         {name:'_id',type:'ObjectId',pk:true},
@@ -626,7 +630,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'crawler_postgres',name:'Краулер: очередь и статус URL',type:'postgresql',
+    id:'crawler_postgres',name:{ru:'Краулер: очередь и статус URL',en:'Crawler: URL queue & status'},type:'postgresql',
     schema:{tables:[
       {name:'urls',fields:[
         {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
@@ -647,7 +651,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'todo_postgres',name:'Задачи и списки',type:'postgresql',
+    id:'todo_postgres',name:{ru:'Задачи и списки',en:'Tasks & lists'},type:'postgresql',
     schema:{tables:[
       {name:'task_lists',fields:[
         {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
@@ -676,7 +680,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'trips_postgres',name:'Поездки (такси)',type:'postgresql',
+    id:'trips_postgres',name:{ru:'Поездки (такси)',en:'Trips (taxi)'},type:'postgresql',
     schema:{tables:[
       {name:'trips',fields:[
         {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
@@ -701,7 +705,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'social_graph_postgres',name:'Соцграф (подписки)',type:'postgresql',
+    id:'social_graph_postgres',name:{ru:'Соцграф (подписки)',en:'Social graph (follows)'},type:'postgresql',
     schema:{tables:[
       {name:'users',fields:[
         {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
@@ -721,7 +725,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'posts_mongodb',name:'Публикации (соцсеть)',type:'mongodb',
+    id:'posts_mongodb',name:{ru:'Публикации (соцсеть)',en:'Posts (social network)'},type:'mongodb',
     schema:{collections:[
       {name:'posts',fields:[
         {name:'_id',type:'ObjectId',pk:true},
@@ -736,7 +740,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'feed_cassandra',name:'Лента (fan-out on write)',type:'cassandra',
+    id:'feed_cassandra',name:{ru:'Лента (fan-out on write)',en:'Feed (fan-out on write)'},type:'cassandra',
     schema:{tables:[
       {name:'user_feed',fields:[
         {name:'user_id',type:'UUID',pk:true},
@@ -748,7 +752,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'restaurants_postgres',name:'Рестораны и меню',type:'postgresql',
+    id:'restaurants_postgres',name:{ru:'Рестораны и меню',en:'Restaurants & menus'},type:'postgresql',
     schema:{tables:[
       {name:'restaurants',fields:[
         {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
@@ -770,7 +774,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'food_orders_postgres',name:'Заказы еды и доставка',type:'postgresql',
+    id:'food_orders_postgres',name:{ru:'Заказы еды и доставка',en:'Food orders & delivery'},type:'postgresql',
     schema:{tables:[
       {name:'orders',fields:[
         {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
@@ -793,7 +797,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'carsharing_postgres',name:'Каршеринг: автомобили и аренды',type:'postgresql',
+    id:'carsharing_postgres',name:{ru:'Каршеринг: автомобили и аренды',en:'Carsharing: cars & rentals'},type:'postgresql',
     schema:{tables:[
       {name:'cars',fields:[
         {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
@@ -818,7 +822,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'music_catalog_postgres',name:'Музыкальный каталог',type:'postgresql',
+    id:'music_catalog_postgres',name:{ru:'Музыкальный каталог',en:'Music catalog'},type:'postgresql',
     schema:{tables:[
       {name:'artists',fields:[
         {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
@@ -842,7 +846,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'playlists_mongodb',name:'Плейлисты',type:'mongodb',
+    id:'playlists_mongodb',name:{ru:'Плейлисты',en:'Playlists'},type:'mongodb',
     schema:{collections:[
       {name:'playlists',fields:[
         {name:'_id',type:'ObjectId',pk:true},
@@ -856,7 +860,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'vod_postgres',name:'Видео по запросу (фильмы/сериалы)',type:'postgresql',
+    id:'vod_postgres',name:{ru:'Видео по запросу (фильмы/сериалы)',en:'Video on demand (movies/series)'},type:'postgresql',
     schema:{tables:[
       {name:'titles',fields:[
         {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
@@ -878,14 +882,14 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'watch_progress_redis',name:'Продолжить просмотр (Redis)',type:'redis',
+    id:'watch_progress_redis',name:{ru:'Продолжить просмотр (Redis)',en:'Continue watching (Redis)'},type:'redis',
     schema:{keys:[
       {pattern:'progress:{user_id}:{titleId}',type:'STRING',fields:['position_sec'],ttl:'90 days',note:'Обновляется каждые ~10 сек плеера'},
       {pattern:'continue_watching:{user_id}',type:'ZSET',fields:['titleId → last_watched_at'],ttl:'90 days'},
     ]}
   },
   {
-    id:'dating_profiles_postgres',name:'Анкеты знакомств',type:'postgresql',
+    id:'dating_profiles_postgres',name:{ru:'Анкеты знакомств',en:'Dating profiles'},type:'postgresql',
     schema:{tables:[
       {name:'profiles',fields:[
         {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
@@ -908,7 +912,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'swipes_cassandra',name:'Свайпы (Cassandra)',type:'cassandra',
+    id:'swipes_cassandra',name:{ru:'Свайпы (Cassandra)',en:'Swipes (Cassandra)'},type:'cassandra',
     schema:{tables:[
       {name:'swipes',fields:[
         {name:'user_id',type:'UUID',pk:true},
@@ -919,7 +923,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'wallets_postgres',name:'Криптокошельки',type:'postgresql',
+    id:'wallets_postgres',name:{ru:'Криптокошельки',en:'Crypto wallets'},type:'postgresql',
     schema:{tables:[
       {name:'wallets',fields:[
         {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
@@ -939,7 +943,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'trading_postgres',name:'Биржевые ордера и сделки',type:'postgresql',
+    id:'trading_postgres',name:{ru:'Биржевые ордера и сделки',en:'Exchange orders & trades'},type:'postgresql',
     schema:{tables:[
       {name:'orders',fields:[
         {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
@@ -963,7 +967,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'orderbook_redis',name:'Стакан заявок (Redis)',type:'redis',
+    id:'orderbook_redis',name:{ru:'Стакан заявок (Redis)',en:'Order book (Redis)'},type:'redis',
     schema:{keys:[
       {pattern:'orderbook:{pair}:bids',type:'ZSET',fields:['orderId → price'],ttl:'never',note:'Отсортированные заявки на покупку'},
       {pattern:'orderbook:{pair}:asks',type:'ZSET',fields:['orderId → price'],ttl:'never',note:'Отсортированные заявки на продажу'},
@@ -971,7 +975,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'courses_postgres',name:'Курсы и зачисления',type:'postgresql',
+    id:'courses_postgres',name:{ru:'Курсы и зачисления',en:'Courses & enrollments'},type:'postgresql',
     schema:{tables:[
       {name:'courses',fields:[
         {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
@@ -999,7 +1003,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'lesson_progress_mongodb',name:'Прогресс по урокам/тестам',type:'mongodb',
+    id:'lesson_progress_mongodb',name:{ru:'Прогресс по урокам/тестам',en:'Lesson/quiz progress'},type:'mongodb',
     schema:{collections:[
       {name:'lesson_progress',fields:[
         {name:'_id',type:'ObjectId',pk:true},
@@ -1014,7 +1018,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'workouts_postgres',name:'Тренировки',type:'postgresql',
+    id:'workouts_postgres',name:{ru:'Тренировки',en:'Workouts'},type:'postgresql',
     schema:{tables:[
       {name:'workouts',fields:[
         {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
@@ -1029,7 +1033,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'workout_routes_cassandra',name:'GPS-трек тренировки (Cassandra)',type:'cassandra',
+    id:'workout_routes_cassandra',name:{ru:'GPS-трек тренировки (Cassandra)',en:'GPS workout track (Cassandra)'},type:'cassandra',
     schema:{tables:[
       {name:'route_points',fields:[
         {name:'workout_id',type:'UUID',pk:true},
@@ -1042,7 +1046,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'hotels_postgres',name:'Отели и номера',type:'postgresql',
+    id:'hotels_postgres',name:{ru:'Отели и номера',en:'Hotels & rooms'},type:'postgresql',
     schema:{tables:[
       {name:'hotels',fields:[
         {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
@@ -1061,7 +1065,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'cloud_files_postgres',name:'Облачное хранилище: файлы и доступ',type:'postgresql',
+    id:'cloud_files_postgres',name:{ru:'Облачное хранилище: файлы и доступ',en:'Cloud storage: files & access'},type:'postgresql',
     schema:{tables:[
       {name:'files',fields:[
         {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
@@ -1085,7 +1089,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'refunds_postgres',name:'Возвраты и рефанды',type:'postgresql',
+    id:'refunds_postgres',name:{ru:'Возвраты и рефанды',en:'Refunds'},type:'postgresql',
     schema:{tables:[
       {name:'refunds',fields:[
         {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
@@ -1099,7 +1103,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'invoicing_postgres',name:'Инвойсы и счета',type:'postgresql',
+    id:'invoicing_postgres',name:{ru:'Инвойсы и счета',en:'Invoicing'},type:'postgresql',
     schema:{tables:[
       {name:'invoices',fields:[
         {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
@@ -1122,7 +1126,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'metrics_clickhouse',name:'Метрики (ClickHouse)',type:'clickhouse',
+    id:'metrics_clickhouse',name:{ru:'Метрики (ClickHouse)',en:'Metrics (ClickHouse)'},type:'clickhouse',
     schema:{tables:[
       {name:'metrics',fields:[
         {name:'metric_name',type:'LowCardinality(String)'},
@@ -1133,7 +1137,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'tracing_cassandra',name:'Трейсинг запросов (Cassandra)',type:'cassandra',
+    id:'tracing_cassandra',name:{ru:'Трейсинг запросов (Cassandra)',en:'Request tracing (Cassandra)'},type:'cassandra',
     schema:{tables:[
       {name:'spans',fields:[
         {name:'trace_id',type:'UUID',pk:true},
@@ -1147,7 +1151,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'webhooks_postgres',name:'Вебхуки (подписки и доставки)',type:'postgresql',
+    id:'webhooks_postgres',name:{ru:'Вебхуки (подписки и доставки)',en:'Webhooks (subscriptions & deliveries)'},type:'postgresql',
     schema:{tables:[
       {name:'webhook_subscriptions',fields:[
         {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
@@ -1167,7 +1171,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'apikeys_postgres',name:'API-ключи',type:'postgresql',
+    id:'apikeys_postgres',name:{ru:'API-ключи',en:'API keys'},type:'postgresql',
     schema:{tables:[
       {name:'api_keys',fields:[
         {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
@@ -1182,7 +1186,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'experiments_postgres',name:'A/B-эксперименты',type:'postgresql',
+    id:'experiments_postgres',name:{ru:'A/B-эксперименты',en:'A/B experiments'},type:'postgresql',
     schema:{tables:[
       {name:'experiments',fields:[
         {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
@@ -1201,7 +1205,7 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'imports_postgres',name:'Импорт/экспорт: задачи',type:'postgresql',
+    id:'imports_postgres',name:{ru:'Импорт/экспорт: задачи',en:'Import/export jobs'},type:'postgresql',
     schema:{tables:[
       {name:'import_jobs',fields:[
         {name:'id',type:'UUID',pk:true,default:'gen_random_uuid()'},
@@ -1216,10 +1220,130 @@ const DB_TEMPLATES = [
     ]}
   },
   {
-    id:'otp_redis',name:'Коды OTP (Redis)',type:'redis',
+    id:'otp_redis',name:{ru:'Коды OTP (Redis)',en:'OTP codes (Redis)'},type:'redis',
     schema:{keys:[
       {pattern:'otp:{phone}:{purpose}',type:'STRING',fields:['6-значный код'],ttl:'5 min'},
       {pattern:'otp_attempts:{phone}',type:'STRING',fields:['integer counter'],ttl:'15 min',note:'Защита от подбора'},
+    ]}
+  },
+  {
+    id:'revenue_clickhouse',name:{ru:'Выручка по дням (ClickHouse, SummingMergeTree)',en:'Daily revenue (ClickHouse, SummingMergeTree)'},type:'clickhouse',
+    schema:{tables:[
+      {name:'revenue_daily',fields:[
+        {name:'day',type:'Date'},
+        {name:'shop_id',type:'UInt32'},
+        {name:'currency',type:'LowCardinality(String)'},
+        {name:'orders',type:'UInt64'},
+        {name:'amount',type:'Decimal(18,2)'},
+      ],engine:'ENGINE = SummingMergeTree((orders, amount)) PARTITION BY toYYYYMM(day) ORDER BY (shop_id, day, currency)'},
+    ]}
+  },
+  // ── MySQL ──────────────────────────────────────────────────
+  {
+    id:'shop_mysql',name:{ru:'Интернет-магазин (MySQL)',en:'Web shop (MySQL)'},type:'mysql',
+    desc:{ru:'InnoDB: кластерный индекс по PK, вторичные индексы, внешние ключи',en:'InnoDB: clustered PK index, secondary indexes, foreign keys'},
+    schema:{tables:[
+      {name:'customers',fields:[
+        {name:'id',type:'BIGINT UNSIGNED',pk:true},
+        {name:'email',type:'VARCHAR(255)',unique:true,notNull:true},
+        {name:'full_name',type:'VARCHAR(200)'},
+        {name:'created_at',type:'DATETIME',default:'CURRENT_TIMESTAMP'},
+      ]},
+      {name:'products',fields:[
+        {name:'id',type:'BIGINT UNSIGNED',pk:true},
+        {name:'sku',type:'VARCHAR(64)',unique:true,notNull:true},
+        {name:'title',type:'VARCHAR(255)',notNull:true},
+        {name:'price',type:'DECIMAL(10,2)',notNull:true},
+        {name:'stock',type:'INT',default:'0'},
+      ],indexes:['CREATE INDEX idx_products_title ON products(title)']},
+      {name:'orders',fields:[
+        {name:'id',type:'BIGINT UNSIGNED',pk:true},
+        {name:'customer_id',type:'BIGINT UNSIGNED',notNull:true,fk:{table:'customers',field:'id',onDelete:'RESTRICT'}},
+        {name:'status',type:"ENUM('new','paid','shipped')",default:"'new'"},
+        {name:'total',type:'DECIMAL(12,2)'},
+        {name:'created_at',type:'DATETIME',default:'CURRENT_TIMESTAMP'},
+      ],indexes:['CREATE INDEX idx_orders_customer ON orders(customer_id, created_at)']},
+      {name:'order_items',fields:[
+        {name:'id',type:'BIGINT UNSIGNED',pk:true},
+        {name:'order_id',type:'BIGINT UNSIGNED',notNull:true,fk:{table:'orders',field:'id',onDelete:'CASCADE'}},
+        {name:'product_id',type:'BIGINT UNSIGNED',notNull:true,fk:{table:'products',field:'id'}},
+        {name:'qty',type:'INT',default:'1'},
+        {name:'price',type:'DECIMAL(10,2)'},
+      ],indexes:['CREATE INDEX idx_items_order ON order_items(order_id)']},
+    ]}
+  },
+  // ── Redis: структуры ZSET / STREAM / LIST ─────────────────
+  {
+    id:'leaderboard_redis',name:{ru:'Рейтинг игроков (Redis)',en:'Leaderboard (Redis)'},type:'redis',
+    schema:{keys:[
+      {pattern:'lb:{season}',type:'ZSET',fields:['member=user_id','score=points'],ttl:'90 days',note:'ZADD / ZREVRANGE 0 9 WITHSCORES'},
+      {pattern:'player:{user_id}',type:'HASH',fields:['nick','avatar','level'],ttl:''},
+      {pattern:'lb:{season}:online',type:'SET',fields:['user_id'],ttl:'1 hour'},
+    ]}
+  },
+  {
+    id:'events_stream_redis',name:{ru:'Поток событий и очередь (Redis)',en:'Event stream & queue (Redis)'},type:'redis',
+    schema:{keys:[
+      {pattern:'events:{tenant}',type:'STREAM',fields:['type','order_id','ts'],ttl:'',note:'XADD MAXLEN ~ 100000; consumer group «billing»'},
+      {pattern:'jobs:email',type:'LIST',fields:['job json'],ttl:'',note:'LPUSH / BRPOP — простая очередь'},
+      {pattern:'dedup:{event_id}',type:'STRING',fields:['1'],ttl:'24 hours',note:'SET NX EX — идемпотентность'},
+    ]}
+  },
+  // ── Elasticsearch ──────────────────────────────────────────
+  {
+    id:'products_search_elasticsearch',name:{ru:'Поиск товаров (Elasticsearch)',en:'Product search (Elasticsearch)'},type:'elasticsearch',
+    desc:{ru:'Полнотекстовый поиск: text-поля с анализатором, keyword-фасеты',en:'Full-text search: analyzed text fields, keyword facets'},
+    schema:{tables:[
+      {name:'products',kind:'index',fields:[
+        {name:'sku',type:'keyword',pk:true},
+        {name:'title',type:'text',analyzer:'standard'},
+        {name:'description',type:'text',analyzer:'standard'},
+        {name:'brand',type:'keyword'},
+        {name:'category',type:'keyword'},
+        {name:'price',type:'scaled_float'},
+        {name:'in_stock',type:'boolean'},
+        {name:'created_at',type:'date'},
+      ],docs:[
+        {sku:'A-1',title:'Red running shoes',brand:'Nike',category:'shoes',price:89},
+        {sku:'A-2',title:'Blue running jacket',brand:'Adidas',category:'apparel',price:120},
+        {sku:'A-3',title:'Red wool jacket',brand:'Nike',category:'apparel',price:150},
+        {sku:'A-4',title:'Trail shoes waterproof',brand:'Salomon',category:'shoes',price:140},
+      ]},
+    ]}
+  },
+  {
+    id:'logs_elasticsearch',name:{ru:'Логи сервисов (Elasticsearch)',en:'Service logs (Elasticsearch)'},type:'elasticsearch',
+    desc:{ru:'Индекс на день (logs-YYYY.MM.DD), ILM: hot → warm → delete',en:'Daily index (logs-YYYY.MM.DD), ILM: hot → warm → delete'},
+    schema:{tables:[
+      {name:'logs-2026.11.04',kind:'index',fields:[
+        {name:'@timestamp',type:'date'},
+        {name:'service',type:'keyword'},
+        {name:'level',type:'keyword'},
+        {name:'message',type:'text',analyzer:'standard'},
+        {name:'trace_id',type:'keyword'},
+        {name:'latency_ms',type:'integer'},
+      ],docs:[
+        {service:'orders',level:'ERROR',message:'Payment timeout for order'},
+        {service:'payments',level:'WARN',message:'Retry payment gateway'},
+        {service:'orders',level:'INFO',message:'Order created'},
+      ]},
+    ]}
+  },
+  // ── S3 / объектное хранилище ───────────────────────────────
+  {
+    id:'media_s3',name:{ru:'Медиафайлы (S3)',en:'Media files (S3)'},type:'s3',
+    desc:{ru:'Плоское пространство ключей: «папки» — это префиксы',en:'Flat keyspace: "folders" are just key prefixes'},
+    schema:{tables:[
+      {name:'media-uploads',kind:'bucket',fields:[
+        {name:'avatars/{user_id}/orig.jpg',type:'image/jpeg',size:'~2 MB'},
+        {name:'avatars/{user_id}/200x200.webp',type:'image/webp',size:'~20 KB'},
+        {name:'videos/{video_id}/source.mp4',type:'video/mp4',size:'~1 GB'},
+        {name:'videos/{video_id}/hls/720p/seg_{n}.ts',type:'video/mp2t',size:'~2 MB'},
+      ],lifecycle:[{prefix:'videos/',after:'30d',to:'STANDARD_IA'},{prefix:'videos/',after:'180d',to:'GLACIER'}]},
+      {name:'db-backups',kind:'bucket',fields:[
+        {name:'pg/{date}/base.tar.gz',type:'application/gzip',size:'~50 GB'},
+        {name:'pg/{date}/wal/{segment}',type:'application/octet-stream',size:'16 MB'},
+      ],lifecycle:[{prefix:'pg/',after:'7d',to:'GLACIER'},{prefix:'pg/',after:'90d',to:'EXPIRE'}]},
     ]}
   },
 ];

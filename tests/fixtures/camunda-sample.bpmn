@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.20.0">
+  <bpmn:process id="invoice" name="Согласование счёта" isExecutable="true" camunda:historyTimeToLive="P30D">
+    <bpmn:startEvent id="StartEvent_1" name="Счёт получен">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MED_1" />
+    </bpmn:startEvent>
+    <bpmn:userTask id="approve" name="Утвердить счёт" camunda:assignee="demo">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gateway_ok" name="Одобрен?">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_yes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_no</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="pay" name="Оплатить" camunda:type="external" camunda:topic="pay">
+      <bpmn:incoming>Flow_yes</bpmn:incoming>
+      <bpmn:outgoing>Flow_3</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:boundaryEvent id="Boundary_err" name="Отказ банка" attachedToRef="pay">
+      <bpmn:outgoing>Flow_err</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="EED_1" />
+    </bpmn:boundaryEvent>
+    <bpmn:sendTask id="notify" name="Уведомить">
+      <bpmn:incoming>Flow_no</bpmn:incoming>
+      <bpmn:incoming>Flow_err</bpmn:incoming>
+      <bpmn:outgoing>Flow_4</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:endEvent id="End_paid" name="Оплачен"><bpmn:incoming>Flow_3</bpmn:incoming></bpmn:endEvent>
+    <bpmn:endEvent id="End_rej" name="Отклонён"><bpmn:incoming>Flow_4</bpmn:incoming></bpmn:endEvent>
+    <bpmn:intermediateThrowEvent id="Throw_none" name="Промежуточное" />
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="approve" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="approve" targetRef="Gateway_ok" />
+    <bpmn:sequenceFlow id="Flow_yes" sourceRef="Gateway_ok" targetRef="pay">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${approved}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_no" name="нет" sourceRef="Gateway_ok" targetRef="notify">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${!approved}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="pay" targetRef="End_paid" />
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="notify" targetRef="End_rej" />
+    <bpmn:sequenceFlow id="Flow_err" sourceRef="Boundary_err" targetRef="notify" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="invoice">
+      <bpmndi:BPMNShape id="S1" bpmnElement="StartEvent_1"><dc:Bounds x="179" y="99" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S2" bpmnElement="approve"><dc:Bounds x="270" y="77" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S3" bpmnElement="Gateway_ok" isMarkerVisible="true"><dc:Bounds x="425" y="92" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S4" bpmnElement="pay"><dc:Bounds x="530" y="77" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S5" bpmnElement="notify"><dc:Bounds x="530" y="230" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S6" bpmnElement="End_paid"><dc:Bounds x="692" y="99" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S7" bpmnElement="End_rej"><dc:Bounds x="692" y="252" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S8" bpmnElement="Boundary_err"><dc:Bounds x="582" y="139" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="E1" bpmnElement="Flow_1"><di:waypoint x="215" y="117" /><di:waypoint x="270" y="117" /></bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

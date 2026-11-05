@@ -132,7 +132,7 @@
     var scenarios = (typeof S !== 'undefined' && S.scenarios) ? S.scenarios : [];
     var meta      = (typeof S !== 'undefined' && S.meta)      ? S.meta      : {};
 
-    if (!scenarios.length){ toast('❌ Нет сценариев — добавь сценарии со шагами'); return null; }
+    if (!scenarios.length){ toast('❌ ' + tTask({ru:'Нет сценариев — добавь сценарии со шагами',en:'No scenarios — add scenarios with steps'})); return null; }
 
     // Индекс блоков
     var idx = {};
@@ -193,7 +193,7 @@
     });
 
     if (!Object.keys(paths).length){
-      toast('❌ Нет HTTP-шагов в сценариях (нужны шаги с verb=POST/GET/…)');
+      toast('❌ ' + tTask({ru:'Нет HTTP-шагов в сценариях (нужны шаги с verb=POST/GET/…)',en:'No HTTP steps in scenarios (need steps with verb=POST/GET/…)'}));
       return null;
     }
 
@@ -296,7 +296,7 @@
             p(schemaToYaml(schema, '              '));
           } else {
             p('              type: object');
-            p('              description: "TODO: заполни поля запроса"');
+            p('              description: "TODO: ' + tTask({ru:'заполни поля запроса',en:'fill in request fields'}) + '"');
           }
         }
         p('      responses:');
@@ -309,7 +309,7 @@
         // 401 если есть auth
         if (Object.keys(secSchemes).length && !ep.responses['401']) {
           p('        "401":');
-          p('          description: "Не авторизован"');
+          p('          description: "' + tTask({ru:'Не авторизован',en:'Unauthorized'}) + '"');
         }
       });
     });

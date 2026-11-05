@@ -20,18 +20,18 @@ let _methId=null;
 // модалка сервиса = ИТОГОВАЯ ТАБЛИЦА (только просмотр). Методы задаются на линиях.
 function openMethods(id){
   const b=gb(id);if(!b)return;
-  if(!methodHost(b.type)){toast('Методы API задаются у сервисов / Gateway / внешних систем');return;}
+  if(!methodHost(b.type)){toast(t('meth_host_only'));return;}
   _methId=id;
   const d=EL[b.type];
-  $('meth-title').textContent='📡 API «'+(b.customLabel||d.lbl)+'» — итоговая таблица';
-  $('meth-sub').textContent='Методы задаются НА ЛИНИЯХ (клик по входящей стрелке). Здесь — что накопилось у сервиса со всех линий (для документа Word).';
+  $('meth-title').textContent='📡 API «'+(b.customLabel||d.lbl)+'» — '+tTask({ru:'итоговая таблица',en:'summary table'});
+  $('meth-sub').textContent=t('meth_sub');
   const addBtn=document.querySelector('#meth-modal [onclick="addMethod()"]');if(addBtn)addBtn.style.display='none';
   renderMethods();$('meth-modal').style.display='flex';
 }
 function renderMethods(){
   const box=$('meth-list');box.innerHTML='';
   const list=serviceMethods(_methId);
-  if(!list.length){box.innerHTML='<div style="color:var(--txt2);font-size:11.5px;padding:6px 0;line-height:1.6">У сервиса пока нет методов.<br>Кликни на <b>входящую линию</b> (стрелку, ведущую к этому сервису) и впиши метод прямо там.</div>';return;}
+  if(!list.length){box.innerHTML='<div style="color:var(--txt2);font-size:11.5px;padding:6px 0;line-height:1.6">'+t('meth_empty')+'</div>';return;}
   list.forEach(({m,from})=>{
     const row=document.createElement('div');row.style.cssText='border:1px solid #2a2b3d;border-radius:7px;padding:8px;margin-bottom:7px';
     row.innerHTML=`<div style="display:flex;gap:8px;align-items:baseline">
@@ -44,13 +44,13 @@ function renderMethods(){
     box.appendChild(row);
   });
 }
-function addMethod(){toast('Метод задаётся на линии — кликни входящую стрелку к сервису и впиши его там');}
+function addMethod(){toast(t('meth_add_hint'));}
 function closeMethods(){$('meth-modal').style.display='none';_methId=null;render();}
 // авторинг метода ПРЯМО НА ЛИНИИ: метод хранится на самой связи (c.method).
 // без перерисовки инспектора (чтобы не терять фокус ввода).
 function authorConnMethod(cid,field,val){
   const c=gc(cid);if(!c)return;const t=gb(c.to);if(!t)return;
-  if(!methodHost(t.type)){toast('Метод задаётся у сервиса / Gateway / внешней системы');return;}
+  if(!methodHost(t.type)){toast(tTask({ru:'Метод задаётся у сервиса / Gateway / внешней системы',en:'A method is set on a service / Gateway / external system'}));return;}
   if(!c.method)c.method={verb:'GET',uri:'',name:'',resp:''};
   c.method[field]=val;renderConns();pushHist();
 }
@@ -79,39 +79,39 @@ function renderParamsEditor(){
       <h2 style="color:#7aa2f7">📝 ${m.verb||'GET'} ${escHtml(m.uri||'')}</h2>
       <button class="modal-btn" onclick="closeParamsEditor()">✕</button>
     </div>
-    <div style="margin-bottom:10px"><label style="font-size:10px;color:#787c99">Описание метода</label>
-      <input style="${inp}" value="${escHtml(m.desc||'')}" placeholder="метод для регистрации пользователей" oninput="gc('${_paramCid}').method.desc=this.value"></div>
+    <div style="margin-bottom:10px"><label style="font-size:10px;color:#787c99">${t('meth_desc_label')}</label>
+      <input style="${inp}" value="${escHtml(m.desc||'')}" placeholder="${t('meth_desc_ph')}" oninput="gc('${_paramCid}').method.desc=this.value"></div>
 
-    <div style="font-size:12px;font-weight:700;color:#9ece6a;margin:8px 0 6px">Входные данные (параметры)</div>
+    <div style="font-size:12px;font-weight:700;color:#9ece6a;margin:8px 0 6px">${t('meth_params_title')}</div>
     <table style="width:100%;border-collapse:collapse;font-size:10.5px">
       <thead><tr style="color:#787c99;text-align:left">
-        <th style="padding:3px">Параметр</th><th style="padding:3px">Наименование</th><th style="padding:3px">Тип</th>
-        <th style="padding:3px">Обяз.</th><th style="padding:3px">Описание</th><th style="padding:3px">Где</th><th></th>
+        <th style="padding:3px">${t('meth_col_param')}</th><th style="padding:3px">${t('meth_col_label')}</th><th style="padding:3px">${t('meth_col_type')}</th>
+        <th style="padding:3px">${t('meth_col_required')}</th><th style="padding:3px">${t('meth_col_desc')}</th><th style="padding:3px">${t('meth_col_where')}</th><th></th>
       </tr></thead><tbody>
       ${(m.params||[]).map((p,i)=>`<tr>
         <td style="padding:2px"><input style="${inp}" value="${escHtml(p.name||'')}" oninput="gc('${_paramCid}').method.params[${i}].name=this.value"></td>
         <td style="padding:2px"><input style="${inp}" value="${escHtml(p.label||'')}" oninput="gc('${_paramCid}').method.params[${i}].label=this.value"></td>
         <td style="padding:2px"><input style="${inp};width:70px" value="${escHtml(p.type||'string')}" oninput="gc('${_paramCid}').method.params[${i}].type=this.value"></td>
-        <td style="padding:2px"><select style="${inp};width:56px" onchange="gc('${_paramCid}').method.params[${i}].required=this.value==='да'"><option ${p.required?'selected':''}>да</option><option ${!p.required?'selected':''}>нет</option></select></td>
+        <td style="padding:2px"><select style="${inp};width:56px" onchange="gc('${_paramCid}').method.params[${i}].required=this.value==='${t('meth_yes')}'"><option ${p.required?'selected':''}>${t('meth_yes')}</option><option ${!p.required?'selected':''}>${t('meth_no')}</option></select></td>
         <td style="padding:2px"><input style="${inp}" value="${escHtml(p.desc||'')}" oninput="gc('${_paramCid}').method.params[${i}].desc=this.value"></td>
         <td style="padding:2px"><select style="${inp};width:72px" onchange="gc('${_paramCid}').method.params[${i}].in=this.value">${['body','headers','query','path'].map(o=>`<option ${p.in===o?'selected':''}>${o}</option>`).join('')}</select></td>
         <td style="padding:2px"><span onclick="gc('${_paramCid}').method.params.splice(${i},1);renderParamsEditor()" style="cursor:pointer;color:#f7768e">✕</span></td>
       </tr>`).join('')}
       </tbody></table>
-    <button class="btn" onclick="gc('${_paramCid}').method.params.push({name:'',label:'',type:'string',required:true,desc:'',in:'body'});renderParamsEditor()" style="margin-top:6px">＋ Параметр</button>
+    <button class="btn" onclick="gc('${_paramCid}').method.params.push({name:'',label:'',type:'string',required:true,desc:'',in:'body'});renderParamsEditor()" style="margin-top:6px">${t('meth_add_param')}</button>
 
-    <div style="font-size:12px;font-weight:700;color:#e0af68;margin:12px 0 6px">Выходные данные / статус-коды</div>
+    <div style="font-size:12px;font-weight:700;color:#e0af68;margin:12px 0 6px">${t('meth_out_title')}</div>
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
-      <label style="font-size:10px;color:#787c99">Успех:</label>
+      <label style="font-size:10px;color:#787c99">${t('meth_success_label')}</label>
       <input style="${inp};max-width:200px" value="${escHtml(m.success||m.resp||'200 OK')}" placeholder="201 Created" oninput="gc('${_paramCid}').method.success=this.value">
     </div>
     <div id="codes-list">${(m.codes||[]).map((code,i)=>`<div style="display:flex;gap:6px;margin-bottom:4px">
       <input style="${inp}" value="${escHtml(code)}" oninput="gc('${_paramCid}').method.codes[${i}]=this.value">
       <span onclick="gc('${_paramCid}').method.codes.splice(${i},1);renderParamsEditor()" style="cursor:pointer;color:#f7768e;align-self:center">✕</span>
     </div>`).join('')}</div>
-    <button class="btn" onclick="gc('${_paramCid}').method.codes.push('400 Bad Request');renderParamsEditor()">＋ Статус-код</button>
+    <button class="btn" onclick="gc('${_paramCid}').method.codes.push('400 Bad Request');renderParamsEditor()">${t('meth_add_code')}</button>
 
-    <div style="margin-top:14px"><button class="modal-btn primary" onclick="closeParamsEditor()">Готово</button></div>
+    <div style="margin-top:14px"><button class="modal-btn primary" onclick="closeParamsEditor()">${t('meth_done')}</button></div>
   </div>`;
 }
 
@@ -124,6 +124,7 @@ function showCtx(e,id){
   const isDB=b&&['db','cache'].includes(EL[b.type]?.cat);
   const dbItem=$('ctx-dbedit');if(dbItem)dbItem.style.display=isPG?'block':'none';
   const dataItem=$('ctx-data');if(dataItem)dataItem.style.display=isDB?'block':'none';
+  const vizItem=$('ctx-dbviz');if(vizItem)vizItem.style.display=(b&&typeof DBV_META!=='undefined'&&DBV_META[b.type])?'block':'none';
 }
 function hideCtx(){$('ctx').style.display='none';}
 function ctxAct(a){const id=_ctxId;hideCtx();if(!id)return;
@@ -131,6 +132,7 @@ function ctxAct(a){const id=_ctxId;hideCtx();if(!id)return;
   else if(a==='settings'){const b=gb(id);if(b&&['kafka','rabbitmq','nats','queue'].includes(b.type))openBrokerInspector(id);else openSettings(id);}
   else if(a==='dbedit'&&typeof openDBEditor==='function')openDBEditor(id);
   else if(a==='data'&&typeof openDataEditor==='function')openDataEditor(id);
+  else if(a==='dbviz'&&typeof openDBViz==='function')openDBViz(id);
   else if(a==='dup'){const b=gb(id);if(b)S.blocks.push({...JSON.parse(JSON.stringify(b)),id:'b'+(S.nid++),x:b.x+30,y:b.y+30});pushHist();analyze();}
   else if(a==='del')delBlock(id);
 }
@@ -142,16 +144,16 @@ document.addEventListener('click',e=>{if(!$('ctx').contains(e.target))hideCtx();
 function onConnClick(cid){
   S.inspConn=cid;const c=gc(cid);if(!c)return;
   if(SIM.running&&!SIM.paused)pauseSim();
-  const f=gb(c.from),t=gb(c.to);const fd=EL[f?.type],td=EL[t?.type];
+  const f=gb(c.from),tb=gb(c.to);const fd=EL[f?.type],td=EL[tb?.type];
   const async=isAsync(c);
   const flow=goodFlow(fd,td)||{t:fd.lbl+' → '+td.lbl,f:''};
   const warn=S.connWarn?.[cid];
   // нагрузка на этой связи
-  const rt=t?.rt||{};
-  $('insp-title').textContent=`${f?.customLabel||fd?.lbl} → ${t?.customLabel||td?.lbl}`;
+  const rt=tb?.rt||{};
+  $('insp-title').textContent=`${f?.customLabel||fd?.lbl} → ${tb?.customLabel||td?.lbl}`;
   $('insp-badges').innerHTML=
-    `<span class="badge ${async?'async':'sync'}">${async?'⇢ Асинхронно':'→ Синхронно'}</span>`+
-    (rt.health?`<span class="badge ${rt.health}">${rt.health==='error'?'Перегрузка':rt.health==='warn'?'Под давлением':'OK'}</span>`:'')+
+    `<span class="badge ${async?'async':'sync'}">${async?t('insp_async'):t('insp_sync')}</span>`+
+    (rt.health?`<span class="badge ${rt.health}">${rt.health==='error'?t('insp_overload'):rt.health==='warn'?t('insp_pressure'):t('insp_ok')}</span>`:'')+
     (warn?`<span class="badge ${warn.sev}">⚠ ${warn.sev}</span>`:'');
   // живые шарики и треугольники на этой связи
   const allOnLine=Object.values(SIM.reqs).filter(r=>r.connId===cid);
@@ -159,33 +161,33 @@ function onConnClick(cid){
   const respDots=allOnLine.filter(r=>r.isResponse);
   const ok=dots.filter(d=>d.color==='#7aa2f7').length,sl=dots.filter(d=>d.color==='#e0af68').length,er=dots.filter(d=>d.color==='#f7768e').length;
   const rok=respDots.filter(d=>d.color==='#7aa2f7').length,rsl=respDots.filter(d=>d.color==='#e0af68').length;
-  // куда дальше после t
-  const nexts=S.conns.filter(x=>x.from===t?.id).map(x=>gb(x.to)).filter(Boolean);
-  const nextTxt=nexts.length?nexts.map(n=>n.customLabel||EL[n.type].lbl).join(', '):(['db','cache','queue','broker'].includes(td?.cat)?'конечная точка (хранилище)':'⚠ тупик — некуда идти');
-  const story=(f&&t)?hopNarrative(f,t,fd,td,async):null;
+  // куда дальше после tb
+  const nexts=S.conns.filter(x=>x.from===tb?.id).map(x=>gb(x.to)).filter(Boolean);
+  const nextTxt=nexts.length?nexts.map(n=>bLabel(n)).join(', '):(['db','cache','queue','broker'].includes(td?.cat)?t('insp_dead_end_store'):t('insp_dead_end'));
+  const story=(f&&tb)?hopNarrative(f,tb,fd,td,async):null;
   $('insp-body').innerHTML=`
-    <div class="ib-sec"><div class="ib-t">Что несёт связь</div><div class="ib-v">${flow.f||'Передача запроса от '+fd.lbl+' к '+td.lbl}</div></div>
-    ${story?`<div class="ib-sec"><div class="ib-t">Что происходит по шагам</div><div class="ib-v" style="line-height:1.7">${story.steps.map((s,i)=>`<div style="margin-bottom:3px"><span style="color:#7aa2f7;font-weight:700">${i+1}.</span> ${s}</div>`).join('')}</div></div>
-    <div class="ib-sec"><div class="ib-t">Что вернётся обратно</div><div class="ib-v" style="line-height:1.6;color:${async?'#bb9af7':'#9ece6a'}">${story.back}</div></div>`:''}
+    <div class="ib-sec"><div class="ib-t">${t('insp_what_carries')}</div><div class="ib-v">${flow.f||t('insp_default_flow')+fd.lbl+t('insp_to')+td.lbl}</div></div>
+    ${story?`<div class="ib-sec"><div class="ib-t">${t('insp_steps_title')}</div><div class="ib-v" style="line-height:1.7">${story.steps.map((s,i)=>`<div style="margin-bottom:3px"><span style="color:#7aa2f7;font-weight:700">${i+1}.</span> ${s}</div>`).join('')}</div></div>
+    <div class="ib-sec"><div class="ib-t">${t('insp_back_title')}</div><div class="ib-v" style="line-height:1.6;color:${async?'#bb9af7':'#9ece6a'}">${story.back}</div></div>`:''}
     <div class="ib-grid">
-      <div><div class="ib-t">Кто кого зовёт</div><div class="ib-v">${f?.customLabel||fd?.lbl} спрашивает ${t?.customLabel||td?.lbl}</div></div>
-      <div><div class="ib-t">Тип</div><div class="ib-v">${async?'Асинхронно — отправитель не ждёт':'Синхронно — отправитель ждёт ответа'}</div></div>
+      <div><div class="ib-t">${t('insp_who_calls')}</div><div class="ib-v">${bLabel(f)}${t('insp_asks')}${bLabel(tb)}</div></div>
+      <div><div class="ib-t">${t('insp_type')}</div><div class="ib-v">${async?t('insp_async_desc'):t('insp_sync_desc')}</div></div>
     </div>
     <div class="ib-grid">
-      <div><div class="ib-t">Нагрузка на ${t?.customLabel||td?.lbl}</div><div class="ib-v" style="color:${hClr(rt.health)||'#9ece6a'}">${rt.lambdaIn?fmt(rt.lambdaIn)+' rps · '+Math.round(rt.rho*100)+'%':'—'}</div></div>
-      <div><div class="ib-t">Задержка узла</div><div class="ib-v">${rt.effLat?rt.effLat.toFixed(1)+' мс':'—'}</div></div>
+      <div><div class="ib-t">${t('insp_load_on')}${bLabel(tb)}</div><div class="ib-v" style="color:${hClr(rt.health)||'#9ece6a'}">${rt.lambdaIn?fmt(rt.lambdaIn)+' rps · '+Math.round(rt.rho*100)+'%':'—'}</div></div>
+      <div><div class="ib-t">${t('insp_node_latency')}</div><div class="ib-v">${rt.effLat?rt.effLat.toFixed(1)+' '+tTask({ru:'мс',en:'ms'}):'—'}</div></div>
     </div>
-    <div class="ib-sec"><div class="ib-t">Куда пойдёт дальше</div><div class="ib-v">→ ${nextTxt}</div></div>
-    ${SIM.running?`<div class="ib-sec"><div class="ib-t">На линии сейчас</div><div class="ib-v">${dots.length||respDots.length?
-      `${dots.length?`🔵 Запросы: ${ok?'<span style="color:#7aa2f7">●'+ok+' ок</span> ':''}${sl?'<span style="color:#e0af68">●'+sl+' медл.</span> ':''}${er?'<span style="color:#f7768e">●'+er+' ошиб.</span>':''}`:''}`+
-      `${respDots.length?`${dots.length?'<br>':''}▶ Ответы: ${rok?'<span style="color:#7aa2f7">▶'+rok+' ок</span> ':''}${rsl?'<span style="color:#e0af68">▶'+rsl+' медл.</span>':''}`:''}`
-      :'нет активных'}</div></div>`:''}
+    <div class="ib-sec"><div class="ib-t">${t('insp_where_next')}</div><div class="ib-v">→ ${nextTxt}</div></div>
+    ${SIM.running?`<div class="ib-sec"><div class="ib-t">${t('insp_on_line_now')}</div><div class="ib-v">${dots.length||respDots.length?
+      `${dots.length?`${t('insp_requests')}${ok?'<span style="color:#7aa2f7">●'+ok+' '+t('insp_ok_short')+'</span> ':''}${sl?'<span style="color:#e0af68">●'+sl+' '+t('insp_slow_short')+'</span> ':''}${er?'<span style="color:#f7768e">●'+er+' '+t('insp_err_short')+'</span>':''}`:''}`+
+      `${respDots.length?`${dots.length?'<br>':''}${t('insp_responses')}${rok?'<span style="color:#7aa2f7">▶'+rok+' '+t('insp_ok_short')+'</span> ':''}${rsl?'<span style="color:#e0af68">▶'+rsl+' '+t('insp_slow_short')+'</span>':''}`:''}`
+      :t('insp_none_active')}</div></div>`:''}
     <div class="ib-sec" style="background:#7aa2f714;border-radius:6px;padding:8px 10px">
-      <div class="ib-t" style="color:#7aa2f7">📝 API-метод — на шаге сценария</div>
-      <div class="ib-v" style="font-size:10.5px;line-height:1.5;color:#9aa5ce">Связь — это только структура (кто с кем соединён). Метод (verb/URI/бизнес-смысл) задаётся на <b>шаге сценария</b>: вкладка «Методы» → у сценария кнопка <b style="color:#9ece6a">📝</b>. Оттуда строится UML.</div>
+      <div class="ib-t" style="color:#7aa2f7">${t('insp_method_title')}</div>
+      <div class="ib-v" style="font-size:10.5px;line-height:1.5;color:#9aa5ce">${t('insp_method_desc')}</div>
     </div>
-    ${warn?`<div class="ib-warn">${warn.msg}</div>`:''}
-    <button onclick="deleteConn('${cid}')" style="margin-top:10px;width:100%;padding:7px;border:1px solid #f7768e66;border-radius:6px;background:#f7768e18;color:#f7768e;cursor:pointer;font-size:11.5px;font-weight:600">✕ Удалить связь</button>
+    ${warn?`<div class="ib-warn">${esc(warn.msg)}</div>`:''}
+    <button onclick="deleteConn(${escJs(cid)})" style="margin-top:10px;width:100%;padding:7px;border:1px solid #f7768e66;border-radius:6px;background:#f7768e18;color:#f7768e;cursor:pointer;font-size:11.5px;font-weight:600">${t('insp_del_conn')}</button>
   `;
   $('inspection').classList.add('show');render();
 }

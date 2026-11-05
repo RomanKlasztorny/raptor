@@ -155,9 +155,9 @@ const TASKS=[
  check:H=>H.setGTE('service','replicas',3)?OK('Теперь сервис держит в 3 раза больше нагрузки.'):NO('В настройках сервиса (2× клик) поставь Реплики = 3')},
 
 {lv:'junior',t:'PgBouncer',goal:'Включи PgBouncer на PostgreSQL',
- theory:'PgBouncer — пул соединений. PostgreSQL плохо держит много одновременных подключений. PgBouncer их переиспользует → ёмкость ×5. Обязателен на проде.',
+ theory:'PgBouncer — пул соединений. PostgreSQL плохо держит много одновременных подключений. PgBouncer мультиплексирует сотни клиентских соединений в маленький пул → лимит max_connections больше не душит БД (ёмкость при этом не растёт). Обязателен на проде.',
  tip:'2× клик на PostgreSQL → включи PgBouncer',load:1,
- check:H=>H.setEq('postgresql','pgbouncer',true)?OK('Ёмкость БД выросла с 10К до 50К rps.'):NO('Включи PgBouncer в настройках PostgreSQL')},
+ check:H=>H.setEq('postgresql','pgbouncer',true)?OK('Лимит соединений снят: БД больше не деградирует, когда сервисов и реплик много.'):NO('Включи PgBouncer в настройках PostgreSQL')},
 
 {lv:'junior',t:'Read Replica',goal:'Добавь PostgreSQL хотя бы 1 Read Replica (настройка)',
  theory:'Реплика чтения — копия БД только для чтения. Запись идёт в мастер, чтение — с реплик. Снимает 70%+ нагрузки, ведь чтений обычно намного больше.',
@@ -255,9 +255,9 @@ const TASKS=[
  check:H=>H.link('service','mongodb')&&H.link('service','postgresql')&&H.count('service')>=2?OK('Каждому сервису — подходящая БД.'):NO('Сервис→MongoDB и другой Сервис→PostgreSQL')},
 
 {lv:'junior',t:'Elasticsearch для поиска',goal:'Сервис поиска → подключи хранилище для поиска',
- theory:'Для полнотекстового поиска (искать по словам в товарах) обычные БД медленные. Тут добавили бы Elasticsearch. В нашем наборе для поиска подойдёт и отдельная БД — главное отделить поиск от основной базы.',
- tip:'Отдельный сервис поиска со своей БД',load:1,
- check:H=>H.count('service')>=1&&H.linkC('svc','db')?OK('Поиск вынесен в отдельный сервис — правильно.'):NO('Сделай сервис поиска со своей БД')},
+ theory:'Для полнотекстового поиска (искать по словам в товарах) обычные БД медленные. Для этого есть Elasticsearch: инвертированный индекс по словам. Главное — отделить поиск от основной базы: сервис поиска → свой индекс Elasticsearch.',
+ tip:'Сервис → Elasticsearch (раздел «Хранилища»)',load:1,
+ check:H=>H.link('service','elasticsearch')?OK('Поиск вынесен в отдельный сервис — правильно.'):(H.linkC('svc','db')?NO('Для полнотекстового поиска нужен Elasticsearch, а не обычная БД'):NO('Сделай сервис поиска со своей БД (Elasticsearch)'))},
 
 {lv:'junior',t:'Здоровье при ×10',goal:'Любая твоя схема Client→GW→Сервис→БД, всё зелёное при ×10',
  theory:'×10 = 10 запросов/сек. Для лимитов в тысячи это пустяк. Убедись что всё зелёное.',
@@ -306,12 +306,12 @@ const TASKS=[
  check:H=>H.typeNoErr('service')&&H.B.some(b=>b.type==='postgresql'&&b.rt.health==='error')?OK('Узкое горло найдено — это БД. Дальше чиним её.'):NO('Сервис должен быть зелёным (реплики), а PostgreSQL красной')},
 
 {lv:'middle',t:'Спаси БД кэшем',goal:'Добавь Redis + Cache Aside. До БД дойдёт 20% — поможет ли при ×1М?',
- theory:'Cache Aside срежет нагрузку на БД до 20% = 200К. Но PostgreSQL держит 10К даже с PgBouncer (50К). 200К всё равно много! Кэша мало — нужно ещё.',
+ theory:'Cache Aside при hit rate 80% срежет нагрузку на БД до 20% = 200К. PostgreSQL держит ≈10К (PgBouncer снимает лимит соединений, но не умножает ёмкость). 200К всё равно много! Нужно поднять hit rate Redis (98% → 20К) и добавить реплики для чтения.',
  tip:'Redis+Cache Aside, потом PgBouncer и реплики БД',load:1000000,
- check:H=>H.patternOnCat('svc','cache_aside')&&H.has('redis')?(H.typeNoErr('postgresql')?OK('Кэш + масштаб БД спасли ситуацию!'):NO('Кэш помог, но БД ещё горит. Добавь PgBouncer + Read Replicas')):NO('Сначала добавь Redis и включи Cache Aside на сервисе')},
+ check:H=>H.patternOnCat('svc','cache_aside')&&H.has('redis')?(H.typeNoErr('postgresql')?OK('Кэш + масштаб БД спасли ситуацию!'):NO('Кэш помог, но БД ещё горит. Подними hit rate Redis (≥95%), добавь PgBouncer + Read Replicas')):NO('Сначала добавь Redis и включи Cache Aside на сервисе')},
 
 {lv:'middle',t:'PgBouncer + реплики БД',goal:'Доведи PostgreSQL до зелёного при ×1М (кэш + PgBouncer + Read Replicas)',
- theory:'Комбо: Cache Aside (÷5 нагрузки) + PgBouncer (×5 ёмкости) + Read Replicas (×каждая +70%). Вместе вытягивают огромную нагрузку.',
+ theory:'Комбо: Cache Aside (до БД доходят только промахи — при hit 98% это 2% чтений) + PgBouncer (сотни реплик сервиса не исчерпают max_connections) + Read Replicas (+70% к ЧТЕНИЮ на каждую). Запись (≈20% трафика к БД) идёт мимо кэша только в праймари — её реплики не ускоряют.',
  tip:'Cache Aside + PgBouncer + несколько Read Replicas',load:1000000,
  check:H=>H.typeNoErr('postgresql')&&H.patternOnCat('svc','cache_aside')?OK('БД спасена комбо приёмов. Так и делают на проде.'):NO('Нужно: Cache Aside + PgBouncer + Read Replicas, пока БД не позеленеет')},
 
@@ -383,7 +383,7 @@ const TASKS=[
 {lv:'middle',t:'CQRS',goal:'Сервис пишет в PostgreSQL, отдельный путь чтения через Redis/ClickHouse',
  theory:'CQRS: разделяем запись (Command) и чтение (Query). Пишем в PostgreSQL, а читаем из оптимизированного под чтение хранилища (Redis/ClickHouse). Масштабируются независимо.',
  tip:'Сервис записи→PostgreSQL, сервис чтения→Redis или ClickHouse',load:1000,
- check:H=>H.linkC('svc','db')&&(H.has('redis')||H.has('clickhouse'))&&H.count('service')>=2?OK('Чтение и запись разделены — каждое масштабируется отдельно.'):NO('Нужны раздельные пути: запись→PostgreSQL, чтение→Redis/ClickHouse')},
+ check:H=>H.linkC('svc','db')&&(H.link('service','redis')||H.link('service','clickhouse'))&&H.count('service')>=2?OK('Чтение и запись разделены — каждое масштабируется отдельно.'):NO('Нужны раздельные пути: запись→PostgreSQL, чтение→Redis/ClickHouse')},
 
 {lv:'middle',t:'Аналитика не мешает проду',goal:'Основной сервис→PostgreSQL, аналитика отдельно через Kafka→ClickHouse',
  theory:'Тяжёлые аналитические запросы убьют боевую БД. Решение: события идут в Kafka→ClickHouse, аналитика считается там, не трогая PostgreSQL.',
@@ -440,10 +440,26 @@ const TASKS=[
  tip:'Цепочка через NATS, Kafka, сервис, Cassandra',load:4000000,
  check:H=>H.has('nats')&&H.has('kafka')&&H.has('cassandra')&&H.noErr()&&H.pathTo('db')?OK('📡 IoT-пайплайн держит миллионы устройств.'):NO('Devices→NATS→Kafka→Processor→Cassandra, зелёное при ×4М')},
 
-{lv:'middle',t:'Грозовая защита БД',goal:'Перед PostgreSQL поставь ВСЁ: Cache Aside+Redis Cluster, PgBouncer, 5+ Read Replicas. Держи ×10М',
- theory:'Экстрим: 10 миллионов rps. Защити БД всеми способами сразу. Даже так PostgreSQL — предел; в реальности тут перешли бы на Cassandra/шардинг.',
- tip:'Cache Aside + Redis Cluster + PgBouncer + много Read Replicas',load:10000000,
- check:H=>H.patternOnCat('svc','cache_aside')&&H.setEq('redis','cluster',true)&&H.setEq('postgresql','pgbouncer',true)&&H.setGTE('postgresql','replicas',5)?(H.typeNoErr('postgresql')?OK('🛡 БД выжила под 10М! Хотя в реале тут уже Cassandra.'):NO('Все приёмы включены, но 10М — предел PostgreSQL. Попробуй ещё реплик или прими что тут нужна другая БД')):NO('Включи ВСЁ: Cache Aside, Redis Cluster, PgBouncer, 5+ Read Replicas')},
+{lv:'middle',t:'Грозовая защита БД',goal:'Удержи PostgreSQL под ×1М: Cache Aside + Redis Cluster (hit rate ≥95%), PgBouncer, 2+ Read Replicas. Всё зелёное или жёлтое',
+ theory:'Миллион rps на одну PostgreSQL (≈10К rps) не пройдёт никак — БД нужно ЗАЩИТИТЬ. 1) Cache Aside + Redis: до БД доходят только промахи — (100 − hit rate)% чтений; при 80% это 200К rps, при 98% — 20К. Hit rate — главный рычаг, и Redis должен вмещать горячие данные (maxmemory ≥ dataset или LFU), иначе hit падает. 2) Записи (по умолчанию 20% трафика к БД) идут мимо кэша и ТОЛЬКО на праймари — реплики их не ускоряют. 3) Read Replicas добавляют ёмкость чтения (+70% на реплику), но не записи и отстают (лаг). 4) Сотня реплик сервиса × conn_pool = тысячи соединений > max_connections — нужен PgBouncer. Если упираетесь в запись — уже не реплики, а шардинг/очередь.',
+ tip:'Gateway ~12 инстансов, сервис ~120 реплик + Cache Aside, Redis: cluster, hit_rate 98, allkeys-LFU, PostgreSQL: PgBouncer + 2–3 реплики',load:1000000,
+ check:H=>{
+  const pg=H.B.filter(b=>b.type==='postgresql'),rd=H.B.filter(b=>b.type==='redis');
+  if(!pg.length)return NO('Нужна PostgreSQL — её и защищаем');
+  if(!H.patternOnCat('svc','cache_aside')||!rd.length)return NO('Включи Cache Aside на сервисе и подключи Redis — без кэша на БД идёт весь миллион');
+  if(!H.setEq('redis','cluster',true))return NO('Один Redis-узел — точка отказа и потолок по памяти: включи Cluster');
+  if(!H.setEq('postgresql','pgbouncer',true))return NO('Включи PgBouncer: реплики сервиса × conn_pool превышают max_connections');
+  if(!H.setGTE('postgresql','replicas',2))return NO('Добавь 2+ Read Replicas — они примут чтения-промахи кэша');
+  const p=pg[0].rt||{};
+  if(rd.some(b=>b.rt.oomErr>0))return NO('Redis отвечает OOM — данные не влезают в maxmemory: увеличь память или выбери allkeys-LFU/LRU');
+  if(pg.some(b=>b.rt.health==='error')){
+   if(p.writeBound||p.rhoW>=0.9)return NO(`Реплики не помогут — PostgreSQL упирается в запись на праймари (${Math.round((p.lambdaWr||0))} из ${Math.round(p.capW||0)} rps). Подними hit rate Redis, чтобы снизить общий поток, или шардируй`);
+   if(p.connLimited)return NO('PostgreSQL упирается в соединения — проверь PgBouncer и conn_pool');
+   return NO(`До PostgreSQL доходит ${Math.round(p.lambdaIn||0)} rps при ёмкости ${Math.round(p.cap||0)}: подними hit rate Redis (≥95%) или добавь реплик`);
+  }
+  if(!H.noErr())return NO('БД жива, но красное выше по цепочке: '+H.overloaded().join(', ')+' — масштабируй Gateway/сервис');
+  return OK('🛡 БД выжила под ×1М: кэш срезал чтения, PgBouncer — соединения, реплики — остаток чтений, запись укладывается в праймари.');
+ }},
 
 {lv:'middle',t:'Видеосервис',goal:'CDN(видео)+метаданные(MySQL)+рекомендации(Redis)+аналитика(ClickHouse). ×4М',
  theory:'Стриминг: видео раздаёт CDN (не трогает бэкенд!), метаданные в MySQL, рекомендации из Redis, просмотры в ClickHouse. Каждое — свой оптимальный слой.',
@@ -466,7 +482,7 @@ const TASKS=[
  check:H=>H.n<=4&&H.n>=3&&H.noErr()&&H.pathTo('db')?OK('Простота — тоже инженерное решение. Не строй highload там, где не нужно.'):H.n>4?NO('Слишком много блоков — упрости до ≤4'):NO('Собери минимум (3-4 блока) до БД, зелёное при ×1000')},
 
 {lv:'middle',t:'Read/Write split',goal:'Сервис записи→PostgreSQL мастер, сервис чтения→PostgreSQL с Read Replicas',
- theory:'Разделение чтения и записи: 90% запросов обычно чтение. Пишем в мастер, читаем с реплик. Read Replicas масштабируют чтение почти бесконечно.',
+ theory:'Разделение чтения и записи: 90% запросов обычно чтение. Пишем в мастер, читаем с реплик. Read Replicas масштабируют ЧТЕНИЕ (+70% на реплику), но запись всегда упирается в один праймари: если записей много — реплики не помогут, нужны кэш перед чтением, очередь или шардинг.',
  tip:'Сервис записи→PostgreSQL, второй сервис чтения→другая PostgreSQL с репликами',load:1000000,
  check:H=>H.count('postgresql')>=1&&H.setGTE('postgresql','replicas',2)&&H.typeNoErr('postgresql')?OK('Чтение масштабируется репликами — главный приём для read-heavy.'):NO('Добавь PostgreSQL с Read Replicas ≥2, держи нагрузку зелёной')},
 
@@ -492,13 +508,13 @@ const TASKS=[
 
 {lv:'middle',t:'Аналитический пайплайн',goal:'Loggers→Kafka→Stream Processor→ClickHouse, BI-клиент→Query→ClickHouse. ×10М',
  theory:'Big Data пайплайн: события (10М/с!) идут в Kafka, обрабатываются стримом, ложатся в ClickHouse. Аналитики запрашивают через отдельный сервис. Масштабируй партиции и шарды.',
- tip:'Kafka с партициями, Stream Processor с репликами, ClickHouse с шардами',load:10000000,
- check:H=>H.has('kafka')&&H.has('clickhouse')&&H.setGTE('kafka','partitions',15)&&H.noErr()?OK('📊 10 миллионов событий в секунду на зелёном. CTO-уровень близко!'):NO('Kafka(много партиций)→Processor→ClickHouse(шарды), зелёное ×10М')},
+ tip:'Прикидка ×10М: один процессор упрётся в предел 1000 реплик (10К rps каждая = 10М, ρ=1.0) — раздели поток на 2 топика Kafka (logs и clicks) по ≥15 партиций, у каждого свой процессор ≈950 реплик (5М/10К/0.55); ClickHouse ≈40 шардов (500К каждый, держи ρ<60%)',load:10000000,
+ check:H=>H.has('kafka')&&H.has('clickhouse')&&H.setGTE('kafka','partitions',15)&&H.noErr()?OK('📊 10 миллионов событий в секунду на зелёном. CTO-уровень близко!'):(H.has('kafka')&&!H.setGTE('kafka','partitions',15)?NO('Kafka: ≥15 партиций под ×10М'):H.overloaded().length?NO('Горят: '+H.overloaded().join(', ')+' — один процессор держит максимум 10М (1000 реплик); раздели поток на 2 топика/процессора, ClickHouse ≈40 шардов'):NO('Kafka(много партиций)→Processor→ClickHouse(шарды), зелёное ×10М'))},
 
 {lv:'middle',t:'Финал Middle',goal:'Спроектируй highload-систему на твой вкус: ≥6 блоков, ≥2 паттерна, держит ×4М без красного и без каскадов',
  theory:'Выпускной Middle! Собери осмысленную систему любой предметной области. Условия: минимум 6 блоков, минимум 2 разных паттерна, путь до хранилища, и при ×4М — ноль красных, ноль каскадов.',
- tip:'Прояви всё что знаешь: масштаб, кэш, async, паттерны, правильные БД',load:4000000,
- check:H=>{const pats=new Set();H.B.forEach(b=>(b.patterns||[]).forEach(p=>pats.add(p)));return H.n>=6&&pats.size>=2&&H.noErr()&&H.noCascade()&&H.pathTo('db')&&H.noBad()?OK('🎓🔵 MIDDLE ПРОЙДЕН! Ты проектируешь масштабируемые отказоустойчивые системы. Дальше — Senior и CTO.'):H.n<6?NO('Нужно ≥6 блоков'):pats.size<2?NO('Используй ≥2 разных паттерна (CB, Retry, Cache Aside...)'):H.overloaded().length?NO('Горят: '+H.overloaded().join(', ')):H.cascading().length?NO('Каскады: '+H.cascading().join(', ')):NO('Доведи до хранилища и убери антипаттерны')}},
+ tip:'Прикидка ×4М (ρ = нагрузка/ёмкость; всё за входом держи ниже 60%, иначе каскад): Gateway ≈50 инстансов (100К каждый), LB ≈8, сервис ≈750 реплик (10К rps на реплику), Redis Cluster hit ≥99% + LFU ≈8 шардов, за кэшем хватит Cassandra. Паттерны: Cache Aside + Circuit Breaker',load:4000000,
+ check:H=>{const pats=new Set();H.B.forEach(b=>(b.patterns||[]).forEach(p=>pats.add(p)));return H.n>=6&&pats.size>=2&&H.noErr()&&H.noCascade()&&H.pathTo('db')&&H.noBad()?OK('🎓🔵 MIDDLE ПРОЙДЕН! Ты проектируешь масштабируемые отказоустойчивые системы. Дальше — Senior и CTO.'):H.n<6?NO('Нужно ≥6 блоков'):pats.size<2?NO('Используй ≥2 разных паттерна (CB, Retry, Cache Aside...)'):H.overloaded().length?NO('Горят: '+H.overloaded().join(', ')):H.cascading().length?NO('Каскады: '+H.cascading().join(', ')+' — блоки ниже в жёлтом (ρ≥60%): добавь им реплик/инстансов/шардов'):NO('Доведи до хранилища и убери антипаттерны')}},
 
 // ═══════════ SENIOR (101-130): концепции, trade-offs, отказоустойчивость ═══════════
 {lv:'senior',t:'Прикидка нагрузки (back-of-the-envelope)',goal:'Собери систему, держащую вычисленную нагрузку без красного. Путь до БД.',
@@ -624,8 +640,8 @@ const TASKS=[
 
 {lv:'staff',t:'Дизайн: глобальная система на 100М',goal:'Multi-region: ≥2 Gateway, CDN, LB, кэш, шардированная/масштабированная БД. Зелёное ×2М.',
  theory:'Собери всё вместе под глобальный масштаб. Уровни: CDN (статика у юзера) → GeoDNS → региональные Gateway-кластеры → LB → реплики сервисов → многослойный кэш (CDN/Redis) → шардированное хранилище с репликами по регионам. Думай про: failover региона, replication lag, data residency, стоимость (трафик между регионами дорог). Это не про один приём, а про слаженность всех уровней и осознанные trade-offs на каждом.',
- tip:'≥2 Gateway, CDN, LB, Redis+Cache Aside, масштабированная БД, путь до хранилища. ×2М',load:2000000,
- check:H=>H.count('api_gw')>=2&&H.has('cdn')&&H.hasCat('net')&&H.patternOnCat('svc','cache_aside')&&H.pathTo('db')&&H.noErr()&&H.noCascade()?OK('Глобальная многоуровневая система. Каждый слой масштабирован и осознанно выбран.'):H.count('api_gw')<2?NO('≥2 Gateway (регионы)'):!H.has('cdn')?NO('Добавь CDN'):!H.patternOnCat('svc','cache_aside')?NO('Включи Cache Aside'):H.overloaded().length?NO('Горят: '+H.overloaded().join(', ')):NO('Доведи до зелёного без каскадов')},
+ tip:'Прикидка ×2М: 2 Gateway по ≈20 инстансов (поток делится между регионами), LB ≈4, сервис ≈400 реплик (10К rps на реплику, ρ<60%), Redis Cluster hit ≥99% + LFU ≈4 шарда, за кэшем Cassandra; CDN на входе',load:2000000,
+ check:H=>H.count('api_gw')>=2&&H.has('cdn')&&H.hasCat('net')&&H.patternOnCat('svc','cache_aside')&&H.pathTo('db')&&H.noErr()&&H.noCascade()?OK('Глобальная многоуровневая система. Каждый слой масштабирован и осознанно выбран.'):H.count('api_gw')<2?NO('≥2 Gateway (регионы)'):!H.has('cdn')?NO('Добавь CDN'):!H.patternOnCat('svc','cache_aside')?NO('Включи Cache Aside'):H.overloaded().length?NO('Горят: '+H.overloaded().join(', ')):H.cascading().length?NO('Каскады: '+H.cascading().join(', ')+' — блоки ниже в жёлтом (ρ≥60%): добавь им реплик/инстансов/шардов'):NO('Доведи до зелёного без каскадов')},
 
 {lv:'staff',t:'Дешевле или надёжнее (trade-off)',goal:'Удержи ×2М МИНИМУМОМ блоков (≤7), без красного и каскадов, путь до БД.',
  theory:'Сеньор/стафф ценят не за нагромождение технологий, а за СОРАЗМЕРНОСТЬ. Каждый компонент — это деньги, сложность, точка отказа и человек на дежурстве. Лучший дизайн решает задачу минимумом частей. На собесе всегда явно проговаривай trade-offs: что выиграл и чем заплатил. Over-engineering (Kafka там, где хватит вызова функции) — красный флаг. Умей сказать: для этой нагрузки это избыточно.',
@@ -689,12 +705,12 @@ function trCheck(){
   const res=task.check(TH());
   const el=$('tr-result');
   if(res.ok){
-    el.className='tr-result ok';el.innerHTML=`✅ <b>Верно!</b> ${res.msg}`;
+    el.className='tr-result ok';el.innerHTML=`✅ <b>${t('tr_correct')}</b> ${res.msg}`;
     const p=trProgress();const done=p[TR.lv+'_done']||[];
     if(!done.includes(TR.idx)){done.push(TR.idx);p[TR.lv+'_done']=done;}
     p[TR.lv]=Math.min(list.length-1,TR.idx+1);trSaveProgress(p);
-    toast('✅ Задача решена!');
-    setTimeout(()=>{if(TR.idx<list.length-1){trGo(1);}else{el.innerHTML='🎓 Уровень пройден полностью!';}},1400);
+    toast(t('tr_task_done'));
+    setTimeout(()=>{if(TR.idx<list.length-1){trGo(1);}else{el.innerHTML=t('tr_level_done');}},1400);
   } else {
     el.className='tr-result no';el.innerHTML=`❌ ${res.msg}`;
   }

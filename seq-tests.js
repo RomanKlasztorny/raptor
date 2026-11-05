@@ -210,6 +210,39 @@ const seqTests = (() => {
   }
 
   // ════════════════════════════════════════════════════════
+  // T7: Раскладка — 15 участников / 30 сообщений без наложений
+  // ════════════════════════════════════════════════════════
+  function test7_layout() {
+    const names=[];for(let i=0;i<15;i++)names.push('Сервис номер '+(i+1)+(i%3?'':' с длинным названием'));
+    const L=['autonumber',...names.map((n,i)=>(i===0?'actor':i%5===4?'database':'participant')+' "'+n+'" as P'+i)];
+    for(let k=0;k<30;k++){const a=k%15,b=(k*7+3)%15;L.push('P'+a+(a===b?' -> P'+a:' -> P'+b)+': Очень длинная бизнес-подпись шага '+k+' которая должна переноситься // POST /api/v1/resource/'+k);}
+    L.splice(20,0,'alt Успех');L.splice(30,0,'else Ошибка');L.push('end');
+    const lay=seqLayout(parseSeq(L.join('\n')));
+    assert('T7: раскладка построена', !!lay);
+    let mono=true;for(let i=1;i<lay.cx.length;i++)if(!(lay.cx[i]-lay.cx[i-1]>=Math.max(lay.laneW[i-1],lay.laneW[i])/2+Math.min(lay.laneW[i-1],lay.laneW[i])/2))mono=false;
+    assert('T7: шапки участников не перекрываются', mono);
+    const svg=renderSeqSVG(parseSeq(L.join('\n')));
+    assert('T7: 30 номеров сообщений', (svg.match(/class="sq-num-t"/g)||[]).length===30);
+    assert('T7: стили вынесены в CSS-классы', svg.includes('<style>') && svg.includes('class="sq-msg'));
+    assert('T7: ширина/высота SVG конечны', /width="\d+(\.\d+)?"/.test(svg) && !/NaN|undefined/.test(svg));
+  }
+
+  // ════════════════════════════════════════════════════════
+  // T8: Экспорт в PlantUML
+  // ════════════════════════════════════════════════════════
+  function test8_plantuml() {
+    const src=['box "Каталог" #F3F6FB','participant Каталог','database "Catalog DB"','end box','queue order-events',
+      'Каталог -> "Catalog DB": Читает // SELECT 1','Каталог -) order-events: Публикует // order.paid','~~~ ждём','note over Каталог, order-events: заметка'].join('\n');
+    const p=seqToPlantUML(src);
+    assert('T8: @startuml/@enduml', p.startsWith('@startuml') && p.trim().endsWith('@enduml'));
+    assert('T8: box сохраняется', p.includes('box "Каталог" #F3F6FB') && p.includes('end box'));
+    assert('T8: имя с дефисом в кавычках', p.includes('queue "order-events"') && p.includes('->> "order-events"'));
+    assert('T8: биз/тех → \\n', p.includes('Читает\\nSELECT 1'));
+    assert('T8: ~~~ → ...', p.includes('...ждём...'));
+    assert('T8: hide footbox', p.includes('hide footbox'));
+  }
+
+  // ════════════════════════════════════════════════════════
   // ЗАПУСК ВСЕХ ТЕСТОВ
   // ════════════════════════════════════════════════════════
   function run() {
@@ -221,6 +254,8 @@ const seqTests = (() => {
     console.group('T4: Hidden steps');   test4_hiddenSteps(); console.groupEnd();
     console.group('T5: apiFor SQL');     test5_apiFor();      console.groupEnd();
     console.group('T6: Alt block');      test6_altBlock();    console.groupEnd();
+    console.group('T7: Layout 15×30');   test7_layout();      console.groupEnd();
+    console.group('T8: PlantUML');       test8_plantuml();    console.groupEnd();
     console.groupEnd();
 
     const total = pass+fail;

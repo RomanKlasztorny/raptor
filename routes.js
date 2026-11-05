@@ -23,16 +23,16 @@ let ROUTE_DRAFT=null;
 function startRouteDraw(){
   ensureScenarios();
   // НЕ привязываем первый узел: первый тап = инициатор сценария (любой блок — клиент, актор, да хоть БД)
-  ROUTE_DRAFT={editId:null,name:'Сценарий '+(S.scenarios.length+1),color:nextRouteColor(),actorId:null,path:[],steps:[]};
+  ROUTE_DRAFT={editId:null,name:(CURR_LANG==='en'?'Scenario ':'Сценарий ')+(S.scenarios.length+1),color:nextRouteColor(),actorId:null,path:[],steps:[]};
   S.mode='routing';
-  toast('Кликни ПЕРВЫЙ узел — это инициатор (любой). Дальше веди по пути · Enter — готово · Esc — отмена',4000);
+  toast(t('scen_draw_hint'),4000);
   switchTab('routes');render();renderRoutesPanel();
 }
 function editScenario(id){
   const s=(S.scenarios||[]).find(x=>x.id===id);if(!s)return;
   ROUTE_DRAFT={editId:id,name:s.name,color:s.color,actorId:s.actorId,path:s.path.slice()};
   ROUTE_HOVER=null;S.mode='routing';switchTab('routes');
-  toast('Правка: веди дальше кликом · Backspace — подрезать · Enter — сохранить',4000);
+  toast(t('scen_edit_hint'),4000);
   render();renderRoutesPanel();
 }
 let ROUTE_HOVER=null;
@@ -57,7 +57,7 @@ function routeCandidates(){
 }
 function isRouteCandidate(id){return S.mode==='routing'&&routeCandidates().has(id);}
 function setRouteHover(id){if(ROUTE_HOVER!==id){ROUTE_HOVER=id;render();}}
-function validateHop(a,c){const f=gb(a),t=gb(c);const bad=(typeof badConn==='function')?badConn(EL[f.type],EL[t.type]):null;if(bad&&bad.sev==='error'){toast('⛔ '+bad.msg+' — так запрос ходить не может');return false;}return true;}
+function validateHop(a,c){const f=gb(a),t=gb(c);const bad=(typeof badConn==='function')?badConn(EL[f.type],EL[t.type]):null;if(bad&&bad.sev==='error'){toast('⛔ '+bad.msg+' — '+tTask({ru:'так запрос ходить не может',en:'a request cannot travel this way'}));return false;}return true;}
 function routeClickNode(b){
   if(!ROUTE_DRAFT||!b)return;
   const path=ROUTE_DRAFT.path;
@@ -71,7 +71,7 @@ function routeClickNode(b){
     path.push(b.id);
   } else {
     const bfs=routePathBFS(last,b.id);
-    if(!bfs){toast('Нет пути по схеме до «'+nodeName(b.id)+'» — соедини узлы на схеме');return;}
+    if(!bfs){toast(tTask({ru:'Нет пути по схеме до «'+nodeName(b.id)+'» — соедини узлы на схеме',en:'No path on the diagram to "'+nodeName(b.id)+'" — connect the nodes on the diagram'}));return;}
     for(let i=1;i<bfs.length;i++){
       if(!validateHop(bfs[i-1],bfs[i]))return;
       path.push(bfs[i]);
@@ -85,7 +85,7 @@ function routeClickNode(b){
 }
 function finishRouteDraw(){
   if(!ROUTE_DRAFT)return;
-  if(ROUTE_DRAFT.path.length<2){toast('Маршрут должен пройти хотя бы 2 узла');return;}
+  if(ROUTE_DRAFT.path.length<2){toast(t('scen_min_nodes'));return;}
   if(ROUTE_DRAFT.editId){
     const s=S.scenarios.find(x=>x.id===ROUTE_DRAFT.editId);
     if(s){s.path=ROUTE_DRAFT.path.slice();s.name=ROUTE_DRAFT.name;s.color=ROUTE_DRAFT.color;s.actorId=ROUTE_DRAFT.actorId;}
@@ -93,7 +93,7 @@ function finishRouteDraw(){
     S.scenarios.push({id:'sc'+Date.now(),name:ROUTE_DRAFT.name,color:ROUTE_DRAFT.color,actorId:ROUTE_DRAFT.actorId,volume:100,path:ROUTE_DRAFT.path.slice(),steps:ROUTE_DRAFT.steps||[],visible:true});
   }
   removeStepPopup();
-  ROUTE_DRAFT=null;ROUTE_HOVER=null;S.mode='idle';pushHist();render();renderRoutesPanel();toast('✓ Сценарий сохранён');
+  ROUTE_DRAFT=null;ROUTE_HOVER=null;S.mode='idle';pushHist();render();renderRoutesPanel();toast(t('scen_saved'));
 }
 function cancelRouteDraw(){ROUTE_DRAFT=null;ROUTE_HOVER=null;S.mode='idle';render();renderRoutesPanel();}
 function routeUndoLast(){if(ROUTE_DRAFT&&ROUTE_DRAFT.path.length>1){ROUTE_DRAFT.path.pop();render();renderRoutesPanel();}}
@@ -198,7 +198,7 @@ const SCEN_VERBS=['GET','POST','PUT','PATCH','DELETE','PUBLISH','CONSUME','EVENT
 let _scenStepsId=null;
 function openScenSteps(id){
   const s=(S.scenarios||[]).find(x=>x.id===id);if(!s)return;
-  if(!s.path||s.path.length<2){toast('Сначала проложи маршрут сценария (минимум 2 узла)');return;}
+  if(!s.path||s.path.length<2){toast(t('scen_need_route_first'));return;}
   ensureScenSteps(s);
   _scenStepsId=id;
   let ov=document.getElementById('scensteps-modal');
@@ -220,34 +220,34 @@ function renderScenSteps(){
     const hidden=!!st._hidden;
     rows+=`<div style="border:1px solid ${hidden?'#2a2b3d':'#3d3f52'};border-radius:8px;padding:10px;margin-bottom:8px;background:#1a1b26;${hidden?'opacity:0.45':''}">
       <div style="font-size:11px;color:#7dcfff;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:8px">
-        Шаг ${i+1}: ${escHtml(from)} → ${escHtml(to)}
-        ${hidden?`<span style="font-size:9px;color:#787c99;background:#2a2b3d;padding:2px 7px;border-radius:10px;font-weight:400">скрыто в UML</span>`:''}
+        ${t('scensteps_step')}${i+1}: ${escHtml(from)} → ${escHtml(to)}
+        ${hidden?`<span style="font-size:9px;color:#787c99;background:#2a2b3d;padding:2px 7px;border-radius:10px;font-weight:400">${t('scensteps_hidden_uml')}</span>`:''}
       </div>
       ${hidden?`<div style="font-size:10px;color:#787c99;line-height:1.5">${escHtml(st.name||'')}</div>`:`
-      <label style="font-size:10px;color:#9ece6a">Бизнес-смысл (над стрелкой)</label>
-      <input style="${inp};margin-bottom:6px" value="${escHtml(st.name||'')}" placeholder="напр. Открывает профиль / Создаёт заказ" oninput="setScenStep(${i},'name',this.value)">
+      <label style="font-size:10px;color:#9ece6a">${t('scensteps_biz_label')}</label>
+      <input style="${inp};margin-bottom:6px" value="${escHtml(st.name||'')}" placeholder="${t('scensteps_biz_ph')}" oninput="setScenStep(${i},'name',this.value)">
       <div style="display:flex;gap:6px;margin-bottom:6px">
         <select style="${inp};width:90px;color:${VERB_CLR[st.verb||'GET']};font-weight:700" onchange="setScenStep(${i},'verb',this.value)">${SCEN_VERBS.map(v=>`<option ${(st.verb||'GET')===v?'selected':''}>${v}</option>`).join('')}</select>
-        <input style="${inp};color:#7dcfff" value="${escHtml(st.uri||'')}" placeholder="/api/v1/profile (под // в UML)" oninput="setScenStep(${i},'uri',this.value)">
+        <input style="${inp};color:#7dcfff" value="${escHtml(st.uri||'')}" placeholder="${t('scensteps_uri_ph')}" oninput="setScenStep(${i},'uri',this.value)">
       </div>
-      <label style="font-size:10px;color:#787c99">Ответ (обратная стрелка)</label>
-      <input style="${inp}" value="${escHtml(st.resp||'')}" placeholder="напр. 200 OK (профиль) / 201 Created" oninput="setScenStep(${i},'resp',this.value)">
+      <label style="font-size:10px;color:#787c99">${t('scensteps_resp_label')}</label>
+      <input style="${inp}" value="${escHtml(st.resp||'')}" placeholder="${t('scensteps_resp_ph')}" oninput="setScenStep(${i},'resp',this.value)">
       `}
     </div>`;
   }
   ov.innerHTML=`<div class="modal-box" style="max-width:560px;width:96%">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-      <h2 style="color:#9ece6a">📝 Методы сценария: ${escHtml(s.name)}</h2>
+      <h2 style="color:#9ece6a">${t('scensteps_title')}${escHtml(s.name)}</h2>
       <button class="modal-btn" onclick="closeScenSteps()">✕</button>
     </div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-      <span style="font-size:10.5px;color:#787c99;flex:1">Маршрут: ${escHtml(s.path.map(nodeName).join(' → '))}</span>
-      <button class="modal-btn" style="margin-top:0;border-color:#e0af6877;color:#e0af68" onclick="autofillScenSteps('${s.id}')" title="Заполнить очевидные шаги и ответы автоматически">✨ Авто</button>
+      <span style="font-size:10.5px;color:#787c99;flex:1">${t('scensteps_route')}${escHtml(s.path.map(nodeName).join(' → '))}</span>
+      <button class="modal-btn" style="margin-top:0;border-color:#e0af6877;color:#e0af68" onclick="autofillScenSteps('${s.id}')" title="${t('scensteps_autofill_title')}">${t('scensteps_autofill')}</button>
     </div>
     <div style="max-height:54vh;overflow-y:auto">${rows}</div>
     <div style="margin-top:12px;display:flex;gap:8px">
-      <button class="modal-btn primary" onclick="closeScenSteps()">Готово</button>
-      <button class="modal-btn" onclick="closeScenSteps();openSeqForScenario('${s.id}')">📜 Показать UML</button>
+      <button class="modal-btn primary" onclick="closeScenSteps()">${t('scensteps_done')}</button>
+      <button class="modal-btn" onclick="closeScenSteps();openSeqForScenario('${s.id}')">${t('scensteps_show_uml')}</button>
     </div>
   </div>`;
 }
@@ -265,14 +265,14 @@ function inferVerb(text){
   return'GET';
 }
 function autoResp(fc,tc,verb){
-  if(fc==='actor'||fc==='client')return 'Показывает результат';
-  if(tc==='db'||tc==='cache')return verb==='GET'?'Отдаёт данные':'Подтверждает операцию';
+  if(fc==='actor'||fc==='client')return tTask({ru:'Показывает результат',en:'Shows result'});
+  if(tc==='db'||tc==='cache')return verb==='GET'?tTask({ru:'Отдаёт данные',en:'Returns data'}):tTask({ru:'Подтверждает операцию',en:'Confirms operation'});
   if(tc==='broker'||tc==='queue')return '';
-  if(tc==='external')return '200 OK (внешний ответ)';
+  if(tc==='external')return tTask({ru:'200 OK (внешний ответ)',en:'200 OK (external response)'});
   // REST-корректные статус-коды по глаголу
   if(verb==='POST')return '201 Created';
   if(verb==='DELETE')return '204 No Content';
-  if(verb==='PUT')return '200 OK (ресурс заменён)';
+  if(verb==='PUT')return tTask({ru:'200 OK (ресурс заменён)',en:'200 OK (resource replaced)'});
   return '200 OK';
 }
 
@@ -393,35 +393,35 @@ function autofillScenSteps(id){
         // JWT stateless — Gateway проверяет подпись локально, DB не нужна
         st._hidden=true;
         st.verb='GET';
-        st.name='JWT проверяется локально (stateless — БД не нужна)';
+        st.name=tTask({ru:'JWT проверяется локально (stateless — БД не нужна)',en:'JWT is verified locally (stateless — no DB needed)'});
         st.uri=st.uri||'JWT signature validation (internal)';
         st.resp='';
       }else if(authType==='jwt_only'&&isLoginScenario){
         // Login/register: Auth ВСЕГДА читает БД — проверяет пароль/создаёт запись
         delete st._hidden;
         st.verb='POST';
-        if(!st.name||st.name===bizVerb(fc,tc,false))st.name='Проверяет учётные данные / создаёт пользователя';
+        if(!st.name||st.name===bizVerb(fc,tc,false))st.name=tTask({ru:'Проверяет учётные данные / создаёт пользователя',en:'Verifies credentials / creates user'});
         if(!st.uri)st.uri='SELECT * FROM users WHERE email = $1  -- bcrypt verify';
-        if(!st.resp)st.resp='Отдаёт данные пользователя';
+        if(!st.resp)st.resp=tTask({ru:'Отдаёт данные пользователя',en:'Returns user data'});
       }else if(authType==='session_based'){
         delete st._hidden;
         st.verb='GET';
-        if(!st.name||st.name===bizVerb(fc,tc,false))st.name='Читает сессию из хранилища';
+        if(!st.name||st.name===bizVerb(fc,tc,false))st.name=tTask({ru:'Читает сессию из хранилища',en:'Reads session from storage'});
         if(!st.uri)st.uri='SELECT * FROM sessions WHERE token = $1';
-        if(!st.resp)st.resp='Отдаёт данные сессии';
+        if(!st.resp)st.resp=tTask({ru:'Отдаёт данные сессии',en:'Returns session data'});
       }else{ // oauth2_jwt
         delete st._hidden;
         st.verb='GET';
-        if(!st.name||st.name===bizVerb(fc,tc,false))st.name='Проверяет OAuth-токен';
+        if(!st.name||st.name===bizVerb(fc,tc,false))st.name=tTask({ru:'Проверяет OAuth-токен',en:'Verifies OAuth token'});
         if(!st.uri)st.uri='SELECT * FROM oauth_tokens WHERE access_token_hash = $1';
-        if(!st.resp)st.resp='Отдаёт данные токена';
+        if(!st.resp)st.resp=tTask({ru:'Отдаёт данные токена',en:'Returns token data'});
       }
 
     }else if(isDbToSvc){
       // БД → Сервис: архитектурный разрыв, скрываем
       st._hidden=true;
       st.verb='GET';
-      st.name='(Auth завершил проверку — не показывается в UML)';
+      st.name=tTask({ru:'(Auth завершил проверку — не показывается в UML)',en:'(Auth finished the check — not shown in UML)'});
       st.uri='';
       st.resp='';
 
@@ -430,13 +430,13 @@ function autofillScenSteps(id){
       delete st._hidden;
       st.verb=finalVerb;
       if(!st.name||st.name===bizVerb(fc,tc,false)){
-        st.name=finalVerb==='GET'?`Читает ${resource}`:
-                finalVerb==='POST'?`Сохраняет ${resource}`:
-                (finalVerb==='PATCH'||finalVerb==='PUT')?`Обновляет ${resource}`:
-                `Удаляет ${resource}`;
+        st.name=finalVerb==='GET'?tTask({ru:`Читает ${resource}`,en:`Reads ${resource}`}):
+                finalVerb==='POST'?tTask({ru:`Сохраняет ${resource}`,en:`Saves ${resource}`}):
+                (finalVerb==='PATCH'||finalVerb==='PUT')?tTask({ru:`Обновляет ${resource}`,en:`Updates ${resource}`}):
+                tTask({ru:`Удаляет ${resource}`,en:`Deletes ${resource}`});
       }
       if(!st.uri)st.uri=buildSQL(resource,finalVerb);
-      if(!st.resp)st.resp=finalVerb==='GET'?'Отдаёт данные':'Подтверждает операцию';
+      if(!st.resp)st.resp=finalVerb==='GET'?tTask({ru:'Отдаёт данные',en:'Returns data'}):tTask({ru:'Подтверждает операцию',en:'Confirms operation'});
 
     }else if(isToFinalSvc&&fc!=='db'&&fc!=='cache'){
       // Вызов финального сервиса от реального caller'а ─────────
@@ -444,10 +444,10 @@ function autofillScenSteps(id){
       st.verb=finalVerb;
       if(!st.uri)st.uri=buildRestUri(resource,finalVerb); // POST=/resources, GET/PATCH/DELETE=/resources/{id}
       if(!st.name||st.name===bizVerb(fc,tc,false)){
-        st.name=finalVerb==='GET'?'Запрашивает данные':
-                finalVerb==='POST'?'Создаёт запись':
-                (finalVerb==='PATCH'||finalVerb==='PUT')?'Обновляет запись':
-                'Удаляет запись';
+        st.name=finalVerb==='GET'?tTask({ru:'Запрашивает данные',en:'Requests data'}):
+                finalVerb==='POST'?tTask({ru:'Создаёт запись',en:'Creates record'}):
+                (finalVerb==='PATCH'||finalVerb==='PUT')?tTask({ru:'Обновляет запись',en:'Updates record'}):
+                tTask({ru:'Удаляет запись',en:'Deletes record'});
       }
       if(!st.resp)st.resp=autoResp(fc,tc,finalVerb);
 
@@ -458,14 +458,14 @@ function autofillScenSteps(id){
       delete st._hidden;
       st.verb='GET';
       if(gwAuthMode.includes('JWT')){
-        if(!st.name||st.name===bizVerb(fc,tc,false))st.name='Маршрутизирует к Auth (login/register)';
+        if(!st.name||st.name===bizVerb(fc,tc,false))st.name=tTask({ru:'Маршрутизирует к Auth (login/register)',en:'Routes to Auth (login/register)'});
         if(!st.uri)st.uri='/api/v1/auth/*';
-        if(!st.resp)st.resp='200 OK · токен выдан';
+        if(!st.resp)st.resp=tTask({ru:'200 OK · токен выдан',en:'200 OK · token issued'});
       }else{
         // Session / OAuth2 — Gateway вызывает Auth на каждый запрос
-        if(!st.name||st.name===bizVerb(fc,tc,false))st.name='Проверяет токен (introspection)';
+        if(!st.name||st.name===bizVerb(fc,tc,false))st.name=tTask({ru:'Проверяет токен (introspection)',en:'Verifies token (introspection)'});
         if(!st.uri)st.uri='/api/v1/auth/validate';
-        if(!st.resp)st.resp='200 OK · токен валиден';
+        if(!st.resp)st.resp=tTask({ru:'200 OK · токен валиден',en:'200 OK · token valid'});
       }
 
     }else if(isFromActor){
@@ -494,7 +494,7 @@ function autofillScenSteps(id){
   }
 
   renderScenSteps();pushHist();
-  toast(`✨ Авто: промежуточные GET · конечный ${finalVerb} · Auth — по типу (jwt/session/oauth2)`);
+  toast(tTask({ru:`✨ Авто: промежуточные GET · конечный ${finalVerb} · Auth — по типу (jwt/session/oauth2)`,en:`✨ Auto: intermediate GET · final ${finalVerb} · Auth — by type (jwt/session/oauth2)`}));
 }
 
 // ── ШАГ-ПОПАП при рисовании маршрута ────────────────────────────
@@ -538,16 +538,16 @@ function showStepPopup(b){
   popup.style.cssText='position:fixed;z-index:9999;background:var(--bg1);border:2px solid var(--border);border-radius:8px;padding:12px;width:250px;box-shadow:4px 4px 0 #0004;font-family:Tahoma,sans-serif';
   popup.innerHTML=`
     <div style="font-size:10.5px;color:var(--blue);font-weight:700;margin-bottom:8px">📍 ${escHtml(b.customLabel||b.type)}</div>
-    <input id="sp-name" placeholder="Что делает? (бизнес-слой)" style="width:100%;box-sizing:border-box;padding:5px 7px;border:1px solid var(--brd2);border-radius:5px;background:var(--bg3);color:var(--txt);font-size:11px;margin-bottom:6px">
+    <input id="sp-name" placeholder="${t('step_popup_what')}" style="width:100%;box-sizing:border-box;padding:5px 7px;border:1px solid var(--brd2);border-radius:5px;background:var(--bg3);color:var(--txt);font-size:11px;margin-bottom:6px">
     <div style="display:flex;gap:5px;margin-bottom:6px">
       <select id="sp-verb" style="width:100px;padding:5px;border:1px solid var(--brd2);border-radius:5px;background:var(--bg3);color:var(--txt);font-size:11px">${opts}</select>
       <input id="sp-uri" placeholder="${escHtml(info.hint)}" style="flex:1;padding:5px 7px;border:1px solid var(--brd2);border-radius:5px;background:var(--bg3);color:var(--txt);font-size:11px">
     </div>
-    <input id="sp-resp" placeholder="Ответ: 200 OK" style="width:100%;box-sizing:border-box;padding:5px 7px;border:1px solid var(--brd2);border-radius:5px;background:var(--bg3);color:var(--txt);font-size:11px;margin-bottom:8px">
+    <input id="sp-resp" placeholder="${t('step_popup_resp')}" style="width:100%;box-sizing:border-box;padding:5px 7px;border:1px solid var(--brd2);border-radius:5px;background:var(--bg3);color:var(--txt);font-size:11px;margin-bottom:8px">
     <div style="display:flex;gap:6px">
-      <button onclick="submitStepPopup(${isLast?'false':'false'})" style="flex:1;padding:6px;background:var(--blue);color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:11px;font-weight:600">Добавить →</button>
-      ${isLast?`<button onclick="submitStepPopup(true)" style="padding:6px 8px;background:#2a6010;color:#9ece6a;border:1px solid #9ece6a55;border-radius:5px;cursor:pointer;font-size:11px">✓ Завершить</button>`:''}
-      <button onclick="skipStepPopup()" style="padding:6px 8px;background:transparent;border:1px solid var(--brd2);color:var(--txt2);border-radius:5px;cursor:pointer;font-size:11px">Пропустить</button>
+      <button onclick="submitStepPopup(${isLast?'false':'false'})" style="flex:1;padding:6px;background:var(--blue);color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:11px;font-weight:600">${t('step_popup_add')}</button>
+      ${isLast?`<button onclick="submitStepPopup(true)" style="padding:6px 8px;background:#2a6010;color:#9ece6a;border:1px solid #9ece6a55;border-radius:5px;cursor:pointer;font-size:11px">${t('step_popup_finish')}</button>`:''}
+      <button onclick="skipStepPopup()" style="padding:6px 8px;background:transparent;border:1px solid var(--brd2);color:var(--txt2);border-radius:5px;cursor:pointer;font-size:11px">${t('step_popup_skip')}</button>
     </div>`;
   document.body.appendChild(popup);
   // Автозаполнение URI из settings (verb уже выставлен через _smart)
@@ -555,14 +555,13 @@ function showStepPopup(b){
     const ue=document.getElementById('sp-uri');
     if(ue&&info.first.uri)ue.value=info.first.uri;
   }
-  // Позиция рядом с блоком
-  const svgEl=document.querySelector('#cv svg');
-  if(svgEl){try{
-    const pt=svgEl.createSVGPoint();pt.x=b.x+130;pt.y=b.y;
-    const sc=pt.matrixTransform(svgEl.getScreenCTM());
-    popup.style.left=Math.min(sc.x+8,window.innerWidth-265)+'px';
-    popup.style.top=Math.max(8,Math.min(sc.y,window.innerHeight-230))+'px';
-  }catch(e){popup.style.left='60%';popup.style.top='30%';}}
+  // Позиция рядом с блоком (учитывает пан и зум холста)
+  try{
+    const r=svgRct();const z=S.zoom||1;
+    const sx=r.left+(b.x+130)*z+S.panX,sy=r.top+b.y*z+S.panY;
+    popup.style.left=Math.min(sx+8,window.innerWidth-265)+'px';
+    popup.style.top=Math.max(8,Math.min(sy,window.innerHeight-230))+'px';
+  }catch(e){popup.style.left='60%';popup.style.top='30%';}
   popup.addEventListener('keydown',e=>{
     if(e.key==='Enter'){e.preventDefault();submitStepPopup();}
     if(e.key==='Escape'){e.preventDefault();skipStepPopup();}
@@ -576,8 +575,24 @@ function submitStepPopup(finish){
   const uri=(document.getElementById('sp-uri')||{}).value||'';
   const resp=(document.getElementById('sp-resp')||{}).value||'';
   (ROUTE_DRAFT.steps=ROUTE_DRAFT.steps||[]).push({name,verb,uri,resp,cache:null,dbTarget:null});
+  syncStepToConn(name,verb,uri,resp);
   removeStepPopup();
   if(finish)finishRouteDraw();
+}
+// Один шаг из попапа сценария = один источник и для sequence, и для метода связи на схеме.
+// Пишем verb/uri/name/resp сразу в c.method той связи, что соответствует последнему хопу пути.
+function syncStepToConn(name,verb,uri,resp){
+  if(!ROUTE_DRAFT||!ROUTE_DRAFT.path||ROUTE_DRAFT.path.length<2)return;
+  const path=ROUTE_DRAFT.path,a=path[path.length-2],bId=path[path.length-1];
+  const c=(S.conns||[]).find(x=>(x.from===a&&x.to===bId)||(x.from===bId&&x.to===a));
+  if(!c)return;
+  const t=gb(c.to);if(!t||typeof methodHost!=='function'||!methodHost(t.type))return;
+  if(!c.method)c.method={verb:'GET',uri:'',name:'',resp:''};
+  if(verb)c.method.verb=verb;
+  if(uri)c.method.uri=uri;
+  if(name)c.method.name=name;
+  if(resp)c.method.resp=resp;
+  if(typeof renderConns==='function')renderConns();
 }
 function skipStepPopup(){
   if(!ROUTE_DRAFT){removeStepPopup();return;}
@@ -624,7 +639,7 @@ function scenLoop(now){
       return true;
     }
     const idx=Math.min(Math.floor(b.t*(seg.length-1)),seg.length-2);const fr=b.t*(seg.length-1)-idx;
-    const p1=seg[idx],p2=seg[idx+1];const px=(p1.x+(p2.x-p1.x)*fr+S.panX),py=(p1.y+(p2.y-p1.y)*fr+S.panY);
+    const p1=seg[idx],p2=seg[idx+1];const px=(p1.x+(p2.x-p1.x)*fr),py=(p1.y+(p2.y-p1.y)*fr); // pan/zoom в transform слоя
     if(b.kind==='resp'){const ang=(Math.atan2(p2.y-p1.y,p2.x-p1.x)*180/Math.PI).toFixed(0);b.el.setAttribute('transform',`translate(${px.toFixed(1)},${py.toFixed(1)}) rotate(${ang})`);}
     else{b.el.setAttribute('cx',px.toFixed(1));b.el.setAttribute('cy',py.toFixed(1));}
     b.el.style.opacity='1';

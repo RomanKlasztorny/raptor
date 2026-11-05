@@ -5,21 +5,18 @@
 // ═══════════════════════════════════════════════════════════════
 function getSaves(){try{return JSON.parse(localStorage.getItem('arch4_sv')||'[]');}catch{return[];}}
 function saveCheckpoint(){
-  const name=prompt('Название:','Сейв '+(getSaves().length+1));if(!name)return;
+  const name=prompt('Name:','Save '+(getSaves().length+1));if(!name)return;
   const sv=getSaves();
-  // Сохраняем включая w/h блоков (ресайз)
-  sv.unshift({name,date:new Date().toLocaleString('ru'),data:{blocks:S.blocks.map(b=>({...b})),conns:S.conns,scenarios:S.scenarios||[],nid:S.nid,meta:S.meta||defaultMeta()}});
+  // Save including block w/h (resize) and BPMN data
+  sv.unshift({name,date:new Date().toLocaleString(),data:{blocks:S.blocks.map(b=>({...b})),conns:S.conns,scenarios:S.scenarios||[],nid:S.nid,notationMode:S.notationMode||'c4',bpmn:S.bpmn||{diagrams:[],currentDiagramId:null},meta:S.meta||defaultMeta()}});
   if(sv.length>30)sv.pop();
   localStorage.setItem('arch4_sv',JSON.stringify(sv));
   toast('💾 '+name);if(sideTab==='saves')renderSaves();
 }
 function loadSave(i){
-  const s=getSaves()[i];if(!s||!confirm('Загрузить?'))return;
-  S.blocks=s.data.blocks.map(b=>({...b,settings:b.settings||{},patterns:b.patterns||[]}));
-  S.conns=s.data.conns;S.scenarios=s.data.scenarios||[];S.nid=s.data.nid||1000;
-  S.meta=s.data.meta||defaultMeta();
-  S.selected=null;HIST=[];HI=-1;pushHist();analyze();
-  if(typeof renderRoutesPanel==='function')renderRoutesPanel();toast('📂 '+s.name);
+  const s=getSaves()[i];if(!s||!confirm('Load?'))return;
+  try{const rep=importProjectData(s.data,'save',{keepNid:true,quiet:true});toast('📂 '+s.name+(rep.droppedConns.length||rep.unknown.length?' · '+importReportText(rep):''));}
+  catch(e){toast('❌ '+e.message);}
 }
 function delSave(i,e){e.stopPropagation();const sv=getSaves();sv.splice(i,1);localStorage.setItem('arch4_sv',JSON.stringify(sv));renderSaves();}
 function renderSaves(){
@@ -27,12 +24,12 @@ function renderSaves(){
   let h=`<button onclick="saveCheckpoint()" style="width:100%;padding:6px;margin-bottom:8px;border:1px solid var(--blue);border-radius:6px;background:#1e4a9022;color:var(--blue);cursor:pointer;font-size:11.5px">${t('menu_save')}</button>
   <button onclick="exportJSON()" style="width:100%;padding:6px;margin-bottom:4px;border:1px solid var(--brd2);border-radius:6px;background:transparent;color:var(--txt2);cursor:pointer;font-size:11px">${t('menu_export_json')}</button>
   <button onclick="$('fi').click()" style="width:100%;padding:6px;margin-bottom:12px;border:1px solid var(--brd2);border-radius:6px;background:transparent;color:var(--txt2);cursor:pointer;font-size:11px">${t('menu_import_json')}</button>`;
-  sv.forEach((s,i)=>h+=`<div class="save-item" onclick="loadSave(${i})"><span class="save-name">${s.name}<div class="save-meta">${s.date}</div></span><span class="save-del" onclick="delSave(${i},event)">✕</span></div>`);
+  sv.forEach((s,i)=>h+=`<div class="save-item" onclick="loadSave(${i})"><span class="save-name">${esc(s.name)}<div class="save-meta">${esc(s.date)}</div></span><span class="save-del" onclick="delSave(${i},event)">✕</span></div>`);
   if(!sv.length)h+=`<div style="color:var(--txt2);font-size:11px">${t('saves_empty')}</div>`;
   c.innerHTML=h;
 }
 function exportJSON(){
-  const b=new Blob([JSON.stringify({blocks:S.blocks.map(b=>({...b})),conns:S.conns,scenarios:S.scenarios||[],meta:S.meta||defaultMeta()},null,2)],{type:'application/json'});
+  const b=new Blob([JSON.stringify({blocks:S.blocks.map(b=>({...b})),conns:S.conns,scenarios:S.scenarios||[],notationMode:S.notationMode||'c4',bpmn:S.bpmn||{diagrams:[],currentDiagramId:null},meta:S.meta||defaultMeta()},null,2)],{type:'application/json'});
   const name=(S.meta?.systemName||'arch').replace(/[\\/:*?"<>|]/g,'').trim()||'arch';
   const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`${name}.json`;a.click();
 }
@@ -71,29 +68,114 @@ function openPasteJSON(){
 
 function importJSONText(){
   var ta=document.getElementById('json-paste-area');
-  if(!ta||!ta.value.trim()){toast('⚠ Вставь JSON в поле выше');return;}
+  if(!ta||!ta.value.trim()){toast('⚠ Paste JSON above');return;}
   try{
     var raw=ta.value.trim();
-    // Вырезаем JSON из ```json ... ``` если вставили с маркдауном
+    // Strip markdown code fence if pasted
     var md=raw.match(/```(?:json)?\s*([\s\S]*?)```/);
     if(md)raw=md[1].trim();
     var d=JSON.parse(raw);
-    // Используем unwrapData из raptor-ai.js если доступен
+    // Use from raptor-ai.js if available
     if(typeof AI!=='undefined'&&typeof AI.mergeJSON==='function'){
-      AI.loadJSON(d);
+      // «свободный» JSON (от ИИ и т.п.) нормализует raptor-ai.js; затем общие правила импорта:
+      // nid = max(id)+1 и новая история
+      var _before=S.blocks;AI.loadJSON(d);
+      if(S.blocks!==_before){recomputeNidFromState();HIST=[];HI=-1;pushHist();}
     } else {
-      S.blocks=(d.blocks||[]).map(function(b){return Object.assign({settings:{},patterns:[]},b);});
-      S.conns=d.conns||[];
-      S.scenarios=normalizeScenarios(d.scenarios);
-      S.nid=2000;S.meta=d.meta||defaultMeta();S.selected=null;
-      pushHist();analyze();
-      if(typeof renderRoutesPanel==='function')renderRoutesPanel();
-      toast('📂 Загружено: '+S.blocks.length+' блоков');
+      importProjectData(d,'paste');
     }
     ta.value='';
     var modal = document.getElementById('paste-json-modal');
     if(modal) modal.style.display='none';
-  }catch(e){toast('❌ Ошибка JSON: '+e.message);}
+  }catch(e){toast('❌ JSON error: '+e.message);}
+}
+
+// Нормализация поля bpmn из внешнего JSON: принимает и канонический объект
+// {diagrams:[...],currentDiagramId}, и просто массив диаграмм, и одиночную диаграмму.
+function normalizeBpmn(raw){
+  if(!raw)return {diagrams:[],currentDiagramId:null};
+  if(Array.isArray(raw))return {diagrams:raw,currentDiagramId:raw[0]?.id||null};
+  if(raw.diagrams)return {diagrams:raw.diagrams,currentDiagramId:raw.currentDiagramId||raw.diagrams[0]?.id||null};
+  if(raw.elements)return {diagrams:[raw],currentDiagramId:raw.id||null}; // одиночная диаграмма без обёртки
+  return {diagrams:[],currentDiagramId:null};
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ИМПОРТ ПРОЕКТА — единая точка для файла, вставки JSON, сохранений и автосейва
+// ═══════════════════════════════════════════════════════════════
+// Пересчёт S.nid: максимум числового суффикса среди id блоков/связей (+ BPMN) + 1.
+// Раньше импорт ставил S.nid=2000 → новые блоки получали id, уже занятые импортированными.
+function recomputeNidFromState(){
+  let max=0;
+  const num=id=>{const m=/^[a-z_]{0,4}(\d{1,9})$/i.exec(String(id==null?'':id));if(m)max=Math.max(max,+m[1]);};
+  (S.blocks||[]).forEach(b=>num(b.id));(S.conns||[]).forEach(c=>num(c.id));
+  S.nid=Math.max(max+1,1000);
+  if(typeof bpmnSanitizeState==='function'){try{bpmnSanitizeState();}catch(e){}}
+  return S.nid;
+}
+// Валидация + загрузка. d — разобранный JSON. opts: {keepNid:bool, quiet:bool}.
+// Неизвестный тип блока не роняет приложение: блок остаётся (как «Внешний сервис»),
+// исходный тип в b._unknownType, на холсте — красная пунктирная рамка.
+// Связь, у которой нет блока на одном из концов, отбрасывается. Возвращает отчёт.
+// История (undo) после импорта начинается заново: undo не возвращает прошлый проект.
+function importProjectData(d,source,opts){
+  opts=opts||{};
+  if(!d||typeof d!=='object'||Array.isArray(d))throw new Error(tTask({ru:'ожидался объект проекта {blocks, conns, …}',en:'expected a project object {blocks, conns, …}'}));
+  const rep={source:source||'',blocks:0,conns:0,droppedBlocks:0,unknown:[],droppedConns:[],dupIds:0};
+  const seen=new Set();const blocks=[];
+  (Array.isArray(d.blocks)?d.blocks:[]).forEach((b,i)=>{
+    if(!b||typeof b!=='object'||Array.isArray(b)||!b.type){rep.droppedBlocks++;return;}
+    b={...b};
+    b.id=b.id==null?'':String(b.id);
+    if(!b.id||seen.has(b.id)){if(b.id)rep.dupIds++;b.id='imp'+i+'_'+Math.random().toString(36).slice(2,7);}
+    seen.add(b.id);
+    if(!EL[b.type]){
+      rep.unknown.push(String(b.type));
+      b._unknownType=String(b.type);b.type='external';
+      if(!b.customLabel)b.customLabel=b._unknownType;
+    }
+    b.x=Number.isFinite(+b.x)?+b.x:60+(i%6)*180;b.y=Number.isFinite(+b.y)?+b.y:60+Math.floor(i/6)*120;
+    if(b.customLabel!=null&&typeof b.customLabel!=='string')b.customLabel=String(b.customLabel);
+    b.settings=(b.settings&&typeof b.settings==='object')?b.settings:{};
+    b.patterns=Array.isArray(b.patterns)?b.patterns.filter(p=>typeof p==='string'):[];
+    // b.components (C3, необязательное): ручные компоненты сервиса; мусор отбрасываем
+    if('components' in b){const cm=typeof normalizeComponents==='function'?normalizeComponents(b.components):undefined;if(cm&&cm.length)b.components=cm;else delete b.components;}
+    blocks.push(b);
+  });
+  const ids=new Set(blocks.map(b=>b.id));const cseen=new Set();
+  const conns=[];
+  (Array.isArray(d.conns)?d.conns:[]).forEach((c,i)=>{
+    if(!c||typeof c!=='object'){rep.droppedConns.push('#'+i);return;}
+    const from=String(c.from),to=String(c.to);
+    if(!ids.has(from)||!ids.has(to)){rep.droppedConns.push((c.id||'#'+i)+': '+from+'→'+to);return;}
+    c={...c,from,to};
+    if(c.id==null||cseen.has(String(c.id)))c.id='cimp'+i;
+    c.id=String(c.id);cseen.add(c.id);conns.push(c);
+  });
+  S.blocks=blocks;S.conns=conns;
+  S.scenarios=normalizeScenarios((Array.isArray(d.scenarios)?d.scenarios:[]).filter(s=>s&&typeof s==='object'));
+  S.notationMode=d.notationMode==='bpmn'?'bpmn':'c4';
+  S.bpmn=normalizeBpmn(d.bpmn);
+  S.meta=(d.meta&&typeof d.meta==='object')?d.meta:defaultMeta();
+  S.selected=null;
+  const prevNid=+d.nid||0;recomputeNidFromState();
+  if(opts.keepNid&&prevNid>S.nid)S.nid=prevNid;
+  rep.blocks=blocks.length;rep.conns=conns.length;
+  HIST=[];HI=-1;pushHist();
+  analyze();
+  if(typeof renderRoutesPanel==='function')renderRoutesPanel();
+  if(typeof buildPalette==='function')buildPalette();
+  if(typeof render==='function')render();
+  if(!opts.quiet)toast(importReportText(rep));
+  return rep;
+}
+function importReportText(rep){
+  let s='📂 '+rep.blocks+' '+tTask({ru:'блоков',en:'blocks'})+', '+rep.conns+' '+tTask({ru:'связей',en:'connections'});
+  if(rep.unknown.length)s+=' · ⚠ '+tTask({ru:'неизвестные типы',en:'unknown types'})+': '+[...new Set(rep.unknown)].join(', ');
+  if(rep.droppedConns.length)s+=' · ✂ '+tTask({ru:'отброшено битых связей',en:'broken connections dropped'})+': '+rep.droppedConns.length;
+  if(rep.droppedBlocks)s+=' · ✂ '+tTask({ru:'пропущено некорректных блоков',en:'invalid blocks skipped'})+': '+rep.droppedBlocks;
+  if(rep.droppedConns.length||rep.unknown.length||rep.droppedBlocks)console.warn('[import]',rep);
+  return s;
 }
 
 $('fi').onchange=e=>{
@@ -101,10 +183,8 @@ $('fi').onchange=e=>{
   const r=new FileReader();
   r.onload=ev=>{try{
     const d=JSON.parse(ev.target.result);
-    S.blocks=(d.blocks||[]).map(b=>({...b,settings:b.settings||{},patterns:b.patterns||[]}));
-    S.conns=d.conns||[];S.scenarios=normalizeScenarios(d.scenarios);S.nid=2000;S.meta=d.meta||defaultMeta();S.selected=null;
-    pushHist();analyze();if(typeof renderRoutesPanel==='function')renderRoutesPanel();toast('📂 OK');
-  }catch{toast('Ошибка импорта');}};
+    importProjectData(d,'file');
+  }catch(err){toast('❌ Import error: '+err.message);}};
   r.readAsText(f);e.target.value='';
 };
 
@@ -127,20 +207,29 @@ document.addEventListener('keydown',e=>{
   if(inField)return;
 
   if(ctrl&&e.key==='s'){e.preventDefault();saveCheckpoint();}
-  else if(ctrl&&e.key==='l'){e.preventDefault();if(typeof autoLayout==='function')autoLayout();}
-  else if(ctrl&&e.key==='d'&&S.selected){
+  else if(ctrl&&e.key==='l'&&S.notationMode!=='bpmn'){e.preventDefault();if(typeof autoLayout==='function')autoLayout();}
+  else if(ctrl&&e.key==='d'&&S.selected&&S.notationMode!=='bpmn'){
     e.preventDefault();
     const _b=gb(S.selected);
     if(_b){S.blocks.push({...JSON.parse(JSON.stringify(_b)),id:'b'+(S.nid++),x:_b.x+40,y:_b.y+40});pushHist();analyze();}
   }
+  else if(ctrl&&e.key==='d'&&S.notationMode==='bpmn'&&(S.selected||(S.bpmnMulti||[]).length)){e.preventDefault();if(typeof bpmnDuplicateSelection==='function')bpmnDuplicateSelection();}
+  else if((e.key==='Delete'||e.key==='Backspace')&&(S.selected||(S.bpmnMulti||[]).length)&&S.notationMode==='bpmn'){e.preventDefault();if(typeof bpmnDeleteSelected==='function')bpmnDeleteSelected();}
   else if((e.key==='Delete'||e.key==='Backspace')&&S.selected){e.preventDefault();delBlock(S.selected);}
   else if(e.key==='Escape'){
     if(S.mode==='connecting'){S.mode='idle';S.connFrom=null;render();}
-    S.palSel=null;buildPalette();hideCtx();
+    if(S.mode==='bpmn-connecting'){S.mode='idle';S.bpmnConnFrom=null;render();}
+    S.palSel=null;S.bpmnPalSel=null;S.bpmnMulti=[];buildPalette();hideCtx();
     ['set-modal','dot-modal','advice','seq-modal'].forEach(id=>{const el=$(id);if(el)el.style.display='none';});
-    setC4Level(null);
+    if(S.notationMode!=='bpmn'){
+      // Esc на C3/C4 — на уровень выше (C4 → C3 → C2)
+      const _zl=typeof zsLevel==='function'?zsLevel():2;
+      if(S.view!=='c4_level'&&_zl>=3)zsGo(_zl-1);else setC4Level(null);
+    }
   }
   else if(e.key==='?'){showHotkeysHint();}
+  // C1…C4 — семантический зум (c4-zoom.js)
+  else if(!ctrl&&!e.altKey&&/^[1-4]$/.test(e.key)&&S.notationMode!=='bpmn'&&S.mode!=='routing'&&typeof zsGo==='function'){e.preventDefault();zsGo(+e.key);}
 });
 
 function showHotkeysHint(){
@@ -165,6 +254,8 @@ function showHotkeysHint(){
       ['Ctrl+D',t('hotkey_dup')],
       ['Delete / Backspace',t('hotkey_del')],
       ['Escape',t('hotkey_esc')],
+      ['1 / 2 / 3 / 4',t('hotkey_zs')],
+      [t('hotkey_wheel_k'),t('hotkey_wheel')],
       ['?',t('hotkey_show_hint')],
     ].map(([k,d])=>`<div style="display:flex;gap:16px;padding:5px 0;border-bottom:1px solid var(--border);font-size:11px">
       <span style="min-width:160px;font-weight:700;color:var(--blue);font-family:Consolas,monospace">${k}</span>
@@ -197,7 +288,8 @@ function openHelp(){
 }
 
 function autosave(){
-  try{localStorage.setItem('arch4_auto',JSON.stringify({blocks:S.blocks.map(b=>({...b})),conns:S.conns,scenarios:S.scenarios||[],nid:S.nid,meta:S.meta||defaultMeta()}));}catch{}
+  // ВАЖНО: bpmn и notationMode тоже в автосейв — иначе BPMN-диаграммы теряются при перезапуске
+  try{localStorage.setItem('arch4_auto',JSON.stringify({blocks:S.blocks.map(b=>({...b})),conns:S.conns,scenarios:S.scenarios||[],nid:S.nid,notationMode:S.notationMode||'c4',bpmn:S.bpmn||{diagrams:[],currentDiagramId:null},meta:S.meta||defaultMeta()}));}catch{}
 }
 window.addEventListener('beforeunload',autosave);
 setInterval(autosave,20000);
@@ -212,16 +304,29 @@ if(typeof applyLocale==='function'){
 buildPalette();
 buildExamples();
 initCanvas();
+if(typeof zsInit==='function')zsInit();
 // Добавить маркеры двунаправленных стрелок в SVG defs
 if(typeof ensureBiMarkers==='function') ensureBiMarkers();
 pushHist();
 analyze();
 
 // Восстановить автосейв
-const _a=JSON.parse(localStorage.getItem('arch4_auto')||'null');
-if(_a?.blocks?.length){
-  S.blocks=_a.blocks.map(b=>({...b,settings:b.settings||{},patterns:b.patterns||[]}));
-  S.conns=_a.conns;S.scenarios=normalizeScenarios(_a.scenarios);S.nid=_a.nid||1000;
-  S.meta=_a.meta||defaultMeta();
-  analyze();toast('⏱ Восстановлен');
-}
+// Битый автосейв (обрыв записи, ручная правка, несовместимая версия) не должен ронять
+// приложение: сырые данные уходят в arch4_auto_broken, старт с пустого проекта + тост.
+(function restoreAutosave(){
+  const raw=localStorage.getItem('arch4_auto');if(!raw)return;
+  try{
+    const _a=JSON.parse(raw);
+    if(!(_a?.blocks?.length||_a?.bpmn?.diagrams?.length))return;
+    const rep=importProjectData(_a,'autosave',{keepNid:true,quiet:true});
+    toast(tTask({ru:'⏱ Восстановлен',en:'⏱ Restored'})+(rep.droppedConns.length||rep.unknown.length?' · '+importReportText(rep):''));
+  }catch(e){
+    console.warn('[autosave] не удалось восстановить',e);
+    try{localStorage.setItem('arch4_auto_broken',raw);}catch(_){}
+    localStorage.removeItem('arch4_auto');
+    S.blocks=[];S.conns=[];S.scenarios=[];S.bpmn={diagrams:[],currentDiagramId:null};S.meta=defaultMeta();S.notationMode='c4';S.selected=null;
+    S.nid=1000;HIST=[];HI=-1;pushHist();
+    try{analyze();render();}catch(_){}
+    toast(tTask({ru:'⚠ Автосейв повреждён — начат пустой проект. Копия сохранена в localStorage «arch4_auto_broken»',en:'⚠ Autosave is corrupted — started an empty project. A copy is kept in localStorage "arch4_auto_broken"'}),6000);
+  }
+})();

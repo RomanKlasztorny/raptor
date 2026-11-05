@@ -14,7 +14,7 @@ function layerOf(b){
 }
 
 function autoLayout(){
-  if(!S.blocks.length){toast('Нет блоков');return;}
+  if(!S.blocks.length){toast(t('layout_no_blocks'));return;}
 
   const hGap=56, vGap=96;
   const startX=60, startY=40;
@@ -115,5 +115,5 @@ function autoLayout(){
     by+=bh(b)+60;
   });
 
-  pushHist();analyze();toast('📐 Авто-расстановка применена');
+  pushHist();analyze();toast(t('layout_applied'));
 }

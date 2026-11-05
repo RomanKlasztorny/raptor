@@ -7,8 +7,67 @@ var AI = {};
 (function () {
   'use strict';
 
-  var MODEL   = 'llama-3.3-70b-versatile';
-  var API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+  // ═══ ПРОВАЙДЕРЫ LLM ═══
+  // Enter your own API key in the AI panel.
+  // Enter your own API key in the AI panel.
+  // apinet.cloud — реселлер с OpenAI-совместимым API, отдаёт claude-sonnet-5, доступен из РФ напрямую (CORS: *).
+  // Enter your own API key in the AI panel.
+  // anthropic/groq оставлены на случай прямого ключа — идут через llm-proxy.js (:8966, start-proxy.bat).
+  var PXY = 'http://localhost:8966';
+  var PROVIDERS = {
+    apinet: {
+      url: 'https://apinet.cloud/v1/chat/completions',
+      model: 'claude-sonnet-5',
+      needKey: true, kind: 'openai', label: 'Claude (apinet)',
+      key: ''
+    },
+    anthropic: {
+      url: PXY + '/anthropic/v1/messages',
+      model: 'claude-haiku-4-5-20251001',   // прямой ключ Anthropic (sk-ant-…); нужен start-proxy.bat
+      needKey: true, kind: 'anthropic', label: 'Claude'
+    },
+    groq: {
+      url: PXY + '/groq/openai/v1/chat/completions',
+      model: 'llama-3.3-70b-versatile',
+      needKey: true, kind: 'openai', label: 'Groq'
+    },
+    ollama: {
+      url: 'http://localhost:11434/api/chat',
+      // 7b (~5.6 ГБ VRAM) — оставляет ~5 ГБ карты дисплею, система не виснет.
+      // 14b (~10 ГБ) забивает всю память 1080ti и морозит рабочий стол — НЕ ставить дефолтом.
+      model: 'qwen2.5:7b',
+      needKey: false, kind: 'ollama', label: 'Ollama',
+      num_ctx: 8192
+    }
+  };
+  var PROVIDER = localStorage.getItem('raptor_ai_provider') || 'apinet';
+  function P(){ return PROVIDERS[PROVIDER] || PROVIDERS.apinet; }
+  function keyStoreName(){ return 'raptor_ai_key_' + PROVIDER; }
+  function resolveKey(){ return localStorage.getItem(keyStoreName()) || P().key || localStorage.getItem('raptor_ai_key') || null; }
+
+  function syncLabel(){
+    var el = document.getElementById('ai-model-label');
+    if (!el) return;
+    el.textContent = (P().label || PROVIDER) + ' / ' + P().model;
+    el.style.cursor = 'pointer';
+    el.title = 'Клик — сменить провайдера (apinet / Claude / Groq / Ollama)';
+    el.onclick = function(){
+      var order = ['apinet','anthropic','groq','ollama'];
+      AI.setProvider(order[(order.indexOf(PROVIDER)+1) % order.length]);
+      if (P().needKey && !apiKey) AI.promptKey(function(){});
+    };
+  }
+  AI.setProvider = function(name){
+    if (!PROVIDERS[name]) return;
+    PROVIDER = name; localStorage.setItem('raptor_ai_provider', name);
+    var sm = localStorage.getItem('raptor_ai_model_'+PROVIDER); if (sm) P().model = sm;
+    apiKey = resolveKey();
+    syncLabel();
+    if (typeof toast === 'function') toast('AI: ' + name + ' (' + P().model + ')');
+  };
+  AI.setModel = function(m){ P().model = m; localStorage.setItem('raptor_ai_model_'+PROVIDER, m); syncLabel(); };
+  AI.getProvider = function(){ return { provider: PROVIDER, model: P().model, hasKey: !!apiKey }; };
+  AI.providers = function(){ return Object.keys(PROVIDERS); };
 
   var apiKey      = null;
   var chatHistory = [];
@@ -30,13 +89,35 @@ var AI = {};
   }
   function detectPatch(t){ return detectPatchDB(t) || detectPatchAdd(t); }
 
+  // Короткое подтверждение ЦЕЛИКОМ ("да", "давай", "го", "давай генерируй") —
+  // НЕ срабатывает на "давай попробуем обсудить...", "давай без оркестратора..."
+  var CONFIRM_RE = /^(да|ага|давай(те)?|ок(ей)?|го|yes|ok|погнали|впер[её]д|жги|поехали|конечно|делай|плюс)([\s,!.\-—]+(генери(руй)?|сгенерируй|json|схему?|погнали|давай|го|делай|можно))*[\s,!.\-—]*$/i;
+  function isConfirmMsg(t){ t=(t||'').trim(); return t.length <= 40 && CONFIRM_RE.test(t); }
+  // Начинается с «да/давай/го…», короткое и без слов-обсуждений → согласие на генерацию
+  function startsConfirm(t){
+    t = (t||'').trim();
+    if (t.length > 80) return false;
+    if (/обсуд|поговор|расскаж|сравни|подума|а что если|в чём разниц|вопрос|почему|зачем|как\s/i.test(t)) return false;
+    return /^(да|ага|ок(ей)?|давай(те)?|го|yes|ok|погнали|поехали|конечно|делай|жги|впер[её]д)\b/i.test(t);
+  }
+  // Есть ли незакрытый план (последний ответ AI звал «Генерировать JSON?»)
+  function planPending(){
+    for (var i=chatHistory.length-1;i>=0;i--){
+      if (chatHistory[i].role==='assistant')
+        return /генерир\w*\s+json|generate\s+json|генерировать\s+json\??/i.test(chatHistory[i].content||'');
+    }
+    return false;
+  }
+
   function detectGen(t){
     if (detectPatch(t)) return false;
+    // Подтверждение плана: «да», «давай», «да, оркестратор» — но только если план ждёт ответа
+    if (startsConfirm(t) && planPending()) return true;
+    // Явная просьба обсудить — не генерируем, даже если есть название домена
+    if (/обсуд|поговор|давай\s+подума|а\s+что\s+если|сравни|в\s+чём\s+разниц|стоит\s+ли|посовет|как\s+лучше|что\s+думаешь/i.test(t)) return false;
     // Явные команды генерации
     if (/сгенерируй|генерируй|generate|создай систему|разработай|спроектируй/i.test(t)) return true;
     if (/сделай.{0,20}(систем|всё|все|сразу|json|схем)|всю систем|пришли.{0,10}(json|схем)|сделай всё/i.test(t)) return true;
-    // Подтверждение
-    if (/^(да|давай|ок|го|yes|ok|погнали|вперёд|вперед|жги|поехали|конечно|делай)(\s|$)/i.test(t)) return true;
     // Описание домена — даже короткое ("создадим зоомагазин", "хочу платформу менторства")
     var hasDomain = /магазин|платформ|маркетплейс|marketplace|интернет.магазин|соцсет|банк|финтех|доставк|курьер|такси|медицин|клиник|образован|учебн|школ|crm|erp|booking|бронирован|аренд|стриминг|чат|мессенджер|форум|блог|портал|склад|логистик/i.test(t);
     if (hasDomain) return true;
@@ -219,7 +300,7 @@ var AI = {};
       'ЗАПРЕЩЕНО: JSON в этом режиме. Язык: русский, кратко.';
   }
 
-  function buildGen(){
+  function buildGen(skipDb){
     var ctx = getContext();
     return 'You are a JSON generator for the RAPTOR architecture tool.\n' +
       'OUTPUT ONLY one raw ```json code block. NO text before/after, NO markdown outside it.\n' +
@@ -232,7 +313,9 @@ var AI = {};
       '3. Use kafka for ALL cross-service async events. Consumers are separate service blocks (conn kafka→service).\n' +
       '4. External payment/SMTP/SMS = type "external".\n' +
       '5. Coords: actor x=-100, web_client x=100, api_gw x=320, services x=540, kafka x=760, db x=980, external x=1200. y: first=60, each next in same column +160.\n\n' +
-      DB_RULES + '\n' +
+      (skipDb
+        ? '═══ NO DB SCHEMAS HERE ═══\nOutput db blocks WITHOUT the "dbSchema" field — schemas are generated in a separate step. Focus on: all blocks, all conns, all scenarios.\n\n'
+        : DB_RULES + '\n') +
       SCENARIO_RULES + '\n' +
       '═══ CONN DIRECTION — MANDATORY ═══\n' +
       'conns ALWAYS flow client-side → server-side: actor→web_client→api_gw→service→db.\n' +
@@ -248,6 +331,24 @@ var AI = {};
       '- Soft delete: deleted_at TIMESTAMPTZ. Optimistic lock: version INTEGER NN default 1.\n' +
       '- Large lists → use cursor pagination (WHERE id > :cursor), NOT OFFSET.\n\n' +
       '═══ MINIMAL FORMAT EXAMPLE (note steps.length === path.length) ═══\n' +
+      (skipDb
+        ? '```json\n{"blocks":[' +
+          '{"id":"b1","type":"actor","customLabel":"Покупатель","x":-100,"y":60,"patterns":[],"settings":{}},' +
+          '{"id":"b2","type":"web_client","customLabel":"Веб-приложение","x":100,"y":60,"patterns":[],"settings":{}},' +
+          '{"id":"b3","type":"api_gw","customLabel":"API Gateway","x":320,"y":60,"patterns":[],"settings":{}},' +
+          '{"id":"b4","type":"service","customLabel":"Заказы","x":540,"y":60,"patterns":[],"settings":{}},' +
+          '{"id":"b8","type":"postgresql","customLabel":"Orders DB","x":980,"y":60,"patterns":[],"settings":{}}],' +
+          '"conns":[{"id":"c1","from":"b1","to":"b2"},{"id":"c2","from":"b2","to":"b3"},{"id":"c3","from":"b3","to":"b4"},{"id":"c4","from":"b4","to":"b8"}],' +
+          '"scenarios":[{"id":"sc1","name":"Оформить заказ","color":"#7aa2f7","actorId":"b1","volume":100,"visible":true,' +
+          '"path":["b1","b2","b3","b4","b8"],"steps":[' +
+          '{"name":"Открывает корзину","verb":"","uri":"","resp":"","cache":null,"dbTarget":null},' +
+          '{"name":"Оформить заказ","verb":"POST","uri":"/api/v1/orders","resp":"201 {orderId}","cache":null,"dbTarget":null},' +
+          '{"name":"Маршрутизирует","verb":"POST","uri":"/orders","resp":"201","cache":null,"dbTarget":null},' +
+          '{"name":"Создать заказ","verb":"POST","uri":"/orders","resp":"201 {orderId}","cache":null,"dbTarget":null},' +
+          '{"name":"Сохранить заказ","verb":"INSERT","uri":"orders","resp":"uuid","cache":null,"dbTarget":"b8"}]}],' +
+          '"meta":{"systemName":"Зоомагазин","description":"...","domain":"e-commerce"}}\n```\n\n' +
+          'Now output the FULL topology (blocks + conns + scenarios, NO dbSchema). Scale to the number of services needed.'
+        : (
       '```json\n' +
       '{"blocks":[\n' +
       '  {"id":"b1","type":"actor","customLabel":"Покупатель","x":-100,"y":60,"patterns":[],"settings":{}},\n' +
@@ -303,7 +404,46 @@ var AI = {};
       '[ ] EVERY scenario: steps.length === path.length, no duplicate steps\n' +
       '[ ] no "uml" field in scenarios\n' +
       '[ ] all ids are strings, conns reference ids not names\n\n' +
-      'Now generate the FULL schema for the user request. Scale to the number of services needed.';
+      'Now generate the FULL schema for the user request. Scale to the number of services needed.'
+      ));
+  }
+
+  // Компактный stage-1 промпт для локальных моделей: топология без dbSchema (её добирает stage-2).
+  // Цель — уложиться в 4k контекста вместе с ответом.
+  function buildGenLite(){
+    var ctx = getContext();
+    return 'You are a JSON generator for the RAPTOR architecture tool.\n' +
+      'OUTPUT ONLY one ```json block. Keys English, customLabel/name/desc Russian. ids are strings "b1","c1","sc1".\n' +
+      (ctx ? 'Current canvas: '+JSON.stringify(ctx)+'\n' : '') +
+      '\nBLOCK TYPES: actor web_client mob_client api_gw lb bff service auth external postgresql mysql mongodb redis elasticsearch s3 kafka rabbitmq queue\n' +
+      '\nRULES:\n' +
+      '1. Always: 1 actor + 1 web_client + 1 api_gw.\n' +
+      '2. One service per business capability. EACH service gets its OWN postgresql block (NO dbSchema here — schemas added later).\n' +
+      '3. conns flow client→server: actor→web_client→api_gw→service→db. NEVER db→service. Never service A → db of service B.\n' +
+      '4. kafka only if user wants async/events/saga. Consumer = its own service block, conn kafka→consumer→its db.\n' +
+      '5. redis (cache) / elasticsearch (search) / external (payment,SMS,email) only when relevant. conn service→redis, service→elasticsearch.\n' +
+      '6. Coords: actor x=-100, web_client x=100, api_gw x=320, service x=540, kafka x=760, db x=980, external x=1200; y starts 60, +160 per block in a column.\n' +
+      '\nSCENARIOS: 3-5 items. CRITICAL steps.length === path.length (step[i] happens at path[i]).\n' +
+      ' actor step: verb="" uri="" name="Открывает/Нажимает…". client/api_gw: POST|GET|PUT|DELETE + /path + "201/200".\n' +
+      ' db step: SELECT|INSERT|UPDATE + table_name + result. kafka step: PUBLISH + topic.event + "".\n' +
+      ' async = 2 scenarios: publisher (path ends at kafka) + consumer (path starts at kafka, no actor).\n' +
+      '\nEXAMPLE:\n```json\n' +
+      '{"blocks":[' +
+      '{"id":"b1","type":"actor","customLabel":"Покупатель","x":-100,"y":60,"patterns":[],"settings":{}},' +
+      '{"id":"b2","type":"web_client","customLabel":"Веб-приложение","x":100,"y":60,"patterns":[],"settings":{}},' +
+      '{"id":"b3","type":"api_gw","customLabel":"API Gateway","x":320,"y":60,"patterns":[],"settings":{}},' +
+      '{"id":"b4","type":"service","customLabel":"Заказы","x":540,"y":60,"patterns":[],"settings":{}},' +
+      '{"id":"b5","type":"postgresql","customLabel":"Orders DB","x":980,"y":60,"patterns":[],"settings":{}}],' +
+      '"conns":[{"id":"c1","from":"b1","to":"b2"},{"id":"c2","from":"b2","to":"b3"},{"id":"c3","from":"b3","to":"b4"},{"id":"c4","from":"b4","to":"b5"}],' +
+      '"scenarios":[{"id":"sc1","name":"Оформить заказ","color":"#7aa2f7","actorId":"b1","volume":100,"visible":true,' +
+      '"path":["b1","b2","b3","b4","b5"],"steps":[' +
+      '{"name":"Открывает корзину","verb":"","uri":"","resp":""},' +
+      '{"name":"Оформить заказ","verb":"POST","uri":"/api/v1/orders","resp":"201 {orderId}"},' +
+      '{"name":"Маршрутизирует","verb":"POST","uri":"/orders","resp":"201"},' +
+      '{"name":"Создать заказ","verb":"POST","uri":"/orders","resp":"201 {orderId}"},' +
+      '{"name":"Сохранить заказ","verb":"INSERT","uri":"orders","resp":"uuid"}]}],' +
+      '"meta":{"systemName":"Зоомагазин","domain":"e-commerce"}}\n```\n' +
+      '\nNow output the full topology JSON for the user request. Scale services to the domain. NO dbSchema.';
   }
 
   function buildPatchAdd(){
@@ -341,22 +481,194 @@ var AI = {};
   }
 
   // ════════════════ ВЫЗОВ API ════════════════
-  function rawCall(messages, maxTok){
-    return fetch(API_URL, {
+  function wrapJSON(c, jsonMode){
+    if (jsonMode && c && c.trim().charAt(0)==='{') return '```json\n'+c.trim()+'\n```';
+    return c;
+  }
+
+  // messages, maxTok, jsonMode, onDelta(textSoFar)
+  function rawCall(messages, maxTok, jsonMode, onDelta){
+    var p = P();
+
+    if (p.kind === 'ollama'){
+      return fetch(p.url, {
+        method:'POST',
+        headers:{'content-type':'application/json'},
+        body:JSON.stringify({
+          model: p.model, messages: messages, stream: true,
+          format: jsonMode ? 'json' : undefined,
+          options: { temperature: jsonMode ? 0.15 : 0.4, num_ctx: p.num_ctx || 16384, num_predict: maxTok }
+        })
+      }).catch(function(err){
+        throw new Error('Ollama не отвечает на ' + p.url + '.\nПроверь что запущен `ollama serve` и модель `' + p.model + '` установлена (`ollama list`).');
+      }).then(function(r){
+        if (!r.ok) return r.text().then(function(x){ throw new Error('Ollama HTTP '+r.status+': '+String(x).slice(0,300)); });
+        var reader = r.body.getReader(), dec = new TextDecoder(), buf = '', full = '';
+        function pump(){
+          return reader.read().then(function(res){
+            if (res.done){
+              if (buf.trim()) try { var j0=JSON.parse(buf); if(j0.message&&j0.message.content) full+=j0.message.content; } catch(e){}
+              return wrapJSON(full, jsonMode);
+            }
+            buf += dec.decode(res.value, {stream:true});
+            var lines = buf.split('\n'); buf = lines.pop();
+            for (var i=0;i<lines.length;i++){
+              var ln = lines[i].trim(); if (!ln) continue;
+              var j; try { j = JSON.parse(ln); } catch(e){ continue; }
+              if (j.error) throw new Error(typeof j.error==='string'?j.error:JSON.stringify(j.error));
+              if (j.message && j.message.content){
+                full += j.message.content;
+                if (onDelta) try { onDelta(full); } catch(e){}
+              }
+            }
+            return pump();
+          });
+        }
+        return pump();
+      });
+    }
+
+    if (p.kind === 'anthropic'){
+      // RAPTOR шлёт messages c role:'system' — у Anthropic system это top-level строка,
+      // а messages только user/assistant, начинаются с user и чередуются.
+      var sysParts = [], msgs2 = [];
+      messages.forEach(function(m){
+        if (m.role === 'system'){ sysParts.push(m.content); return; }
+        var role = m.role === 'assistant' ? 'assistant' : 'user';
+        if (msgs2.length && msgs2[msgs2.length-1].role === role)
+          msgs2[msgs2.length-1].content += '\n\n' + m.content;
+        else msgs2.push({ role: role, content: m.content });
+      });
+      if (!msgs2.length || msgs2[0].role !== 'user') msgs2.unshift({ role:'user', content: 'Продолжай.' });
+      var maxOut = Math.min(maxTok || 8000, /sonnet|opus/i.test(p.model) ? 32000 : 8192);
+      var sysStr = sysParts.join('\n\n');
+      // prompt caching: статичный префикс (правила) кешируется на 5 мин → дешевле и быстрее
+      // на параллельных/повторных запросах. Разделитель ставит buildGenDB.
+      var sysField, cut = sysStr.indexOf('\n════════════════════════════════════════\n');
+      if (cut > 1500){
+        sysField = [
+          { type:'text', text: sysStr.slice(0, cut), cache_control:{ type:'ephemeral' } },
+          { type:'text', text: sysStr.slice(cut) }
+        ];
+      } else if (sysStr.length > 2000){
+        sysField = [{ type:'text', text: sysStr, cache_control:{ type:'ephemeral' } }];
+      } else {
+        sysField = sysStr;
+      }
+      return fetch(p.url, {
+        method:'POST',
+        headers:{
+          'content-type':'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: p.model, max_tokens: maxOut,
+          temperature: jsonMode ? 0.2 : 0.5,
+          system: sysField,
+          messages: msgs2, stream: true
+        })
+      }).catch(function(err){
+        throw new Error('Claude API недоступен (' + (err && err.message || err) + ').\nЗапущен ли прокси? → start-proxy.bat');
+      }).then(function(r){
+        if (!r.ok) return r.text().then(function(x){
+          var msg = x; try { var jj = JSON.parse(x); msg = (jj.error && jj.error.message) || x; } catch(e){}
+          throw new Error('Claude API HTTP ' + r.status + ': ' + String(msg).slice(0,400));
+        });
+        var reader = r.body.getReader(), dec = new TextDecoder(), buf = '', full = '';
+        function pump(){
+          return reader.read().then(function(res){
+            if (res.done) return wrapJSON(full, jsonMode);
+            buf += dec.decode(res.value, {stream:true});
+            var lines = buf.split('\n'); buf = lines.pop();
+            for (var i=0;i<lines.length;i++){
+              var ln = lines[i];
+              if (ln.indexOf('data:') !== 0) continue;
+              var payload = ln.slice(5).trim();
+              if (!payload || payload === '[DONE]') continue;
+              var j; try { j = JSON.parse(payload); } catch(e){ continue; }
+              if (j.type === 'error') throw new Error((j.error && j.error.message) || 'ошибка стрима Claude');
+              if (j.type === 'content_block_delta' && j.delta && j.delta.text){
+                full += j.delta.text;
+                if (onDelta) try { onDelta(full); } catch(e){}
+              }
+            }
+            return pump();
+          });
+        }
+        return pump();
+      });
+    }
+
+    // openai-совместимый (OpenAI, Groq, apinet) — стриминг SSE
+    // потолок вывода: llama/groq ~8k, gpt-4o ~16k, claude/остальное — как просят
+    var cap = /llama|mixtral|gemma|groq/i.test(p.model) ? 8000 : (/gpt-4o|gpt-4\.1/i.test(p.model) ? 16000 : 32000);
+    var mt = Math.min(maxTok || 8000, cap);
+    var oaBody = { model:p.model, messages:messages, stream:true };
+    if (/^o[0-9]/.test(p.model)) oaBody.max_completion_tokens = mt; else oaBody.max_tokens = mt;
+    if (!/^o[0-9]/.test(p.model)) oaBody.temperature = jsonMode ? 0.2 : 0.5;
+    return fetch(p.url, {
       method:'POST',
       headers:{'content-type':'application/json','authorization':'Bearer '+apiKey},
-      body:JSON.stringify({model:MODEL, messages:messages, max_tokens:maxTok})
-    }).then(function(r){ return r.json(); }).then(function(d){
-      if (d.error) throw new Error(d.error.message||JSON.stringify(d.error));
-      return (d.choices&&d.choices[0]&&d.choices[0].message&&d.choices[0].message.content)||'';
+      body:JSON.stringify(oaBody)
+    }).catch(function(err){
+      throw new Error((p.label||'API') + ' недоступен (' + (err && err.message || err) + ').\nЗапущен ли прокси? → start-proxy.bat');
+    }).then(function(r){
+      if (!r.ok) return r.text().then(function(x){
+        var msg = x; try { var jj = JSON.parse(x); msg = (jj.error && jj.error.message) || x; } catch(e){}
+        throw new Error((p.label||'API') + ' HTTP ' + r.status + ': ' + String(msg).slice(0,400));
+      });
+      var reader = r.body.getReader(), dec = new TextDecoder(), buf = '', full = '';
+      function pump(){
+        return reader.read().then(function(res){
+          if (res.done) return wrapJSON(full, jsonMode);
+          buf += dec.decode(res.value, {stream:true});
+          var lines = buf.split('\n'); buf = lines.pop();
+          for (var i=0;i<lines.length;i++){
+            var ln = lines[i];
+            if (ln.indexOf('data:') !== 0) continue;
+            var payload = ln.slice(5).trim();
+            if (!payload || payload === '[DONE]') continue;
+            var j; try { j = JSON.parse(payload); } catch(e){ continue; }
+            if (j.error) throw new Error((j.error.message) || 'ошибка стрима');
+            var d = j.choices && j.choices[0] && j.choices[0].delta;
+            if (d && d.content){ full += d.content; if (onDelta) try { onDelta(full); } catch(e){} }
+          }
+          return pump();
+        });
+      }
+      return pump();
     });
   }
 
   // ════════════════ JSON: извлечь / распаковать ════════════════
+  // Достроить оборванный JSON (локальная модель упёрлась в num_ctx): закрыть строку и скобки
+  function repairJSON(str){
+    var inStr=false, esc=false, stack=[];
+    for (var i=0;i<str.length;i++){
+      var ch=str[i];
+      if (esc){ esc=false; continue; }
+      if (ch==='\\'){ esc=true; continue; }
+      if (ch==='"'){ inStr=!inStr; continue; }
+      if (inStr) continue;
+      if (ch==='{'||ch==='[') stack.push(ch);
+      else if (ch==='}'||ch===']') stack.pop();
+    }
+    var out = str.replace(/,\s*$/,'');
+    if (inStr) out += '"';
+    for (var k=stack.length-1;k>=0;k--) out += stack[k]==='{' ? '}' : ']';
+    try { return JSON.parse(out); } catch(e){ return null; }
+  }
   function extractJSON(text){
     var m = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (!m) return null;
-    try { return JSON.parse(m[1].trim()); } catch(e){ return null; }
+    if (m){ try { return JSON.parse(m[1].trim()); } catch(e){} }
+    // Голый JSON без ограждения (локальные модели в format:json)
+    var s = text.indexOf('{'), e2 = text.lastIndexOf('}');
+    if (s >= 0 && e2 > s){ try { return JSON.parse(text.slice(s, e2+1)); } catch(e){} }
+    // Обрыв по лимиту токенов — пробуем достроить
+    if (s >= 0){ var r = repairJSON(text.slice(s)); if (r) return r; }
+    return null;
   }
   function findBlocks(o){ return o.blocks||o.services||o.nodes||o.components||o.elements||o.microservices||null; }
   function unwrapData(data){
@@ -484,11 +796,12 @@ var AI = {};
   // ════════════════ ЗАГРУЗКА / МЁРЖ ════════════════
   AI.loadJSON = function(data){
     data = unwrapData(data || _lastJSON);
-    if (!data){ toast('❌ Нет JSON — сначала сгенерируй схему'); return; }
+    if (!data){ toast(t('ai_no_json')); return; }
     if (data.blocks) data.blocks = data.blocks.map(function(b,i){ return normBlock(b,i,60); });
     if (!data.blocks || !data.blocks.length){
-      toast('❌ Не найдены блоки. Ключи: '+Object.keys(_lastJSON||{}).join(', ')); return;
+      toast(t('ai_no_blocks_found')+Object.keys(_lastJSON||{}).join(', ')); return;
     }
+    coerceTypes(data);
     data.blocks = fixCrossDbFk(data.blocks);
     S.blocks    = data.blocks.map(function(b){ return Object.assign({patterns:[],settings:{}}, b); });
     var rawConns = normConns(data.conns||data.connections||data.edges||data.links, data.blocks, 'c');
@@ -497,17 +810,47 @@ var AI = {};
     var scs     = fixScenarios(data.scenarios||[]);
     S.scenarios = typeof normalizeScenarios==='function' ? normalizeScenarios(scs) : scs;
     S.meta      = data.meta || (typeof defaultMeta==='function'?defaultMeta():{});
+    // BPMN из JSON (раньше молча терялся): принимаем объект/массив/одиночную диаграмму
+    if (data.bpmn && typeof normalizeBpmn==='function'){ S.bpmn = normalizeBpmn(data.bpmn); }
+    if (data.notationMode) S.notationMode = data.notationMode;
     S.selected  = null;
     recomputeNid();
+    if (typeof autoLayout==='function' && S.blocks.length){ try { autoLayout(); } catch(e){} }
     pushHist(); analyze();
     if (typeof renderRoutesPanel==='function') renderRoutesPanel();
-    toast('🤖 Загружено: '+S.blocks.length+' блоков, '+S.conns.length+' связей, '+S.scenarios.length+' сценариев');
+    fitView();
+    var _bpmnN=(S.bpmn&&S.bpmn.diagrams)?S.bpmn.diagrams.length:0;
+    toast(t('ai_loaded_prefix')+S.blocks.length+' '+t('sb_blocks')+', '+S.conns.length+' '+t('sb_connections')+', '+S.scenarios.length+' '+t('sb_scenarios')+(_bpmnN?', BPMN: '+_bpmnN:''));
   };
+
+  // Вписать всю схему в видимую область канвы
+  function fitView(){
+    try {
+      if (typeof S === 'undefined' || !S.blocks || !S.blocks.length) return;
+      var svg = document.getElementById('canvas'); if (!svg) return;
+      var vpW = svg.clientWidth || 800, vpH = svg.clientHeight || 700;
+      var minX=1e9, minY=1e9, maxX=-1e9, maxY=-1e9;
+      S.blocks.forEach(function(b){
+        var w = (typeof bw==='function'?bw(b):120), h = (typeof bh==='function'?bh(b):48);
+        if (b.x<minX) minX=b.x; if (b.y<minY) minY=b.y;
+        if (b.x+w>maxX) maxX=b.x+w; if (b.y+h>maxY) maxY=b.y+h;
+      });
+      var W = Math.max(1, maxX-minX), H = Math.max(1, maxY-minY), pad = 50;
+      var z = Math.min((vpW-pad*2)/W, (vpH-pad*2)/H, 1);
+      z = Math.max(0.1, z);
+      S.zoom = z;
+      S.panX = Math.round((vpW - W*z)/2 - minX*z);
+      S.panY = Math.round((vpH - H*z)/2 - minY*z);
+      if (typeof render==='function') render();
+    } catch(e){}
+  }
+  AI.fitView = fitView;
 
   AI.mergeJSON = function(data){
     data = unwrapData(data || _lastJSON);
-    if (!data || !data.blocks || !data.blocks.length){ toast('❌ Нет блоков для добавления'); return; }
+    if (!data || !data.blocks || !data.blocks.length){ toast(t('ai_no_blocks_to_add')); return; }
     data.blocks = data.blocks.map(function(b,i){ return normBlock(b,i,300); });
+    coerceTypes(data);
     data.blocks = fixCrossDbFk(data.blocks);
 
     var added=0, updated=0;
@@ -532,7 +875,8 @@ var AI = {};
     recomputeNid();
     pushHist(); analyze();
     if (typeof renderRoutesPanel==='function') renderRoutesPanel();
-    toast('🤖 Добавлено: +'+added+' блоков, обновлено: '+updated+', +'+fresh.length+' связей');
+    fitView();
+    toast(t('ai_added_prefix')+added+' '+t('sb_blocks')+', '+t('ai_updated_word')+': '+updated+', +'+fresh.length+' '+t('sb_connections'));
   };
 
   AI.getLastJSON = function(){ return _lastJSON; };
@@ -549,32 +893,420 @@ var AI = {};
     return bad;
   }
 
+  // SQL-БД без схемы (локальные модели часто пропускают dbSchema при one-shot генерации).
+  // redis/s3/elasticsearch не трогаем — у них своя структура.
+  var SQL_DB_TYPES = ['postgresql','mysql','mongodb','cassandra','clickhouse'];
+  function dbBlocksNoSchema(data){
+    return (data.blocks||[]).filter(function(b){
+      return SQL_DB_TYPES.indexOf(b.type)>=0 &&
+             (!b.dbSchema || !b.dbSchema.tables || !b.dbSchema.tables.length);
+    });
+  }
+
+  // Известные типы блоков — чужие (consumer_svc и т.п. от слабых моделей) сводим к service
+  var KNOWN_TYPES = ('actor web_client mob_client api_gw websocket_gw lb cdn bff service auth external ' +
+    'postgresql mysql mongodb redis cassandra clickhouse elasticsearch s3 kafka rabbitmq nats queue').split(' ');
+  function coerceTypes(data){
+    (data.blocks||[]).forEach(function(b){
+      if (b.type && KNOWN_TYPES.indexOf(b.type)<0) b.type = 'service';
+    });
+    return data;
+  }
+
+  // Stage-2 промпт: заполнить dbSchema для конкретных DB-блоков уже сгенерённой топологии
+  function buildGenDB(data, dbs){
+    var svcByDb = {};
+    (data.conns||[]).forEach(function(c){
+      var to = (data.blocks||[]).find(function(b){ return b.id===c.to; });
+      var fr = (data.blocks||[]).find(function(b){ return b.id===c.from; });
+      if (to && fr && DB_TYPES.indexOf(to.type)>=0) svcByDb[to.id] = fr.customLabel||fr.type;
+    });
+    var targets = dbs.map(function(b){
+      return {id:b.id, type:b.type, customLabel:b.customLabel, x:b.x, y:b.y, service:svcByDb[b.id]||''};
+    });
+    var domain = (data.meta && (data.meta.systemName||data.meta.domain)) || '';
+    // Облегчённые правила без доменных примеров — слабые модели копируют примеры дословно
+    var DB_RULES_LITE =
+      '═══ DB SCHEMA RULES ═══\n' +
+      '- EACH db block: EXACTLY 2 tables (main entity + its items/log/history table).\n' +
+      '- EACH table: 6-9 fields, specific to THIS service domain (real business columns, not generic name/status).\n' +
+      '- EACH table starts with: id UUID PK (default "gen_random_uuid()"), and ends with created_at + updated_at TIMESTAMPTZ NN (default "NOW()").\n' +
+      '- FK inside the SAME db block → {"name":"x_id","type":"UUID","constraints":"NN, FK","fk":{"table":"<t>","field":"id"}}.\n' +
+      '- Reference to another service → plain UUID NN, no fk object.\n' +
+      '- Field shape: {"name","type","constraints","desc"} (+ "default" or "fk" where needed). Keep desc short (2-4 words). NO "example" field.\n' +
+      '- Optional per table: "indexes": ["CREATE INDEX ..."] on FK / status / date columns.\n';
+    // Для сильных моделей (Claude/Groq) — полные правила из основного промпта.
+    // Порядок: статичные правила ПЕРВЫМИ (кешируются на повторных/параллельных запросах),
+    // динамика (домен, targets, требования) — В КОНЦЕ.
+    var rules = (P().kind === 'ollama') ? DB_RULES_LITE : DB_RULES;
+    return 'You are a DB schema generator for the RAPTOR tool.\n' +
+      'OUTPUT ONLY one raw ```json block: {"blocks":[ ... ]}. Keys English, labels/desc Russian.\n' +
+      'Return each block as: {"id":"<same>","type":"<same>","customLabel":"<same>","x":<same>,"y":<same>,"patterns":[],"settings":{},"dbSchema":{"tables":[...]}}\n' +
+      'NO conns, NO scenarios, NO service blocks — only the requested DB blocks, each with full dbSchema.\n\n' +
+      rules + '\n' +
+      '════════════════════════════════════════\n' +
+      (domain ? 'SYSTEM DOMAIN: '+domain+'. Every table must fit this domain.\n' : '') +
+      (data.meta && data.meta.description ? 'REQUIREMENTS:\n'+String(data.meta.description).slice(0,1500)+'\n' : '') +
+      '\nGenerate dbSchema for EXACTLY these DB blocks (derive tables/columns from "service" + domain + requirements):\n' +
+      JSON.stringify(targets);
+  }
+
+  // Разбираем ответ stage-2 в любой форме и вклеиваем dbSchema в _lastJSON.
+  // Модель может вернуть: {blocks:[...]}, [{...}], {id,dbSchema}, {tables:[...]}, {dbSchema:{...}}
+  function mergeDbSchemas(res, batch){
+    if (!res) return 0;
+    var arr = res.blocks || res.services || (Array.isArray(res) ? res : null) || [res];
+    var got = 0;
+    arr.forEach(function(nb){
+      if (!nb || typeof nb !== 'object') return;
+      var schema = nb.dbSchema || (nb.tables ? {tables:nb.tables} : null);
+      if (!schema || !schema.tables || !schema.tables.length) return;
+      var tgt = (nb.id && _lastJSON.blocks.find(function(b){ return b.id===nb.id; }))
+             || (batch.length === 1 && _lastJSON.blocks.find(function(b){ return b.id===batch[0].id; }));
+      if (tgt){ tgt.dbSchema = schema; got++; }
+    });
+    return got;
+  }
+
+  // Stage-2: заполняем dbSchema. Сначала пачками по 3 (быстро), при промахах падаем на по 1 (надёжно).
+  function fillSchemasStaged(allDbs, opts){
+    opts = opts || {};
+    var autoload = opts.autoload, total = opts.total || allDbs.length;
+    // Claude/Groq тянут все БД одним запросом; ollama — пачками по 3
+    var bs = opts.batchSize || (P().kind === 'ollama' ? 3 : 50), stuck = opts.stuck || 0;
+
+    var pendingOf = function(){
+      return allDbs.filter(function(d){
+        var b = _lastJSON.blocks.find(function(x){ return x.id===d.id; });
+        return b && (!b.dbSchema || !b.dbSchema.tables || !b.dbSchema.tables.length);
+      });
+    };
+    var pending = pendingOf(), done = total - pending.length;
+
+    var finish = function(){
+      busy(false);
+      if (autoload){
+        AI.loadJSON(_lastJSON);
+        addMsg('assistant', '✓ '+t('ai_filling_db')+': ' + done + '/' + total +
+          (done<total ? ' — по остальным модель не справилась, повтори «опиши БД»' : ', применено к схеме'));
+      } else {
+        addMsg('assistant', (done ? '✓ '+t('ai_filling_db')+' ('+done+'/'+total+')\n' : '') +
+          '```json\n'+JSON.stringify(_lastJSON)+'\n```');
+      }
+    };
+
+    if (!pending.length) return finish();
+    if (bs === 1 && stuck >= 2) return finish();   // и по одному не идёт
+
+    var batch = pending.slice(0, bs);
+    busy(true, '✦ '+t('ai_filling_db')+' '+done+'/'+total + (bs===1?' (добор)':''));
+    rawCall([{role:'system',content:buildGenDB(_lastJSON, batch)},
+             {role:'user',content:'Заполни схемы БД для этих блоков.'}], bs>3?8000:(bs>1?4000:2600), true, busyProgress)
+      .then(function(c2){
+        var before = pending.length;
+        mergeDbSchemas(extractJSON(c2), batch);
+        var progressed = pendingOf().length < before;
+        var nbs = bs, ns = stuck;
+        if (progressed) ns = 0;
+        else { ns++; if (bs > 1){ nbs = 1; ns = 0; } }
+        fillSchemasStaged(allDbs, {autoload:autoload, total:total, batchSize:nbs, stuck:ns});
+      })
+      .catch(function(){
+        fillSchemasStaged(allDbs, {autoload:autoload, total:total, batchSize:1, stuck:stuck+1});
+      });
+  }
+
+  var _pendingDbs = function(list){
+    return list.filter(function(d){
+      var b = _lastJSON.blocks.find(function(x){ return x.id===d.id; });
+      return b && (!b.dbSchema || !b.dbSchema.tables || !b.dbSchema.tables.length);
+    });
+  };
+
+  // Claude/Groq — параллельное заполнение: по 1 БД на запрос, пул на 5 одновременных → быстро.
+  function fillSchemasConcurrent(allDbs, autoload){
+    var total = allDbs.length, t0 = Date.now(), CONC = 5;
+    var tick = function(){
+      busy(true, '✦ '+t('ai_filling_db')+' '+(total-_pendingDbs(allDbs).length)+'/'+total);
+    };
+    tick();
+    var one = function(g){
+      return rawCall([{role:'system',content:buildGenDB(_lastJSON, g)},
+                      {role:'user',content:'Заполни схему БД для этого блока.'}], 5000, true)
+        .then(function(c2){ mergeDbSchemas(extractJSON(c2), g); }, function(){})
+        .then(tick);
+    };
+    // пул: обрабатываем список с ограничением параллелизма
+    var runPool = function(list){
+      var idx = 0;
+      var worker = function(){
+        if (idx >= list.length) return Promise.resolve();
+        var item = list[idx++];
+        return one([item]).then(worker);
+      };
+      var n = Math.min(CONC, list.length), ws = [];
+      for (var i=0;i<n;i++) ws.push(worker());
+      return Promise.all(ws);
+    };
+    runPool(allDbs.slice())
+      .then(function(){ var miss = _pendingDbs(allDbs); return miss.length ? runPool(miss) : null; })
+      .then(function(){
+        var filled = total - _pendingDbs(allDbs).length;
+        busy(false);
+        if (autoload){
+          AI.loadJSON(_lastJSON);
+          addMsg('assistant', '✓ '+t('ai_filling_db')+': '+filled+'/'+total+' за '+Math.round((Date.now()-t0)/1000)+'с, применено');
+        } else {
+          addMsg('assistant', (filled?'✓ '+t('ai_filling_db')+' ('+filled+'/'+total+')\n':'') +
+            '```json\n'+JSON.stringify(_lastJSON)+'\n```');
+        }
+      });
+  }
+
+  function fillDbStage(noSchema, autoload){
+    if (P().kind === 'ollama') fillSchemasStaged(noSchema, {autoload:autoload});
+    else fillSchemasConcurrent(noSchema, autoload);
+  }
+
+  // Заполнить схемы всех пустых SQL-БД в текущей схеме (с применением на канву)
+  AI.fillDB = function(){
+    var ctx = getContext();
+    if (!ctx || typeof S === 'undefined' || !S.blocks) { toast(t('ai_no_json')); return; }
+    _lastJSON = {
+      blocks: S.blocks.map(function(b){ return JSON.parse(JSON.stringify(b)); }),
+      conns: S.conns.slice(), scenarios: (S.scenarios||[]).slice(), meta: S.meta || {}
+    };
+    var noSchema = dbBlocksNoSchema(_lastJSON);
+    if (!noSchema.length){ addMsg('assistant', 'Все БД уже описаны.'); return; }
+    addMsg('assistant', 'Заполняю схемы БД: ' + noSchema.length + ' шт…');
+    fillDbStage(noSchema, true);
+  };
+
+  // ════════════════ ИМПОРТ DRAW.IO ════════════════
+  function isDrawioXML(t){ return /<mxGraphModel[\s>]|<mxfile[\s>]/.test(t); }
+
+  function stripHtml(s){
+    return String(s||'')
+      .replace(/<\/(div|p|li)>/gi,'\n').replace(/<(div|p)[^>]*>/gi,'\n').replace(/<br\s*\/?>/gi,'\n').replace(/<li[^>]*>/gi,'\n• ')
+      .replace(/<[^>]+>/g,'')
+      .replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'")
+      .replace(/[ \t]+\n/g,'\n').replace(/\n{2,}/g,'\n').trim();
+  }
+
+  // C4-тип + стиль/имя → тип блока RAPTOR
+  function c4ToType(c4type, style, name){
+    var s = (style||'').toLowerCase(), n = (name||'').toLowerCase();
+    if (/person/.test(c4type) || /person2|umlactor/.test(s)) return 'actor';
+    if (/software system/i.test(c4type)) return 'external';
+    // очередь/шина — проверяем ПЕРЕД цилиндром (Kafka часто рисуют цилиндром)
+    if (/kafka|rabbit\w*mq|\bnats\b|message bus|очеред|брокер|шина событ|event bus/.test(n)) return 'kafka';
+    if (/\bredis\b|\bcache\b|кэш|кеш/.test(n)) return 'redis';
+    if (/elastic|\bsearch\b|поиск/.test(n)) return 'elasticsearch';
+    if (/cylinder|mxgraph\.flowchart\.database|shape=datastore/.test(s) || /\b(db|database|бд|oracle|postgres\w*|mysql|mongo\w*|хранилищ|база данных)\b/.test(n)) return 'postgresql';
+    if (/webbrowsercontainer|shape=mxgraph\.c4\.web/.test(s) || /\b(браузер|web app|веб-прилож|spa|frontend|фронтенд)\b/.test(n)) return 'web_client';
+    if (/hexagon/.test(s) || /\b(api\s*gateway|gateway|шлюз|ingress|bff)\b/.test(n)) return 'api_gw';
+    if (/\bauth\b|авторизац|identity|iam\b/.test(n)) return 'auth';
+    return 'service';
+  }
+
+  // draw.io C4 XML → ГОТОВАЯ схема RAPTOR (детерминированно, без LLM). Ничего не теряем, мгновенно.
+  function drawioToRaptor(xml){
+    var doc;
+    try { doc = new DOMParser().parseFromString(xml, 'application/xml'); }
+    catch(e){ return null; }
+    if (!doc || doc.querySelector('parsererror')) return null;
+
+    var byXid = {};      // xmlId → node
+    var notes = [], rawEdges = [];
+    var uniq = function(a){ return a.filter(function(v,i){ return a.indexOf(v)===i; }); };
+
+    // 1. C4-объекты
+    Array.prototype.forEach.call(doc.querySelectorAll('object'), function(o){
+      var id = o.getAttribute('id'); if (!id) return;
+      var name = o.getAttribute('c4Name') || o.getAttribute('label') || '';
+      var c4type = o.getAttribute('c4Type') || '';
+      var tech = o.getAttribute('c4Technology') || '';
+      var desc = o.getAttribute('c4Description') || '';
+      var cell = o.querySelector('mxCell');
+      var style = cell ? (cell.getAttribute('style')||'') : '';
+      if (!name || /^%c4Name%$/.test(name) || /placeholder|e\.g\./i.test(name)) return;
+      byXid[id] = { name:name, type:c4ToType(c4type, style, name+' '+tech),
+                    tech:/e\.g\.|%c4/i.test(tech)?'':tech, desc:/description of|%c4/i.test(desc)?'':desc };
+    });
+
+    // 2. Простые фигуры и заметки
+    Array.prototype.forEach.call(doc.querySelectorAll('mxCell[vertex="1"]'), function(c){
+      var id = c.getAttribute('id');
+      var val = stripHtml(c.getAttribute('value'));
+      var style = (c.getAttribute('style')||'').toLowerCase();
+      if (!val || byXid[id]) return;
+      if (/(^|;)text;|strokecolor=none;\s*fillcolor=none/.test(style)){
+        if (val.length > 2) notes.push(val);
+      } else if (id) {
+        var first = val.split('\n')[0].slice(0,48);
+        byXid[id] = { name:first, type:c4ToType('', style, val), tech:'', desc: val.length>48?val:'' };
+      }
+    });
+
+    // 3. Рёбра
+    Array.prototype.forEach.call(doc.querySelectorAll('mxCell[edge="1"]'), function(c){
+      var s = c.getAttribute('source'), t2 = c.getAttribute('target');
+      if (s && t2 && byXid[s] && byXid[t2]) rawEdges.push([s, t2]);
+    });
+
+    var nodesArr = Object.keys(byXid).map(function(k){ return { xid:k, n:byXid[k] }; });
+    if (!nodesArr.length) return null;
+
+    // 4. Раскладываем по колонкам, назначаем b-id
+    var COL = { actor:-120, web_client:120, api_gw:340, auth:340, service:600, kafka:840, external:1240,
+                postgresql:1060, redis:1060, elasticsearch:1060, mysql:1060, mongodb:1060 };
+    var yCol = {}, blocks = [], bidByXid = {}, n = 1;
+    function place(type, name, extra){
+      var id = 'b'+(n++), x = COL[type]!=null?COL[type]:600;
+      yCol[x] = (yCol[x]||0) + 1;
+      var b = { id:id, type:type, customLabel:name, x:x, y:60+(yCol[x]-1)*150, patterns:[], settings:{} };
+      if (extra) Object.assign(b, extra);
+      blocks.push(b); return b;
+    }
+
+    nodesArr.forEach(function(o){
+      // db из диаграммы обработаем отдельно
+      if (/postgresql|mysql|mongodb|redis|elasticsearch/.test(o.n.type)) return;
+      var b = place(o.n.type, o.n.name, o.n.desc ? {settings:{note:o.n.desc.slice(0,200)}} : null);
+      bidByXid[o.xid] = b.id;
+    });
+
+    // 5. Гарантируем инфраструктуру
+    var byType = function(tp){ return blocks.filter(function(b){ return b.type===tp; }); };
+    var web = byType('web_client')[0] || place('web_client', 'Веб-приложение');
+    var gw  = byType('api_gw')[0]     || place('api_gw', 'API Gateway');
+    var actors = byType('actor');
+    if (!actors.length) actors = [ place('actor', 'Пользователь') ];
+    var services = byType('service');
+    var auth = byType('auth')[0] || null;
+    var kafka = byType('kafka')[0] || null;
+
+    // 6. Связи
+    var conns = [], seen = {}, cn = 1;
+    function link(from, to){
+      if (!from || !to || from===to) return;
+      var k = from+'>'+to; if (seen[k]) return; seen[k]=1;
+      conns.push({ id:'c'+(cn++), from:from, to:to });
+    }
+    actors.forEach(function(a){ link(a.id, web.id); });
+    link(web.id, gw.id);
+    if (auth) link(gw.id, auth.id);
+    services.forEach(function(s){ link(gw.id, s.id); });
+
+    // рёбра диаграммы между сервисами / к внешним / к kafka
+    rawEdges.forEach(function(e){
+      var f = bidByXid[e[0]], tb = bidByXid[e[1]];
+      if (!f || !tb) return;
+      var bf = blocks.find(function(b){ return b.id===f; }), bt = blocks.find(function(b){ return b.id===tb; });
+      if (!bf || !bt) return;
+      if (bf.type==='actor' || bt.type==='actor') return;      // актор-связи уже сделаны через web
+      if (bt.type==='web_client' || bt.type==='api_gw') return; // входящие в инфру уже есть
+      link(f, tb);
+    });
+
+    // 7. Каждому сервису — своя БД
+    var svcDb = {};
+    services.forEach(function(s){
+      var db = place('postgresql', s.customLabel.replace(/\s*(service|сервис)\s*$/i,'').trim() + ' DB');
+      link(s.id, db.id);
+      svcDb[s.id] = db.id;
+    });
+
+    // 8. Сценарии — happy-path на первые сервисы
+    var colors = ['#7aa2f7','#9ece6a','#e0af68','#f7768e','#bb9af7'];
+    var scenarios = services.slice(0, 4).map(function(s, i){
+      var db = svcDb[s.id];
+      var path = [actors[0].id, web.id, gw.id, s.id].concat(db ? [db] : []);
+      var short = s.customLabel.replace(/\s*(service|сервис)\s*$/i,'').trim();
+      var steps = [
+        { name:'Открывает '+short, verb:'', uri:'', resp:'', cache:null, dbTarget:null },
+        { name:short, verb:'GET', uri:'/api/v1/'+(short.toLowerCase().replace(/[^a-z0-9]+/g,'-')||'res'), resp:'200 {data}', cache:null, dbTarget:null },
+        { name:'Маршрутизирует', verb:'GET', uri:'/'+(short.toLowerCase().replace(/[^a-z0-9]+/g,'-')||'res'), resp:'200', cache:null, dbTarget:null },
+        { name:'Обрабатывает', verb:'GET', uri:'/'+(short.toLowerCase().replace(/[^a-z0-9]+/g,'-')||'res'), resp:'200 {data}', cache:null, dbTarget:null }
+      ];
+      if (db) steps.push({ name:'Читать данные', verb:'SELECT', uri:short.toLowerCase().replace(/[^a-z0-9]+/g,'_')||'rows', resp:'rows', cache:null, dbTarget:null });
+      return { id:'sc'+(i+1), name:short, color:colors[i%colors.length], actorId:actors[0].id, volume:50, visible:true, path:path, steps:steps };
+    });
+
+    // 9. meta
+    var title = notes.find(function(x){ return x.length<70 && /систем|платформ|сервис|приложен/i.test(x) && !/\n/.test(x); });
+    var meta = {
+      systemName: (title || 'Импорт из draw.io').slice(0,80),
+      version: 'v1', author:'', domain:'',
+      description: uniq(notes).join('\n').slice(0,2000),
+      problem:'', solution:'',
+      userRoles: actors.map(function(a){ return a.customLabel; }),
+      requirements: uniq(notes)
+    };
+
+    return { blocks:blocks, conns:conns, scenarios:scenarios, meta:meta,
+             _summary: { actors:actors.length, services:services.length, dbs:byType('postgresql').length,
+                         ext:byType('external').length, conns:conns.length, notes:uniq(notes).length,
+                         kafka:!!kafka, auth:!!auth } };
+  }
+
   // ════════════════ ОТПРАВКА ════════════════
   function send(){
     var text = (input?input.value:'').trim();
     if (!text) return;
-    if (!apiKey){ AI.promptKey(function(){ send(); }); return; }
+    if (P().needKey && !apiKey){ AI.promptKey(function(){ send(); }); return; }
+
+    // draw.io XML → детерминированный импорт БЕЗ LLM (мгновенно, без потерь)
+    if (isDrawioXML(text)){
+      if (input) input.value='';
+      addMsg('user', '📥 Импорт схемы из draw.io');
+      var imp = drawioToRaptor(text);
+      if (imp && imp.blocks && imp.blocks.length){
+        _lastJSON = { blocks:imp.blocks, conns:imp.conns, scenarios:imp.scenarios, meta:imp.meta };
+        var sm = imp._summary;
+        AI.loadJSON(_lastJSON);
+        _patchNext = false;
+        addMsg('assistant',
+          '✅ Импортировано из draw.io (без потерь, мгновенно):\n' +
+          '• акторы: ' + sm.actors + '\n• сервисы: ' + sm.services + ' (каждому создана БД)\n' +
+          '• связи: ' + sm.conns + (sm.auth?'\n• auth-сервис':'') + (sm.kafka?'\n• kafka':'') + '\n' +
+          '• требования с диаграммы → в описание проекта (' + sm.notes + ' пунктов)\n\n' +
+          'Схемы БД пустые. Нажми «Заполнить БД» или напиши: **опиши БД всех сервисов**.\n' +
+          '```json\n' + JSON.stringify(_lastJSON) + '\n```');
+      } else {
+        addMsg('assistant', 'Не смог разобрать draw.io XML — нет C4-объектов. Опиши систему словами.');
+      }
+      return;
+    }
     addMsg('user', text);
     if (input) input.value='';
 
     // PATCH
     if (detectPatch(text)){
       var isAdd = detectPatchAdd(text) && !detectPatchDB(text);
+      // «опиши БД» + много пустых БД на канве → пакетное заполнение по одной
+      if (!isAdd && detectPatchDB(text)){
+        var ctxNow = getContext();
+        var emptyDbs = ctxNow ? (ctxNow.blocks||[]).filter(function(b){
+          return SQL_DB_TYPES.indexOf(b.type)>=0 && !(b.existing_tables && b.existing_tables.length);
+        }) : [];
+        if (emptyDbs.length >= 2){ chatHistory.push({role:'user',content:text}); AI.fillDB(); return; }
+      }
       var sys   = isAdd ? buildPatchAdd() : buildPatchDB();
       if (sys){
-        busy(true, isAdd?'✦ добавляю в схему...':'✦ заполняю схемы БД...');
-        rawCall([{role:'system',content:sys},{role:'user',content:text}], 6000)
+        busy(true, isAdd?'✦ '+t('ai_adding'):'✦ '+t('ai_filling_db'));
+        rawCall([{role:'system',content:sys},{role:'user',content:text}], P().kind==='ollama'?3500:6000, true, busyProgress)
           .then(function(content){ busy(false); _patchNext=true; addMsg('assistant', content); })
-          .catch(function(e){ busy(false); addMsg('assistant','Ошибка: '+e.message); });
+          .catch(function(e){ busy(false); addMsg('assistant',t('ai_error_prefix')+e.message); });
         return;
       }
     }
 
     // GEN / CHAT
     var isGen = detectGen(text);
-    var isConfirm = /^(да|давай|ок|го|yes|ok|погнали|вперёд|вперед|жги|поехали|конечно|делай)(\s|$)/i.test(text.trim());
+    var isConfirm = startsConfirm(text) && planPending();
     chatHistory.push({role:'user', content:text});
-    busy(true, isGen?'✦ генерирую схему...':'✦ думает...');
+    busy(true, isGen?'✦ '+t('ai_generating'):'✦ '+t('ai_thinking'));
     var history;
     if (!isGen) {
       history = chatHistory.slice(-10);
@@ -585,27 +1317,65 @@ var AI = {};
       // Длинное структурированное описание — оно само является контекстом, AI-план не нужен
       history = chatHistory.filter(function(m){ return m.role==='user'; }).slice(-2);
     }
-    var messages = [{role:'system', content:isGen?buildGen():buildChat()}].concat(history);
+    var local = P().kind === 'ollama';
+    // Всегда 2 стадии: топология (быстро) → схемы БД (для Claude — параллельно). Ускоряет в 2-3 раза.
+    var sysPrompt = isGen ? (local ? buildGenLite() : buildGen(true)) : buildChat();
+    var messages = [{role:'system', content:sysPrompt}].concat(history);
 
-    rawCall(messages, isGen?7000:2000)
+    // В режиме обсуждения (не JSON) — стримим текст живьём в отдельный пузырь
+    var lb = (!isGen) ? liveBubble() : null;
+    var onDelta = function(f){ busyProgress(f); if (lb) lb.set(f); };
+
+    rawCall(messages, isGen ? (local?4000:16000) : 2500, isGen, onDelta)
       .then(function(content){
+        if (lb) lb.remove();
         chatHistory.push({role:'assistant', content:content});
         busy(false);
         addMsg('assistant', content);
         if (isGen && _lastJSON){
           chatHistory = [];
-          var bad = poorSchemas(_lastJSON);
-          if (bad.length){
-            addMsg('assistant','🔄 Обогащаю схемы БД...');
-            busy(true,'обогащаю...');
-            rawCall([{role:'system',content:buildGen()},{role:'user',content:
-              'Схемы БД бедные:\n'+bad.join('\n')+'\nДобавь минимум 8 полей в каждую таблицу. Верни ТОЛЬКО полный ```json блок со всей схемой.'}], 6000)
-              .then(function(c2){ busy(false); addMsg('assistant', c2); })
-              .catch(function(e){ busy(false); addMsg('assistant','Ошибка: '+e.message); });
+          var noSchema = dbBlocksNoSchema(_lastJSON);
+          if (noSchema.length){
+            if (P().kind !== 'ollama'){
+              // Claude: показываем топологию сразу, схемы БД добираем параллельно с применением
+              AI.loadJSON(_lastJSON);
+              fillDbStage(noSchema, true);
+            } else {
+              fillSchemasStaged(noSchema, {});
+            }
+          } else {
+            var bad = poorSchemas(_lastJSON);
+            if (bad.length){
+              addMsg('assistant',t('ai_enriching_msg'));
+              busy(true,t('ai_enriching_status'));
+              rawCall([{role:'system',content:buildGen()},{role:'user',content:
+                'Схемы БД бедные:\n'+bad.join('\n')+'\nДобавь минимум 8 полей в каждую таблицу. Верни ТОЛЬКО полный ```json блок со всей схемой.'}], 6000, true, busyProgress)
+                .then(function(c2){ busy(false); addMsg('assistant', c2); })
+                .catch(function(e){ busy(false); addMsg('assistant',t('ai_error_prefix')+e.message); });
+            }
           }
         }
       })
-      .catch(function(e){ busy(false); addMsg('assistant','Ошибка: '+e.message); });
+      .catch(function(e){ if (lb) lb.remove(); busy(false); addMsg('assistant',t('ai_error_prefix')+e.message); });
+  }
+
+  // Живой пузырь для стриминга ответа (обсуждение)
+  function liveBubble(){
+    if (!msgs) return null;
+    var wrap = document.createElement('div'); wrap.className = 'ai-msg ai-msg-assistant';
+    var inner = document.createElement('div');
+    var bubble = document.createElement('div'); bubble.className = 'ai-bubble';
+    bubble.innerHTML = '<span style="opacity:.5">▋</span>';
+    inner.appendChild(bubble); wrap.appendChild(inner); msgs.appendChild(wrap);
+    msgs.scrollTop = msgs.scrollHeight;
+    return {
+      set: function(txt){
+        // во время стрима закрываем незавершённый ``` блок, чтобы md() отрендерил его
+        if (((txt.match(/```/g)||[]).length % 2)) txt += '\n```';
+        bubble.innerHTML = md(txt) + '<span style="opacity:.5">▋</span>'; msgs.scrollTop = msgs.scrollHeight;
+      },
+      remove: function(){ wrap.remove(); }
+    };
   }
 
   // ════════════════ РЕНДЕР СООБЩЕНИЯ ════════════════
@@ -619,20 +1389,20 @@ var AI = {};
     var jd = extractJSON(text);
     if (jd) _lastJSON = jd;
 
-    var display = jd ? (text.replace(/```(?:json)?[\s\S]*?```/g,'').trim() || '✓ Схема сгенерирована') : text;
+    var display = jd ? (text.replace(/```(?:json)?[\s\S]*?```/g,'').trim() || t('ai_schema_generated')) : text;
     bubble.innerHTML = md(display);
 
     if (jd){
       var isPatch = _patchNext; _patchNext = false;
       var bw = document.createElement('div'); bw.style.cssText='margin-top:8px;display:flex;gap:4px';
       var bMerge = document.createElement('button');
-      bMerge.textContent = isPatch?'➕ Применить к схеме':'➕ Добавить к схеме';
+      bMerge.textContent = isPatch?t('ai_merge'):t('ai_add');
       bMerge.style.cssText='flex:1;padding:7px 4px;background:#2a6010;color:#fff;border:none;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;border-radius:4px';
       bMerge.onclick = (function(j){ return function(){ AI.mergeJSON(j); }; })(jd);
       bw.appendChild(bMerge);
       if (!isPatch){
         var bRepl = document.createElement('button');
-        bRepl.textContent='🔄 Заменить';
+        bRepl.textContent=t('ai_replace');
         bRepl.style.cssText='flex:0 0 80px;padding:7px 4px;background:#7a3010;color:#fff;border:none;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;border-radius:4px';
         bRepl.onclick = (function(j){ return function(){ AI.loadJSON(j); }; })(jd);
         bw.appendChild(bRepl);
@@ -643,7 +1413,7 @@ var AI = {};
     var time = document.createElement('div'); time.className='ai-time';
     var d=new Date(); time.textContent=('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
     if (role==='assistant'){
-      var cp = document.createElement('button'); cp.textContent='⎘'; cp.title='Копировать';
+      var cp = document.createElement('button'); cp.textContent='⎘'; cp.title=t('ai_copy_title');
       cp.style.cssText='float:right;margin-left:4px;padding:1px 5px;font-size:10px;background:#b8b0a0;border:1px solid #7a6e5a;cursor:pointer;font-family:inherit;line-height:1.4;user-select:none';
       cp.onclick=function(){ navigator.clipboard.writeText(text).then(function(){ cp.textContent='✓'; setTimeout(function(){ cp.textContent='⎘'; },1500); }); };
       time.appendChild(cp);
@@ -669,40 +1439,136 @@ var AI = {};
   AI.send = function(){ send(); };
 
   var _keyCb = null;
+  var KEY_HINT = { apinet:'sk-… (apinet.cloud) — вшит, можно оставить пустым', anthropic:'sk-ant-… (console.anthropic.com)', groq:'gsk_… (console.groq.com)', ollama:'ключ не нужен' };
   AI.promptKey = function(cb){
     _keyCb = cb||null;
     var f=document.getElementById('ai-key-form'), ki=document.getElementById('ai-key-input');
+    var lbl=document.querySelector('#ai-key-form [data-i18n="ai_key_label"], #ai-key-form span');
+    if(lbl) lbl.textContent = (P().label||PROVIDER) + ' API ключ: ' + (KEY_HINT[PROVIDER]||'');
     if(f) f.style.display='block';
-    if(ki){ ki.value=apiKey||''; setTimeout(function(){ ki.focus(); ki.select(); },50); ki.onkeydown=function(e){ if(e.key==='Enter') AI.saveKey(); }; }
+    if(ki){ ki.placeholder = (KEY_HINT[PROVIDER]||''); ki.value=apiKey||''; setTimeout(function(){ ki.focus(); ki.select(); },50); ki.onkeydown=function(e){ if(e.key==='Enter') AI.saveKey(); }; }
   };
   AI.saveKey = function(){
     var ki=document.getElementById('ai-key-input'), key=ki?ki.value.trim():'';
-    if(key.length<10){ addMsg('assistant','Ключ слишком короткий — вставь полный gsk_...'); return; }
-    apiKey=key; localStorage.setItem('raptor_ai_key',apiKey);
+    if(key.length<10){ addMsg('assistant',t('ai_key_too_short')); return; }
+    apiKey=key;
+    localStorage.setItem(keyStoreName(), apiKey);      // ключ per-провайдер
+    localStorage.setItem('raptor_ai_key', apiKey);     // совместимость
     AI.hideKeyForm();
-    addMsg('assistant','Ключ сохранён ✓ Опишите систему — создам схему.');
+    addMsg('assistant', t('ai_key_saved') + ' (' + (P().label||PROVIDER) + ')');
     if(_keyCb){ var cb=_keyCb; _keyCb=null; cb(); }
   };
   AI.hideKeyForm = function(){ var f=document.getElementById('ai-key-form'); if(f) f.style.display='none'; };
 
   // ════════════════ УТИЛИТЫ ════════════════
+  var _busyBase = '', _busyT0 = 0, _busyTimer = null, _busyChars = 0;
+  function _busyRender(){
+    var sec = Math.round((Date.now()-_busyT0)/1000);
+    setTypingText(_busyBase + ' · ' + sec + 'с' + (_busyChars ? ' · ' + _busyChars + ' симв.' : ''));
+  }
   function busy(v, txt){
-    setDisabled(v); setStatus(v?'думает...':'готов'); showTyping(v);
-    if (v && txt) setTypingText(txt);
+    setDisabled(v); setStatus(v?t('ai_thinking'):t('ai_status_ready')); showTyping(v);
+    if (_busyTimer){ clearInterval(_busyTimer); _busyTimer = null; }
+    if (v){
+      _busyBase = txt || ('✦ '+t('ai_thinking'));
+      _busyT0 = Date.now(); _busyChars = 0;
+      _busyRender();
+      _busyTimer = setInterval(_busyRender, 1000);
+    }
+  }
+  // прогресс стрима — вызывается из rawCall onDelta
+  function busyProgress(fullText){
+    _busyChars = (fullText || '').length;
+    _busyRender();
   }
   function setDisabled(v){ if(input) input.disabled=v; if(sendBtn) sendBtn.disabled=v; }
-  function setStatus(s){ if(!statusEl) return; statusEl.textContent='● '+s; statusEl.style.color=s==='готов'?'#2a6010':'#7a5008'; }
-  function showTyping(v){ if(typingEl){ typingEl.style.display=v?'block':'none'; if(!v) setTypingText('✦ думает...'); } if(v&&msgs) msgs.scrollTop=msgs.scrollHeight; }
+  function setStatus(s){ if(!statusEl) return; statusEl.textContent='● '+s; statusEl.style.color=s===t('ai_status_ready')?'#2a6010':'#7a5008'; }
+  function showTyping(v){ if(typingEl){ typingEl.style.display=v?'block':'none'; if(!v) setTypingText('✦ '+t('ai_thinking')); } if(v&&msgs) msgs.scrollTop=msgs.scrollHeight; }
   function setTypingText(t){ if(typingEl){ var s=typingEl.querySelector('span'); if(s) s.textContent=t; } }
 
+  function esc(x){ return x.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function mdCodeToken(i){ return 'ZxCODEBLOCKz' + i + 'zZ'; }
   function md(s){
-    s=s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    s=s.replace(/^### (.+)$/gm,'<span style="font-weight:700;font-size:12px;color:var(--blue);display:block;margin-top:6px">$1</span>');
-    s=s.replace(/^## (.+)$/gm,'<span style="font-weight:700;font-size:13px;color:var(--txt);display:block;margin-top:8px">$1</span>');
-    s=s.replace(/\*\*([^\n*]+)\*\*/g,'<b>$1</b>');
-    s=s.replace(/`([^`\n]+)`/g,'<code style="background:var(--bg3);padding:1px 4px;border-radius:3px;font-family:Consolas,monospace;font-size:10.5px">$1</code>');
-    s=s.replace(/^[•\-\*] (.+)$/gm,'&nbsp;• $1');
-    s=s.replace(/\n/g,'<br>');
+    var codes = [];
+    s = s.replace(/```([^\n`]*)\n?([\s\S]*?)```/g, function(_, lang, code){
+      codes.push(code.replace(/\s+$/,''));
+      return mdCodeToken(codes.length - 1);
+    });
+    s = esc(s);
+    s = s.replace(/(?:^\|.*\|[ \t]*\n?)+/gm, function(block){
+      var rows = block.trim().split('\n').filter(function(r){ return !/^\|[\s:|-]+\|$/.test(r.trim()); });
+      if (rows.length < 2) return block;
+      var html = rows.map(function(r,i){
+        var tag = i===0?'th':'td';
+        return '<tr>' + r.trim().replace(/^\||\|$/g,'').split('|').map(function(c){
+          return '<'+tag+' style="border:1px solid var(--brd2);padding:2px 6px;text-align:left">'+c.trim()+'</'+tag+'>';
+        }).join('') + '</tr>';
+      }).join('');
+      return '<table style="border-collapse:collapse;margin:4px 0;font-size:10px">'+html+'</table>';
+    });
+    s = s.replace(/^\s{0,3}#{4,}\s+(.+)$/gm,'<div style="font-weight:700;font-size:11.5px;color:var(--blue);margin-top:6px">$1</div>');
+    s = s.replace(/^\s{0,3}###\s+(.+)$/gm,'<div style="font-weight:700;font-size:12px;color:var(--blue);margin-top:8px">$1</div>');
+    s = s.replace(/^\s{0,3}##\s+(.+)$/gm,'<div style="font-weight:700;font-size:13px;color:var(--txt);margin-top:10px">$1</div>');
+    s = s.replace(/^\s{0,3}#\s+(.+)$/gm,'<div style="font-weight:700;font-size:14px;color:var(--txt);margin-top:10px">$1</div>');
+    s = s.replace(/^\s*([-*_]\s?){3,}\s*$/gm,'<hr style="border:none;border-top:1px solid var(--brd2);margin:8px 0">');
+    s = s.replace(/\*\*([^\n*]+)\*\*/g,'<b>$1</b>');
+    s = s.replace(/`([^`\n]+)`/g,'<code style="background:var(--bg3);padding:1px 4px;border-radius:3px;font-family:Consolas,monospace;font-size:10.5px">$1</code>');
+    s = s.replace(/^([ \t]*)([•‣◦\-\*]|\d+[.)])[ \t]+(.+)$/gm, function(_, ind, mark, txt){
+      var lvl = Math.min(3, Math.floor(ind.replace(/\t/g,'  ').length / 2));
+      var bullet = /\d/.test(mark) ? mark.replace(')','.') + ' ' : '•&nbsp;';
+      return '<div style="margin-left:'+(6+lvl*16)+'px;text-indent:-12px;padding-left:12px">'+bullet+txt+'</div>';
+    });
+    s = s.replace(/ZxCODEBLOCKz(\d+)zZ/g, function(_, i){
+      return '<pre style="background:var(--bg1);border:1px solid var(--brd2);border-radius:4px;padding:6px 8px;margin:4px 0;overflow-x:auto;font-family:Consolas,monospace;font-size:10px;line-height:1.5;white-space:pre">'+esc(codes[i])+'</pre>';
+    });
+    s = s.replace(/\n{2,}/g,'<div style="height:7px"></div>');
+    s = s.replace(/\n/g,'<br>');
+    s = s.replace(/<br>\s*(<(?:div|pre|table|hr))/g,'$1').replace(/(<\/(?:div|pre|table)>|<hr[^>]*>)\s*<br>/g,'$1');
+    return s;
+  }
+  function _mdOLD(s){ return md(s);
+    var codes = [];
+    s = s.replace(/```([^\n`]*)\n?([\s\S]*?)```/g, function(_, lang, code){
+      codes.push(code.replace(/\s+$/,''));
+      return 'C'+(codes.length-1)+'';
+    });
+    s = esc(s);
+    // 2. таблицы  | a | b |
+    s = s.replace(/(?:^\|.*\|[ \t]*\n?)+/gm, function(block){
+      var rows = block.trim().split('\n').filter(function(r){ return !/^\|[\s:|-]+\|$/.test(r.trim()); });
+      if (rows.length < 2) return block;
+      var html = rows.map(function(r,i){
+        var tag = i===0?'th':'td';
+        var tds = r.trim().replace(/^\||\|$/g,'').split('|').map(function(c){
+          return '<'+tag+' style="border:1px solid var(--brd2);padding:2px 6px;text-align:left">'+c.trim()+'</'+tag+'>';
+        }).join('');
+        return '<tr>'+tds+'</tr>';
+      }).join('');
+      return '<table style="border-collapse:collapse;margin:4px 0;font-size:10px">'+html+'</table>';
+    });
+    // 3. заголовки и разделители
+    s = s.replace(/^\s{0,3}#{4,}\s+(.+)$/gm,'<div style="font-weight:700;font-size:11.5px;color:var(--blue);margin-top:6px">$1</div>');
+    s = s.replace(/^\s{0,3}###\s+(.+)$/gm,'<div style="font-weight:700;font-size:12px;color:var(--blue);margin-top:8px">$1</div>');
+    s = s.replace(/^\s{0,3}##\s+(.+)$/gm,'<div style="font-weight:700;font-size:13px;color:var(--txt);margin-top:10px">$1</div>');
+    s = s.replace(/^\s{0,3}#\s+(.+)$/gm,'<div style="font-weight:700;font-size:14px;color:var(--txt);margin-top:10px">$1</div>');
+    s = s.replace(/^\s*([-*_]){3,}\s*$/gm,'<hr style="border:none;border-top:1px solid var(--brd2);margin:8px 0">');
+    // 4. инлайн: bold, `code`
+    s = s.replace(/\*\*([^\n*]+)\*\*/g,'<b>$1</b>');
+    s = s.replace(/`([^`\n]+)`/g,'<code style="background:var(--bg3);padding:1px 4px;border-radius:3px;font-family:Consolas,monospace;font-size:10.5px">$1</code>');
+    // 5. списки с учётом вложенности; нумерованные — сохраняем номер
+    s = s.replace(/^(\s*)([••\-\*]|\d+[.)])\s+(.+)$/gm, function(_, ind, mark, txt){
+      var lvl = Math.min(3, Math.floor((ind||'').replace(/\t/g,'  ').length/2));
+      var b = /\d/.test(mark) ? mark.replace(/\)/,'.')+' ' : '•&nbsp;';
+      return '<div style="margin-left:'+(6+lvl*16)+'px;text-indent:-12px;padding-left:12px">'+b+txt+'</div>';
+    });
+    // 6. возвращаем код
+    s = s.replace(/C(\d+)/g, function(_, i){
+      return '<pre style="background:var(--bg1);border:1px solid var(--brd2);border-radius:4px;padding:6px 8px;margin:4px 0;overflow-x:auto;font-family:Consolas,monospace;font-size:10px;line-height:1.5;white-space:pre">'+esc(codes[i])+'</pre>';
+    });
+    // 7. переносы строк (не приклеиваем <br> к блочным тегам)
+    s = s.replace(/\n{2,}/g,'<div style="height:7px"></div>');
+    s = s.replace(/\n/g,'<br>');
+    s = s.replace(/<br>\s*(<(?:div|pre|table|hr))/g,'$1').replace(/(<\/(?:div|pre|table)>|<hr[^>]*>)\s*<br>/g,'$1');
     return s;
   }
 
@@ -712,7 +1578,10 @@ var AI = {};
     sendBtn =document.getElementById('ai-send');
     statusEl=document.getElementById('ai-status');
     typingEl=document.getElementById('ai-typing');
-    apiKey  =localStorage.getItem('raptor_ai_key');
+    apiKey  = resolveKey();
+    var savedModel = localStorage.getItem('raptor_ai_model_'+PROVIDER);
+    if (savedModel) P().model = savedModel;
+    syncLabel();
     if(input) input.addEventListener('keydown',function(e){ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); send(); } });
     document.addEventListener('keydown',function(e){ if(e.key==='Escape'&&isOpen) AI.close(); });
   }

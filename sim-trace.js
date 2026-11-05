@@ -165,7 +165,7 @@ function recordHop(req, fromId, toId, conn){
 let _htip = null;
 function showHoverTip(reqId, cx, cy){
   if(!SIM || !SIM.reqs) return;
-  const req = SIM.reqs[reqId]; if(!req) return;
+  const req = SIM.reqs[reqId] || (typeof PSIM!=='undefined' && PSIM.parked[reqId]); if(!req) return;
   if(!_htip){
     _htip = document.createElement('div');
     _htip.id = 'sim-hover-tip';
@@ -182,6 +182,7 @@ function showHoverTip(reqId, cx, cy){
   let h = `<div style="font-weight:700;color:#7aa2f7;margin-bottom:4px">${req.isResponse?'▶ Ответ':'● Запрос'} #${req.id.slice(1)}</div>`;
   h += `<div style="color:#9aa5ce;font-size:10.5px">📍 ${_esc(curB?.customLabel||EL[curB?.type]?.lbl||'?')} <span style="color:#4a4c6a">→</span> <b>${nextB?_esc(nextB.customLabel||EL[nextB.type]?.lbl):'конец'}</b></div>`;
   if(lastH?.method) h += `<div style="color:#7aa2f7;font-size:10.5px;margin-top:2px">⚙ ${_esc(lastH.method)}</div>`;
+  if(lastH?.pats?.length) h += `<div style="color:#bb9af7;font-size:10.5px;margin-top:2px">🧩 ${_esc(lastH.pats[lastH.pats.length-1])}</div>`;
   if(lastH?.query){
     const firstLine = lastH.query.split('\n')[0];
     const preview   = firstLine.length > 46 ? firstLine.slice(0,46)+'…' : firstLine;
@@ -243,6 +244,7 @@ function renderTraceTimeline(req){
           <div style="font-size:10.5px;color:var(--txt2);white-space:nowrap;padding-top:1px">${h.latMs} мс</div>
         </div>
         ${h.method?`<div style="font-size:10.5px;color:var(--blue);margin-top:1px">⚙ ${_esc(h.method)}</div>`:''}
+        ${(h.pats||[]).map(p=>`<div style="font-size:10.5px;color:#bb9af7;margin-top:2px">🧩 ${_esc(p)}</div>`).join('')}
         ${qHtml}
         <div style="font-size:10px;color:${sc};margin-top:4px">${si} ${h.status==='fail'?'Ошибка':h.status==='slow'?'Медленно (деградация)':'OK'}</div>
       </div>

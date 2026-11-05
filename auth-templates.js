@@ -3,8 +3,8 @@
 const AUTH_TEMPLATES = [
   {
     id:'oauth2_jwt',
-    name:'OAuth 2.0 + JWT',
-    desc:'Полноценный OAuth 2.0 с JWT access token и refresh token. Для сложных систем с внешними провайдерами.',
+    name:{ru:'OAuth 2.0 + JWT',en:'OAuth 2.0 + JWT'},
+    desc:{ru:'Полноценный OAuth 2.0 с JWT access token и refresh token. Для сложных систем с внешними провайдерами.',en:'Full-featured OAuth 2.0 with a JWT access token and refresh token. For complex systems with external providers.'},
     flows:['/register','/login','/oauth/authorize','/oauth/token','/oauth/refresh','/oauth/revoke','/logout'],
     dbTemplate:{
       tables:[
@@ -71,8 +71,8 @@ end`,
   },
   {
     id:'jwt_only',
-    name:'JWT-only (без OAuth)',
-    desc:'Простая JWT-аутентификация без OAuth. Для внутренних API и небольших систем.',
+    name:{ru:'JWT-only (без OAuth)',en:'JWT-only (no OAuth)'},
+    desc:{ru:'Простая JWT-аутентификация без OAuth. Для внутренних API и небольших систем.',en:'Simple JWT authentication without OAuth. For internal APIs and small systems.'},
     flows:['/register','/login','/refresh','/logout','/me'],
     dbTemplate:{
       tables:[
@@ -124,8 +124,8 @@ end`,
   },
   {
     id:'session_based',
-    name:'Session-based (Cookie)',
-    desc:'Классические сессии с куки. Для SSR-приложений (Next.js, Django, Rails).',
+    name:{ru:'Session-based (Cookie)',en:'Session-based (Cookie)'},
+    desc:{ru:'Классические сессии с куки. Для SSR-приложений (Next.js, Django, Rails).',en:'Classic cookie-based sessions. For SSR applications (Next.js, Django, Rails).'},
     flows:['/register','/login','/logout','/session/refresh'],
     dbTemplate:{
       tables:[
@@ -171,8 +171,8 @@ Browser --> Пользователь: Открывает главную стра
   },
   {
     id:'api_key',
-    name:'API Key (B2B / машины)',
-    desc:'Доступ по ключу для партнёров и сервис-интеграций (B2B). Ключ в заголовке X-API-Key, в БД хранится только хэш, проверка кэшируется.',
+    name:{ru:'API Key (B2B / машины)',en:'API Key (B2B / machine)'},
+    desc:{ru:'Доступ по ключу для партнёров и сервис-интеграций (B2B). Ключ в заголовке X-API-Key, в БД хранится только хэш, проверка кэшируется.',en:'Key-based access for partners and service integrations (B2B). The key is sent in the X-API-Key header, only its hash is stored in the DB, and verification is cached.'},
     flows:['/keys (выпуск)','/keys (список)','/keys/{id}/revoke'],
     dbTemplate:{
       tables:[
@@ -217,8 +217,8 @@ GW --> Client: 200 OK (данные)`,
   },
   {
     id:'oidc_sso',
-    name:'OIDC / SSO (корпоративный вход)',
-    desc:'Вход через внешний Identity Provider (Keycloak, Azure AD, Google Workspace). Пароли НЕ хранятся — только связка identity↔IdP. Подписи токенов проверяются по JWKS-кэшу.',
+    name:{ru:'OIDC / SSO (корпоративный вход)',en:'OIDC / SSO (corporate login)'},
+    desc:{ru:'Вход через внешний Identity Provider (Keycloak, Azure AD, Google Workspace). Пароли НЕ хранятся — только связка identity↔IdP. Подписи токенов проверяются по JWKS-кэшу.',en:'Login via an external Identity Provider (Keycloak, Azure AD, Google Workspace). Passwords are NOT stored — only the identity↔IdP link. Token signatures are verified against a JWKS cache.'},
     flows:['/auth/login (redirect)','/auth/callback','/logout','/userinfo'],
     dbTemplate:{
       tables:[
@@ -273,9 +273,9 @@ function openAuthTemplates(){
       ${AUTH_TEMPLATES.map(t=>`
         <div style="border:1px solid #3d3f52;border-radius:9px;padding:12px;margin-bottom:10px;background:#1a1b26">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-            <span style="font-size:13px;font-weight:700;color:#bb9af7">${t.name}</span>
+            <span style="font-size:13px;font-weight:700;color:#bb9af7">${tTask(t.name)}</span>
           </div>
-          <div style="font-size:11px;color:#787c99;margin-bottom:6px">${t.desc}</div>
+          <div style="font-size:11px;color:#787c99;margin-bottom:6px">${tTask(t.desc)}</div>
           <div style="font-size:10px;color:#4a90d9;margin-bottom:8px">Эндпоинты: ${t.flows.join(' · ')}</div>
           <div style="display:flex;gap:6px">
             <button class="btn run" onclick="applyAuthTemplate('${t.id}')" style="font-size:10.5px">+ Добавить на схему</button>
@@ -305,7 +305,7 @@ function applyAuthTemplate(id){
   S.conns.push({id:'c'+(S.nid++),from:authSvc.id,to:authDB.id});
   // Session-based — подсказать Redis для масштабирования
   pushHist();analyze();
-  toast('🔐 '+tmpl.name+' добавлен'+(id==='session_based'?' · совет: добавь Redis для сессий':''));
+  toast('🔐 '+tTask(tmpl.name)+' добавлен'+(id==='session_based'?' · совет: добавь Redis для сессий':''));
   const am=document.getElementById('auth-tmpl-modal');if(am)am.style.display='none';
 }
 
@@ -324,14 +324,14 @@ function setAuthType(blockId,type){
     delete db.dbTemplate;
   }
   pushHist();analyze();
-  toast('🔐 Тип: '+tmpl.name+' · схема БД обновлена');
+  toast('🔐 Тип: '+tTask(tmpl.name)+' · схема БД обновлена');
 }
 
 function showAuthSeq(id){
   const tmpl=AUTH_TEMPLATES.find(t=>t.id===id);if(!tmpl||!tmpl.seqExample)return;
   SEQ_ACTOR=null;SEQ_SCEN=null;
   document.getElementById('seq-modal').style.display='flex';
-  document.getElementById('seq-title').textContent='🔐 '+tmpl.name+' — Sequence';
+  document.getElementById('seq-title').textContent='🔐 '+tTask(tmpl.name)+' — Sequence';
   document.getElementById('seq-input').value=tmpl.seqExample;
   renderSeq();
   document.getElementById('auth-tmpl-modal').style.display='none';
@@ -347,7 +347,7 @@ function showAuthSQL(id){
   if(existing){
     existing.innerHTML=`<div class="modal-box" style="max-width:700px;width:96%">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-        <h2 style="color:#bb9af7">${tmpl.name} — SQL</h2>
+        <h2 style="color:#bb9af7">${tTask(tmpl.name)} — SQL</h2>
         <button class="modal-btn" onclick="document.getElementById('db-view-modal').style.display='none'">✕</button>
       </div>
       ${content}
@@ -362,7 +362,7 @@ function showAuthSQL(id){
   const ov=document.createElement('div');ov.id='db-view-modal';ov.className='modal-ov';
   ov.innerHTML=`<div class="modal-box" style="max-width:700px;width:96%">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <h2 style="color:#bb9af7">${tmpl.name} — SQL</h2>
+      <h2 style="color:#bb9af7">${tTask(tmpl.name)} — SQL</h2>
       <button class="modal-btn" onclick="document.getElementById('db-view-modal').style.display='none'">✕</button>
     </div>
     ${content}

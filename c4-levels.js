@@ -23,10 +23,12 @@ function setC4Level(level){
   if(level===null){
     S.view='workspace';
     render();
+    if(typeof zsUI==='function')zsUI();
     return;
   }
   S.view='c4_level';
   render();
+  if(typeof zsUI==='function')zsUI();
 }
 
 // Получить текущий C4-уровень для отображения в renderC4Levels
@@ -62,10 +64,7 @@ function c4LevelBlocks(){
 
 // Описание уровня для подсказки
 const C4_HINTS={
-  1:'C1 Context: Пользователи и внешние системы. Покажи ГДЕ находится система в большом мире.',
-  2:'C2 Container: Технические блоки системы (сервисы, БД, брокеры). Как общаются между собой.',
-  3:'C3 Component: Внутренние компоненты одного сервиса. Покажи архитектуру конкретного микросервиса.',
-  4:'C4 Dynamic: Sequence-диаграмма — динамика выполнения конкретного сценария.',
+  1:'c4_hint_1', 2:'c4_hint_2', 3:'c4_hint_3', 4:'c4_hint_4',
 };
 
 // Рендер блока с C4-аннотацией (вызывается из renderBlocks если S.view==='c4_level')
@@ -85,7 +84,7 @@ function renderC4Level(L){
       inner.forEach(b=>{const W=bw(b),H=bh(b);x0=Math.min(x0,b.x);y0=Math.min(y0,b.y);x1=Math.max(x1,b.x+W);y1=Math.max(y1,b.y+H);});
       const pad=32;
       mkEl('rect',{x:x0-pad,y:y0-pad,width:x1-x0+2*pad,height:y1-y0+2*pad,rx:16,fill:'#7aa2f708',stroke:'#7aa2f755','stroke-width':'1.5','stroke-dasharray':'10 5'},L);
-      mkTxt(x0-pad+100,y0-pad-10,(S.meta?.systemName||'Система')+`  [C${level} ${level===1?'Context':'Container'}]`,'font-size:11px;fill:var(--blue);font-weight:600',L);
+      mkTxt(x0-pad+100,y0-pad-10,(S.meta?.systemName||t('c4_system_default'))+`  [C${level} ${level===1?'Context':'Container'}]`,'font-size:11px;fill:var(--blue);font-weight:600',L);
     }
   }
 
@@ -108,7 +107,7 @@ function renderC4Level(L){
     if(shape==='person'||shape==='role'){
       drawPerson(g,b,W,H,d.clr);
       mkTxt(b.x+W/2,b.y+H+9,b.customLabel||d.lbl,`font-size:11px;font-weight:700;fill:${darkFor(d.clr)}`,g);
-      const sub=level===1?'[Person]':`[${c4Kind(b)}]`;
+      const sub=level===1?t('c4_person_lbl'):`[${c4Kind(b)}]`;
       mkTxt(b.x+W/2,b.y+H+20,sub,'font-size:8px;fill:var(--txt2)',g);
     }else{
       drawBlockShape(g,b,W,H,shape,d.clr,sc,shape==='ext'?'6 4':'none');
@@ -129,5 +128,5 @@ function renderC4Level(L){
 // Хинт уровня — показывается в статусбаре или подсказке
 function c4LevelHint(){
   const l=S.c4Level;if(!l)return '';
-  return C4_HINTS[l]||'';
+  return C4_HINTS[l]?t(C4_HINTS[l]):'';
 }

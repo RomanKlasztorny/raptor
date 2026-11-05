@@ -6,40 +6,40 @@
 // ═══════════════════════════════════════════════════════════════
 function generateDocMD(){
   ensureMeta();const m=S.meta;
-  let md=`# ${m.systemName||'Система'}\n\n`;
-  md+=`**Версия:** ${m.version||'—'}  ·  **Автор:** ${m.author||'—'}\n\n`;
-  if(m.description)md+=`**Общее описание:** ${m.description}\n\n`;
+  let md=`# ${m.systemName||tTask({ru:'Система',en:'System'})}\n\n`;
+  md+=`**${tTask({ru:'Версия',en:'Version'})}:** ${m.version||'—'}  ·  **${tTask({ru:'Автор',en:'Author'})}:** ${m.author||'—'}\n\n`;
+  if(m.description)md+=`**${tTask({ru:'Общее описание',en:'Overview'})}:** ${m.description}\n\n`;
   // Роли
   (m.userRoles||[]).forEach(r=>{
-    md+=`**${r.name} могут:**\n`;
+    md+=`**${r.name} ${tTask({ru:'могут',en:'can'})}:**\n`;
     (r.can||[]).forEach(c=>md+=`- ${c}\n`);
     md+='\n';
   });
   // Требования
   if((m.requirements||[]).length){
-    md+=`## Доп. требования\n`;
+    md+=`## ${tTask({ru:'Доп. требования',en:'Additional requirements'})}\n`;
     m.requirements.forEach(r=>md+=`- ${r.text}${r.card?` (${r.card})`:''}\n`);
     md+='\n';
   }
   // Сервисы
-  md+=`## Описание сервисов\n\n`;
+  md+=`## ${tTask({ru:'Описание сервисов',en:'Service descriptions'})}\n\n`;
   allServices().forEach(svc=>{
     const nm=svc.customLabel||EL[svc.type]?.lbl;
     md+=`### ${nm}\n`;
-    md+=`Назначение: ${svc.desc||EL[svc.type]?.role||'—'}\n\n`;
+    md+=`${tTask({ru:'Назначение',en:'Purpose'})}: ${svc.desc||EL[svc.type]?.role||'—'}\n\n`;
     // Эндпоинты
     const eps=serviceEndpoints(svc.id);
     if(eps.length){
-      md+=`**Примеры запросов**\n\n`;
+      md+=`**${tTask({ru:'Примеры запросов',en:'Example requests'})}**\n\n`;
       eps.forEach(ep=>{
         md+=`#### ${ep.verb||'GET'} ${ep.uri||''} — ${ep.desc||ep.name||''}\n\n`;
         if((ep.params||[]).length){
-          md+=`| Параметр | Наименование | Тип | Обяз. | Описание | Где |\n|---|---|---|---|---|---|\n`;
-          ep.params.forEach(p=>md+=`| ${p.name} | ${p.label||''} | ${p.type||'string'} | ${p.required?'да':'нет'} | ${p.desc||''} | ${p.in||'body'} |\n`);
+          md+=`| ${tTask({ru:'Параметр',en:'Parameter'})} | ${tTask({ru:'Наименование',en:'Label'})} | ${tTask({ru:'Тип',en:'Type'})} | ${tTask({ru:'Обяз.',en:'Req.'})} | ${tTask({ru:'Описание',en:'Description'})} | ${tTask({ru:'Где',en:'In'})} |\n|---|---|---|---|---|---|\n`;
+          ep.params.forEach(p=>md+=`| ${p.name} | ${p.label||''} | ${p.type||'string'} | ${p.required?tTask({ru:'да',en:'yes'}):tTask({ru:'нет',en:'no'})} | ${p.desc||''} | ${p.in||'body'} |\n`);
           md+='\n';
         }
-        md+=`Выходные данные: ${ep.success||ep.resp||'200 OK'}\n\n`;
-        if((ep.codes||[]).length)md+=`Возможные статус-коды: ${ep.codes.join(', ')}\n\n`;
+        md+=`${tTask({ru:'Выходные данные',en:'Output data'})}: ${ep.success||ep.resp||'200 OK'}\n\n`;
+        if((ep.codes||[]).length)md+=`${tTask({ru:'Возможные статус-коды',en:'Possible status codes'})}: ${ep.codes.join(', ')}\n\n`;
       });
     }
     // БД сервиса
@@ -49,10 +49,10 @@ function generateDocMD(){
       md+=`**ERD: ${db.customLabel||EL[db.type]?.lbl}**\n\n`;
       const fake={name:db.customLabel||'DB',type:db.type,schema:blockSchema(db)};
       md+='```mermaid\n'+schemaToMermaid(fake)+'\n```\n\n';
-      md+=`**Описание таблиц**\n\n`;
+      md+=`**${tTask({ru:'Описание таблиц',en:'Table descriptions'})}**\n\n`;
       tables.forEach(t=>{
         md+=`*${t.name}*\n\n`;
-        md+=`| Поле | Наименование | Тип | Ограничения | Описание | Пример |\n|---|---|---|---|---|---|\n`;
+        md+=`| ${tTask({ru:'Поле',en:'Field'})} | ${tTask({ru:'Наименование',en:'Label'})} | ${tTask({ru:'Тип',en:'Type'})} | ${tTask({ru:'Ограничения',en:'Constraints'})} | ${tTask({ru:'Описание',en:'Description'})} | ${tTask({ru:'Пример',en:'Example'})} |\n|---|---|---|---|---|---|\n`;
         (t.fields||[]).forEach(f=>md+=`| ${f.name} | ${fieldLabel(f)} | ${f.type} | ${fieldConstraints(f)} | ${fieldDesc(f)} | ${fieldExample(f)} |\n`);
         md+='\n';
       });
@@ -66,7 +66,7 @@ function showDoc(){
   $('doc-modal').style.display='flex';
 }
 function closeDoc(){$('doc-modal').style.display='none';}
-function copyDoc(){navigator.clipboard.writeText($('doc-txt').textContent).then(()=>toast('📋 Скопировано'));}
+function copyDoc(){navigator.clipboard.writeText($('doc-txt').textContent).then(()=>toast('📋 '+tTask({ru:'Скопировано',en:'Copied'})));}
 function downloadDoc(){
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([$('doc-txt').textContent],{type:'text/markdown'}));
@@ -84,8 +84,8 @@ function loadDocxLib(){
     if(window.docx)return resolve(window.docx);
     const s=document.createElement('script');
     s.src=DOCX_CDN;
-    s.onload=()=>window.docx?resolve(window.docx):reject(new Error('docx не загрузился'));
-    s.onerror=()=>reject(new Error('docx.min.js не найден и CDN недоступен'));
+    s.onload=()=>window.docx?resolve(window.docx):reject(new Error(tTask({ru:'docx не загрузился',en:'docx failed to load'})));
+    s.onerror=()=>reject(new Error(tTask({ru:'docx.min.js не найден и CDN недоступен',en:'docx.min.js not found and CDN unavailable'})));
     document.head.appendChild(s);
   });
 }
@@ -156,7 +156,8 @@ function openExportChooser(){
     {k:'output_params',def:true},
     {k:'status_codes', def:true},
     {k:'seq_uml',      def:true},
-  ].map(function(c){ c.lbl = (typeof t==='function' ? t('word_s_'+c.k) : null) || c.k; return c; });
+    {k:'bpmn',         def:true, lbl:tTask({ru:'Бизнес-процессы (BPMN)',en:'Business processes (BPMN)'})},
+  ].map(function(c){ c.lbl = (typeof t==='function' ? t('word_s_'+c.k) : null) || c.lbl || c.k; return c; });
 
   const row=c=>`<label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:12px;color:#1a1410">
     <input type="checkbox" id="exc_${c.k}" ${c.def?'checked':''} style="width:14px;height:14px;accent-color:#2a6010">
@@ -313,10 +314,33 @@ function erdSvgToPng(svgStr, scale){
   });
 }
 
+// Снапшот одной BPMN-диаграммы: временно переключаем канвас в BPMN-режим,
+// рендерим нужную диаграмму, снимаем PNG и возвращаем всё как было.
+async function bpmnDiagramToPng(diagId){
+  const prev={mode:S.notationMode,cur:S.bpmn?.currentDiagramId,panX:S.panX,panY:S.panY,zoom:S.zoom};
+  try{
+    S.notationMode='bpmn';S.bpmn.currentDiagramId=diagId;S.panX=0;S.panY=0;S.zoom=1;
+    render();
+    return await canvasSvgToPng(2,{whiteBg:true});
+  }catch(e){return null;}
+  finally{
+    S.notationMode=prev.mode;S.bpmn.currentDiagramId=prev.cur;
+    S.panX=prev.panX;S.panY=prev.panY;S.zoom=prev.zoom;
+    render();
+  }
+}
+// Роль элемента BPMN — по геометрии (центр внутри дорожки, иначе пула)
+function bpmnRoleOf(el,lanes,pools){
+  const cx=el.x+(el.w||0)/2,cy=el.y+(el.h||0)/2;
+  const hit=r=>cx>=r.x&&cx<=r.x+(r.w||0)&&cy>=r.y&&cy<=r.y+(r.h||0);
+  const l=lanes.find(hit);if(l)return l.label||'';
+  const pl=pools.find(hit);return pl?(pl.label||''):'';
+}
+
 async function downloadWord(cfg={}){
   // По умолчанию — всё включено
   const has=k=>cfg[k]!==false&&(Object.keys(cfg).length===0||cfg[k]===true);
-  toast('⏳ Генерирую Word…',3000);
+  toast('⏳ '+tTask({ru:'Генерирую Word…',en:'Generating Word…'}),3000);
   let docx;
   try{ docx=await loadDocxLib(); }
   catch(e){ toast('❌ '+e.message); return; }
@@ -347,27 +371,27 @@ async function downloadWord(cfg={}){
 
   // ── Титул ──
   if(has('title'))
-  children.push(new Paragraph({heading:HeadingLevel.HEADING_1,children:[new TextRun(m.systemName||'Система')]}));
+  children.push(new Paragraph({heading:HeadingLevel.HEADING_1,children:[new TextRun(m.systemName||tTask({ru:'Система',en:'System'}))]}));
   if(has('title')){
     children.push(new Paragraph({children:[
-      new TextRun({text:'Версия: ',bold:true}),new TextRun(m.version||'—'),
+      new TextRun({text:tTask({ru:'Версия: ',en:'Version: '}),bold:true}),new TextRun(m.version||'—'),
       new TextRun('\t'),
-      new TextRun({text:'Автор: ',bold:true}),new TextRun(m.author||'—'),
+      new TextRun({text:tTask({ru:'Автор: ',en:'Author: '}),bold:true}),new TextRun(m.author||'—'),
     ],tabStops:[{type:TabStopType.RIGHT,position:TabStopPosition.MAX}]}));
   }
 
   // ── Описание системы + роли + требования ──
   if(has('description')){
     if(m.description){
-      children.push(p('Общее описание системы',{heading:HeadingLevel.HEADING_2}));
+      children.push(p(tTask({ru:'Общее описание системы',en:'System overview'}),{heading:HeadingLevel.HEADING_2}));
       children.push(p(m.description));
     }
     (m.userRoles||[]).forEach(r=>{
-      children.push(new Paragraph({spacing:{before:160},children:[new TextRun({text:`${r.name} могут:`,bold:true})]}));
+      children.push(new Paragraph({spacing:{before:160},children:[new TextRun({text:`${r.name} ${tTask({ru:'могут',en:'can'})}:`,bold:true})]}));
       (r.can||[]).forEach(c=>children.push(new Paragraph({numbering:{reference:'bullets',level:0},children:[new TextRun(c)]})));
     });
     if((m.requirements||[]).length){
-      children.push(p('Доп. требования',{heading:HeadingLevel.HEADING_2}));
+      children.push(p(tTask({ru:'Доп. требования',en:'Additional requirements'}),{heading:HeadingLevel.HEADING_2}));
       m.requirements.forEach(r=>children.push(new Paragraph({numbering:{reference:'bullets',level:0},
         children:[new TextRun(r.text+(r.card?`  (${r.card})`:''))]})));
     }
@@ -381,12 +405,12 @@ async function downloadWord(cfg={}){
       await new Promise(r=>setTimeout(r,80));
       const png=await canvasSvgToPng(2.5,{whiteBg:true});
       if(png){
-        children.push(p('Схема C4 (уровень C2)',{heading:HeadingLevel.HEADING_2}));
+        children.push(p(tTask({ru:'Схема C4 (уровень C2)',en:'C4 Diagram (level C2)'}),{heading:HeadingLevel.HEADING_2}));
         // CW=9360 DXA → 9360/1440*96 ≈ 624px при 96dpi — полная ширина страницы
         const maxPx=624,ratio=png.h/png.w,w=Math.min(maxPx,png.w),h=Math.round(w*ratio);
         children.push(new Paragraph({children:[new ImageRun({type:'png',data:png.data,
           transformation:{width:Math.round(w),height:h},
-          altText:{title:'C4',description:'Схема C4 уровень Container',name:'c4'}})]}));
+          altText:{title:'C4',description:tTask({ru:'Схема C4 уровень Container',en:'C4 diagram, Container level'}),name:'c4'}})]}));
       }
     }catch(e){}
     finally{S.view=wasView;if(typeof setC4Level==='function'){S.c4Level=null;}render();}
@@ -400,10 +424,10 @@ async function downloadWord(cfg={}){
     });
     if(gwConns.length){
       children.push(new Paragraph({pageBreakBefore:true,heading:HeadingLevel.HEADING_1,children:[new TextRun('API Gateway')]}));
-      children.push(p('Единая точка входа. Маршрутизация запросов по сервисам.'));
+      children.push(p(tTask({ru:'Единая точка входа. Маршрутизация запросов по сервисам.',en:'Single entry point. Routes requests to services.'})));
       const gwCols=[1400,2800,2200,2960];
       const gwRows=[new TableRow({children:[
-        hcell('Метод',gwCols[0]),hcell('URI',gwCols[1]),hcell('Сервис',gwCols[2]),hcell('Описание',gwCols[3]),
+        hcell(tTask({ru:'Метод',en:'Method'}),gwCols[0]),hcell('URI',gwCols[1]),hcell(tTask({ru:'Сервис',en:'Service'}),gwCols[2]),hcell(tTask({ru:'Описание',en:'Description'}),gwCols[3]),
       ]})];
       gwConns.forEach(c=>{
         const svcName=gb(c.to)?.customLabel||EL[gb(c.to)?.type]?.lbl||'';
@@ -417,32 +441,32 @@ async function downloadWord(cfg={}){
   }
 
   // ── Описание сервисов ──
-  children.push(new Paragraph({pageBreakBefore:true,heading:HeadingLevel.HEADING_1,children:[new TextRun('Описание сервисов')]}));
+  children.push(new Paragraph({pageBreakBefore:true,heading:HeadingLevel.HEADING_1,children:[new TextRun(tTask({ru:'Описание сервисов',en:'Service descriptions'}))]}));
   for(const svc of allServices()){
     const nm=svc.customLabel||EL[svc.type]?.lbl;
     children.push(p(nm,{heading:HeadingLevel.HEADING_2}));
 
     if(has('svc_desc'))
-      children.push(new Paragraph({children:[new TextRun({text:'Назначение: ',bold:true}),
+      children.push(new Paragraph({children:[new TextRun({text:tTask({ru:'Назначение: ',en:'Purpose: '}),bold:true}),
         new TextRun(svc.desc||EL[svc.type]?.role||'—')]}));
 
     // ── Схема БД ──
     if(has('db_schema')){
       for(const db of serviceDatabases(svc.id)){
         const tables=schemaTables(db);if(!tables.length)continue;
-        children.push(p(`Схема БД — ${db.customLabel||EL[db.type]?.lbl}`,{heading:HeadingLevel.HEADING_3}));
+        children.push(p(`${tTask({ru:'Схема БД',en:'DB Schema'})} — ${db.customLabel||EL[db.type]?.lbl}`,{heading:HeadingLevel.HEADING_3}));
         const rels=[];
         tables.forEach(t=>(t.fields||[]).filter(f=>f.fk).forEach(f=>rels.push(`${t.name}.${f.name} → ${f.fk.table}.${f.fk.field}`)));
         if(rels.length){
-          children.push(p('Связи (FK):',{run:{italics:true,size:18}}));
+          children.push(p(tTask({ru:'Связи (FK):',en:'Relations (FK):'}),{run:{italics:true,size:18}}));
           rels.forEach(r=>children.push(new Paragraph({numbering:{reference:'bullets',level:0},children:[new TextRun({text:r,size:18})]})));
         }
         for(const t of tables){
           children.push(new Paragraph({spacing:{before:100},children:[new TextRun({text:t.name,bold:true})]}));
           const cols=[1400,1600,1300,1400,2160,1500];
           const dbRows=[new TableRow({children:[
-            hcell('Поле',cols[0]),hcell('Наименование',cols[1]),hcell('Тип данных',cols[2]),
-            hcell('Ограничения',cols[3]),hcell('Описание',cols[4]),hcell('Пример',cols[5]),
+            hcell(tTask({ru:'Поле',en:'Field'}),cols[0]),hcell(tTask({ru:'Наименование',en:'Label'}),cols[1]),hcell(tTask({ru:'Тип данных',en:'Data type'}),cols[2]),
+            hcell(tTask({ru:'Ограничения',en:'Constraints'}),cols[3]),hcell(tTask({ru:'Описание',en:'Description'}),cols[4]),hcell(tTask({ru:'Пример',en:'Example'}),cols[5]),
           ]})];
           (t.fields||[]).forEach(f=>dbRows.push(new TableRow({children:[
             cell(f.name,cols[0]),cell(fieldLabel(f),cols[1]),cell(f.type,cols[2]),
@@ -452,7 +476,7 @@ async function downloadWord(cfg={}){
           // Примеры строк
           if(has('db_examples')&&(t.fields||[]).some(f=>fieldExample(f))){
             const exRows=generateExampleRows(t.fields,3);
-            children.push(p(`Примеры записей (${t.name}):`,{run:{italics:true,size:16},spacing:{before:60}}));
+            children.push(p(`${tTask({ru:'Примеры записей',en:'Example records'})} (${t.name}):`,{run:{italics:true,size:16},spacing:{before:60}}));
             const visCols=(t.fields||[]).filter(f=>f.type&&!f.type.toLowerCase().includes('text')).slice(0,6);
             if(visCols.length){
               const ecw=Math.floor(CW/visCols.length);
@@ -469,11 +493,11 @@ async function downloadWord(cfg={}){
           const erdSvg=renderERDSvg({tables,name:db.customLabel});
           const erdPng=await erdSvgToPng(erdSvg,1.6);
           if(erdPng){
-            children.push(p('ER-диаграмма / ER Diagram',{run:{bold:true,italics:true,size:18},spacing:{before:120,after:40}}));
+            children.push(p('ER-Diagram',{run:{bold:true,italics:true,size:18},spacing:{before:120,after:40}}));
             const maxPx=624,ratio=erdPng.h/erdPng.w,w=Math.min(maxPx,erdPng.w),h=Math.round(w*ratio);
             children.push(new Paragraph({children:[new ImageRun({type:'png',data:erdPng.data,
               transformation:{width:Math.round(w),height:h},
-              altText:{title:'ERD',description:'ER-диаграмма '+(db.customLabel||''),name:'erd_'+db.id}})]}));
+              altText:{title:'ERD',description:tTask({ru:'ER-диаграмма ',en:'ER diagram '})+(db.customLabel||''),name:'erd_'+db.id}})]}));
           }
         }
       }
@@ -495,16 +519,16 @@ async function downloadWord(cfg={}){
           // Строка writer/reader
           if(pat.writer||pat.reader){
             children.push(new Paragraph({spacing:{after:60},children:[
-              new TextRun({text:'Пишет: ',bold:true,size:16}),
+              new TextRun({text:tTask({ru:'Пишет: ',en:'Writer: '}),bold:true,size:16}),
               new TextRun({text:(pat.writer||'—')+'   ',size:16}),
-              new TextRun({text:'Читает: ',bold:true,size:16}),
+              new TextRun({text:tTask({ru:'Читает: ',en:'Reader: '}),bold:true,size:16}),
               new TextRun({text:pat.reader||'—',size:16}),
             ]}));
           }
           // Таблица полей (Hash)
           if(pat.type==='Hash'&&(pat.fields||[]).length){
             const fcols=[2000,3500,3860];
-            const frows=[new TableRow({children:[hcell('Поле',fcols[0]),hcell('Описание',fcols[1]),hcell('Источник (PG)',fcols[2])]})];
+            const frows=[new TableRow({children:[hcell(tTask({ru:'Поле',en:'Field'}),fcols[0]),hcell(tTask({ru:'Описание',en:'Description'}),fcols[1]),hcell(tTask({ru:'Источник (PG)',en:'Source (PG)'}),fcols[2])]})];
             pat.fields.forEach(f=>{
               const src=f.fromPg?f.fromPg.replace(/^[^:]+::/,''):'—';
               frows.push(new TableRow({children:[cell(f.name||'',fcols[0]),cell(f.desc||'',fcols[1]),cell(src,fcols[2])]}));
@@ -526,10 +550,10 @@ async function downloadWord(cfg={}){
     // ── Таблица API ──
     const eps=serviceEndpoints(svc.id);
     if(has('api_table')&&eps.length){
-      children.push(p('Таблица API',{heading:HeadingLevel.HEADING_3}));
+      children.push(p(tTask({ru:'Таблица API',en:'API table'}),{heading:HeadingLevel.HEADING_3}));
       const apiCols=[1200,3400,4760];
       const apiRows=[new TableRow({children:[
-        hcell('Метод',apiCols[0]),hcell('URI',apiCols[1]),hcell('Описание',apiCols[2]),
+        hcell(tTask({ru:'Метод',en:'Method'}),apiCols[0]),hcell('URI',apiCols[1]),hcell(tTask({ru:'Описание',en:'Description'}),apiCols[2]),
       ]})];
       eps.forEach(ep=>apiRows.push(new TableRow({children:[
         cell(ep.verb||'GET',apiCols[0]),cell(ep.uri||'',apiCols[1]),
@@ -540,7 +564,7 @@ async function downloadWord(cfg={}){
 
     // ── Детальное описание каждого эндпоинта ──
     if(eps.length&&(has('input_params')||has('output_params')||has('use_case')||has('status_codes')||has('seq_uml'))){
-      if(eps.length) children.push(p('Описание эндпоинтов',{heading:HeadingLevel.HEADING_3}));
+      if(eps.length) children.push(p(tTask({ru:'Описание эндпоинтов',en:'Endpoint descriptions'}),{heading:HeadingLevel.HEADING_3}));
       eps.forEach(ep=>{
         children.push(new Paragraph({spacing:{before:160},children:[
           new TextRun({text:`${ep.verb||'GET'} ${ep.uri||''}`,bold:true,size:22,color:'1F3864'}),
@@ -549,22 +573,22 @@ async function downloadWord(cfg={}){
 
         // Входные параметры
         if(has('input_params')&&(ep.params||[]).length){
-          children.push(p('Входные данные',{run:{bold:true,size:18}}));
+          children.push(p(tTask({ru:'Входные данные',en:'Input data'}),{run:{bold:true,size:18}}));
           const cols=[1500,1500,1200,1300,2560,1300];
           const rows=[new TableRow({children:[
-            hcell('Параметр',cols[0]),hcell('Наименование',cols[1]),hcell('Тип данных',cols[2]),
-            hcell('Обязательность',cols[3]),hcell('Описание',cols[4]),hcell('Тип входного параметра',cols[5]),
+            hcell(tTask({ru:'Параметр',en:'Parameter'}),cols[0]),hcell(tTask({ru:'Наименование',en:'Label'}),cols[1]),hcell(tTask({ru:'Тип данных',en:'Data type'}),cols[2]),
+            hcell(tTask({ru:'Обязательность',en:'Required'}),cols[3]),hcell(tTask({ru:'Описание',en:'Description'}),cols[4]),hcell(tTask({ru:'Тип входного параметра',en:'Parameter location'}),cols[5]),
           ]})];
           ep.params.forEach(pr=>rows.push(new TableRow({children:[
             cell(pr.name,cols[0]),cell(pr.label||'',cols[1]),cell(pr.type||'string',cols[2]),
-            cell(pr.required?'да':'нет',cols[3]),cell(pr.desc||'',cols[4]),cell(pr.in||'body',cols[5]),
+            cell(pr.required?tTask({ru:'да',en:'yes'}):tTask({ru:'нет',en:'no'}),cols[3]),cell(pr.desc||'',cols[4]),cell(pr.in||'body',cols[5]),
           ]})));
           children.push(new Table({width:{size:CW,type:WidthType.DXA},columnWidths:cols,rows}));
         }
 
         // Выходные данные — только HTTP-код
         if(has('output_params')){
-          children.push(p('Выходные данные',{run:{bold:true,size:18},spacing:{before:80}}));
+          children.push(p(tTask({ru:'Выходные данные',en:'Output data'}),{run:{bold:true,size:18},spacing:{before:80}}));
           const respCode=(ep.verb||'GET')==='DELETE'?'204 No Content':(ep.success||ep.resp||'200 OK');
           children.push(p(respCode,{run:{size:18}}));
         }
@@ -573,9 +597,9 @@ async function downloadWord(cfg={}){
         if(has('status_codes')){
           const codes=[(ep.success||ep.resp||'200 OK'),...(ep.codes||[])].filter(Boolean);
           if(codes.length){
-            children.push(p('Возможные статус-коды',{run:{bold:true,size:18},spacing:{before:80}}));
+            children.push(p(tTask({ru:'Возможные статус-коды',en:'Possible status codes'}),{run:{bold:true,size:18},spacing:{before:80}}));
             const sCols=[2000,7360];
-            const sRows=[new TableRow({children:[hcell('Код',sCols[0]),hcell('Описание',sCols[1])]})];
+            const sRows=[new TableRow({children:[hcell(tTask({ru:'Код',en:'Code'}),sCols[0]),hcell(tTask({ru:'Описание',en:'Description'}),sCols[1])]})];
             codes.forEach(code=>{
               const [num,...rest]=code.split(/\s+/);
               sRows.push(new TableRow({children:[cell(num,sCols[0]),cell(rest.join(' ')||code,sCols[1])]}));
@@ -589,8 +613,8 @@ async function downloadWord(cfg={}){
 
     // ── UML Sequence — отдельный раздел в конце, каждый сценарий = PNG ──
   if(has('seq_uml')&&(S.scenarios||[]).length){
-    children.push(new Paragraph({pageBreakBefore:true,heading:HeadingLevel.HEADING_1,children:[new TextRun('UML Sequence-диаграммы')]}));
-    children.push(p('Sequence-диаграммы для каждого бизнес-процесса системы.'));
+    children.push(new Paragraph({pageBreakBefore:true,heading:HeadingLevel.HEADING_1,children:[new TextRun(tTask({ru:'UML Sequence-диаграммы',en:'UML Sequence Diagrams'}))]}));
+    children.push(p(tTask({ru:'Sequence-диаграммы для каждого бизнес-процесса системы.',en:'Sequence diagrams for each business process of the system.'})));
     for(const sc of (S.scenarios||[])){
       const umlText=sc.uml||(typeof generateSeqFromScenario==='function'?generateSeqFromScenario(sc.id):null);
       if(!umlText)continue;
@@ -602,7 +626,7 @@ async function downloadWord(cfg={}){
         const maxPx=624,ratio=seqPng.h/seqPng.w,w=Math.min(maxPx,seqPng.w),h=Math.round(w*ratio);
         children.push(new Paragraph({children:[new ImageRun({type:'png',data:seqPng.data,
           transformation:{width:Math.round(w),height:h},
-          altText:{title:sc.name,description:'UML Sequence',name:'seq_'+sc.id}})]}));
+          altText:{title:sc.name,description:tTask({ru:'UML Sequence',en:'UML Sequence'}),name:'seq_'+sc.id}})]}));
       }
       // PlantUML текст (всегда после PNG)
       const umlFull=`@startuml\n${umlText.trim()}\n@enduml`;
@@ -611,6 +635,47 @@ async function downloadWord(cfg={}){
         children.push(new Paragraph({spacing:{before:0,after:0},
           children:[new TextRun({text:line,size:14,color:'334455',font:'Consolas'})]}));
       });
+      children.push(p('',{spacing:{before:160}}));
+    }
+  }
+
+  // ── BPMN — бизнес-процессы: схема картинкой + таблица шагов по ролям ──
+  if(has('bpmn')&&(S.bpmn?.diagrams||[]).length){
+    children.push(new Paragraph({pageBreakBefore:true,heading:HeadingLevel.HEADING_1,
+      children:[new TextRun(tTask({ru:'Бизнес-процессы (BPMN)',en:'Business processes (BPMN)'}))]}));
+    children.push(p(tTask({ru:'Диаграммы бизнес-процессов в нотации BPMN 2.0.',en:'Business process diagrams in BPMN 2.0 notation.'})));
+    for(const d of S.bpmn.diagrams){
+      children.push(p(d.name||tTask({ru:'Процесс',en:'Process'}),{heading:HeadingLevel.HEADING_2}));
+      // Схема процесса картинкой
+      const png=await bpmnDiagramToPng(d.id);
+      if(png){
+        const maxPx=624,ratio=png.h/png.w,w=Math.min(maxPx,png.w),h=Math.round(w*ratio);
+        children.push(new Paragraph({children:[new ImageRun({type:'png',data:png.data,
+          transformation:{width:Math.round(w),height:h},
+          altText:{title:d.name||'BPMN',description:'BPMN',name:'bpmn_'+d.id}})]}));
+      }
+      // Таблица шагов: Элемент | Тип | Роль | Далее
+      const lanes=(d.elements||[]).filter(e=>e.type==='lane');
+      const pools=(d.elements||[]).filter(e=>e.type==='pool');
+      const steps=(d.elements||[]).filter(e=>!['pool','lane','annotation','data_object','data_store'].includes(e.type));
+      if(steps.length){
+        const elName=id=>{const e=(d.elements||[]).find(x=>x.id===id);return e?(e.label||e.type):id;};
+        const typeLbl=e=>(typeof BPMN_EL!=='undefined'&&BPMN_EL[e.type]?.lbl)||e.type;
+        const bCols=[2800,1800,2000,2760];
+        const bRows=[new TableRow({children:[
+          hcell(tTask({ru:'Элемент',en:'Element'}),bCols[0]),hcell(tTask({ru:'Тип',en:'Type'}),bCols[1]),
+          hcell(tTask({ru:'Роль / дорожка',en:'Role / lane'}),bCols[2]),hcell(tTask({ru:'Далее',en:'Next'}),bCols[3]),
+        ]})];
+        steps.forEach(e=>{
+          const outs=(d.flows||[]).filter(f=>f.from===e.id)
+            .map(f=>(f.label?`[${f.label}] `:'')+elName(f.to)).join('; ');
+          bRows.push(new TableRow({children:[
+            cell(e.label||'—',bCols[0]),cell(typeLbl(e),bCols[1]),
+            cell(bpmnRoleOf(e,lanes,pools)||'—',bCols[2]),cell(outs||'—',bCols[3]),
+          ]}));
+        });
+        children.push(new Table({width:{size:CW,type:WidthType.DXA},columnWidths:bCols,rows:bRows}));
+      }
       children.push(p('',{spacing:{before:160}}));
     }
   }
@@ -642,6 +707,6 @@ async function downloadWord(cfg={}){
     const blob=await Packer.toBlob(doc);
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);
     a.download=`${(m.systemName||'arch').replace(/\s+/g,'_')}.docx`;a.click();
-    toast('📥 Word (.docx) скачан');
-  }catch(e){ toast('❌ Ошибка генерации: '+e.message); }
+    toast('📥 '+tTask({ru:'Word (.docx) скачан',en:'Word (.docx) downloaded'}));
+  }catch(e){ toast('❌ '+tTask({ru:'Ошибка генерации: ',en:'Generation error: '})+e.message); }
 }

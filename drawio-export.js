@@ -90,7 +90,7 @@
     var conns  = (typeof S !== 'undefined' && S.conns)  ? S.conns  : [];
     var meta   = (typeof S !== 'undefined' && S.meta)   ? S.meta   : {};
 
-    if (!blocks.length){ toast('❌ Нет блоков для экспорта'); return null; }
+    if (!blocks.length){ toast('❌ ' + tTask({ru:'Нет блоков для экспорта',en:'No blocks to export'})); return null; }
 
     // Индекс id→block
     var idx = {};
@@ -163,7 +163,7 @@
     setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); }, 1000);
 
     if (typeof toast === 'function')
-      toast('✅ Экспортировано в ' + name + '.drawio');
+      toast('✅ ' + tTask({ru:'Экспортировано в ',en:'Exported to '}) + name + '.drawio');
   }
 
   window.exportDrawio = downloadDrawio;

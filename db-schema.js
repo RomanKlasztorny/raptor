@@ -9,7 +9,7 @@ function schemaToSQL(tmpl){
   if(tmpl.type==='postgresql'||tmpl.type==='mysql'){
     if(tmpl.schema.pgExtension) lines.push(tmpl.schema.pgExtension,'');
     tables.forEach(t=>{
-      lines.push(`-- Таблица: ${t.name}`);
+      lines.push(`-- ${tTask({ru:'Таблица',en:'Table'})}: ${t.name}`);
       lines.push(`CREATE TABLE ${t.name} (`);
       const cols=[];
       t.fields.forEach(f=>{
@@ -35,7 +35,7 @@ function schemaToSQL(tmpl){
   if(tmpl.type==='mongodb'){
     const colls=tmpl.schema.collections||[];
     colls.forEach(c=>{
-      lines.push(`// Коллекция: ${c.name}`);
+      lines.push(`// ${tTask({ru:'Коллекция',en:'Collection'})}: ${c.name}`);
       lines.push(`db.createCollection('${c.name}');`);
       (c.indexes||[]).forEach(idx=>lines.push(idx+';'));
       lines.push('');
@@ -56,10 +56,10 @@ function schemaToSQL(tmpl){
   // Redis — описание ключей
   if(tmpl.type==='redis'){
     (tmpl.schema.keys||[]).forEach(k=>{
-      lines.push(`-- Ключ: ${k.pattern}`);
-      lines.push(`-- Тип: ${k.type}, TTL: ${k.ttl||'нет'}`);
-      lines.push(`-- Поля: ${k.fields.join(', ')}`);
-      if(k.note) lines.push(`-- Заметка: ${k.note}`);
+      lines.push(`-- ${tTask({ru:'Ключ',en:'Key'})}: ${k.pattern}`);
+      lines.push(`-- ${tTask({ru:'Тип',en:'Type'})}: ${k.type}, TTL: ${k.ttl||tTask({ru:'нет',en:'none'})}`);
+      lines.push(`-- ${tTask({ru:'Поля',en:'Fields'})}: ${(k.fields||[]).join(', ')}`);
+      if(k.note) lines.push(`-- ${tTask({ru:'Заметка',en:'Note'})}: ${k.note}`);
       lines.push('');
     });
   }
@@ -72,6 +72,24 @@ function schemaToSQL(tmpl){
       lines.push(`)${t.engine?'\n'+t.engine:''};`,'');
     });
   }
+  // Elasticsearch — mapping индекса
+  if(tmpl.type==='elasticsearch'){
+    tables.forEach(t=>{
+      const props={};
+      (t.fields||[]).forEach(f=>{props[f.name]={type:f.type||'keyword'};if(f.analyzer)props[f.name].analyzer=f.analyzer;});
+      lines.push(`PUT /${t.name}`);
+      lines.push(JSON.stringify({mappings:{properties:props}},null,2),'');
+    });
+  }
+  // S3 — бакеты и шаблоны ключей
+  if(tmpl.type==='s3'){
+    tables.forEach(t=>{
+      lines.push(`# ${tTask({ru:'Бакет',en:'Bucket'})}: s3://${t.name}`);
+      (t.fields||[]).forEach(f=>lines.push(`s3://${t.name}/${f.name}${f.type?'   ('+f.type+(f.size?', '+f.size:'')+')':''}`));
+      (t.lifecycle||[]).forEach(r=>lines.push(`# lifecycle: ${r.prefix} → ${r.to} ${tTask({ru:'через',en:'after'})} ${r.after}`));
+      lines.push('');
+    });
+  }
   return lines.join('\n');
 }
 
@@ -79,8 +97,8 @@ function schemaToSQL(tmpl){
 function schemaToMermaid(tmpl){
   if(!tmpl||!tmpl.schema) return '';
   const tables=tmpl.schema.tables||tmpl.schema.collections||[];
-  if(!tables.length) return '---\ntitle: '+tmpl.name+'\n---\nerDiagram\n  (нет таблиц)';
-  const lines=['---',`title: ${tmpl.name}`,'---','erDiagram'];
+  if(!tables.length) return '---\ntitle: '+tTask(tmpl.name)+'\n---\nerDiagram\n  ('+tTask({ru:'нет таблиц',en:'no tables'})+')';
+  const lines=['---',`title: ${tTask(tmpl.name)}`,'---','erDiagram'];
   tables.forEach(t=>{
     lines.push(`  ${t.name} {`);
     (t.fields||[]).forEach(f=>{
@@ -114,16 +132,19 @@ function openDBTemplates(){
   ov.innerHTML=`
     <div class="modal-box" style="max-width:760px;width:96%">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-        <h2 style="color:#4a90d9">🗄 Шаблоны баз данных (${DB_TEMPLATES.length})</h2>
+        <h2 style="color:#4a90d9">🗄 ${tTask({ru:'Шаблоны баз данных',en:'Database templates'})} (${DB_TEMPLATES.length})</h2>
         <button class="modal-btn" onclick="document.getElementById('db-tmpl-modal').style.display='none'">✕</button>
       </div>
       <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap" id="db-tmpl-filter">
-        <button class="btn" onclick="filterDBType('')" data-t="">Все</button>
+        <button class="btn" onclick="filterDBType('')" data-t="">${tTask({ru:'Все',en:'All'})}</button>
         <button class="btn" onclick="filterDBType('postgresql')" data-t="postgresql">PostgreSQL</button>
         <button class="btn" onclick="filterDBType('mongodb')" data-t="mongodb">MongoDB</button>
         <button class="btn" onclick="filterDBType('redis')" data-t="redis">Redis</button>
         <button class="btn" onclick="filterDBType('cassandra')" data-t="cassandra">Cassandra</button>
         <button class="btn" onclick="filterDBType('clickhouse')" data-t="clickhouse">ClickHouse</button>
+        <button class="btn" onclick="filterDBType('mysql')" data-t="mysql">MySQL</button>
+        <button class="btn" onclick="filterDBType('elasticsearch')" data-t="elasticsearch">Elasticsearch</button>
+        <button class="btn" onclick="filterDBType('s3')" data-t="s3">S3</button>
       </div>
       <div id="db-tmpl-list" style="max-height:60vh;overflow-y:auto"></div>
     </div>`;
@@ -139,13 +160,13 @@ function renderDBTemplatesModal(){
   list.innerHTML=filtered.map(tmpl=>`
     <div style="border:1px solid #3d3f52;border-radius:8px;padding:10px;margin-bottom:8px;background:#1a1b26">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-        <span style="font-size:12px;font-weight:700;color:#c0caf5">${tmpl.name}</span>
+        <span style="font-size:12px;font-weight:700;color:#c0caf5">${tTask(tmpl.name)}</span>
         <span style="font-size:10px;padding:2px 7px;border-radius:4px;background:#4a90d922;color:#4a90d9">${tmpl.type}</span>
         <div style="margin-left:auto;display:flex;gap:5px">
           <button class="btn" onclick="showDBSchema('${tmpl.id}','sql')" style="font-size:10px;padding:3px 8px">📋 SQL</button>
           <button class="btn" onclick="showDBSchema('${tmpl.id}','mermaid')" style="font-size:10px;padding:3px 8px">🔗 ERD</button>
           <button class="btn" onclick="showDBSchema('${tmpl.id}','json')" style="font-size:10px;padding:3px 8px">{ } JSON</button>
-          <button class="btn run" onclick="addDBBlock('${tmpl.id}')" style="font-size:10px;padding:3px 8px">+ На схему</button>
+          <button class="btn run" onclick="addDBBlock('${tmpl.id}')" style="font-size:10px;padding:3px 8px">+ ${tTask({ru:'На схему',en:'To diagram'})}</button>
         </div>
       </div>
       <div style="font-size:10px;color:#787c99">${tmpl.schema.tables?.map(t=>t.name).join(', ')||tmpl.schema.collections?.map(t=>t.name).join(', ')||tmpl.schema.keys?.map(k=>k.pattern).join(', ')||''}</div>
@@ -170,21 +191,21 @@ function showDBSchema(id,mode){
 function buildDBViewModal(tmpl,content,mode){
   return `<div class="modal-box" style="max-width:700px;width:96%">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <h2 style="color:#4a90d9">${tmpl.name} — ${mode.toUpperCase()}</h2>
+      <h2 style="color:#4a90d9">${tTask(tmpl.name)} — ${mode.toUpperCase()}</h2>
       <button class="modal-btn" onclick="document.getElementById('db-view-modal').style.display='none'">✕</button>
     </div>
     ${content}
     <div style="display:flex;gap:8px;margin-top:10px">
-      <button class="modal-btn primary" onclick="copyDBSchema()">📋 Копировать</button>
-      <button class="modal-btn" onclick="downloadDBSchema()">⬇ Скачать</button>
-      <button class="modal-btn" onclick="document.getElementById('db-view-modal').style.display='none'">Закрыть</button>
+      <button class="modal-btn primary" onclick="copyDBSchema()">📋 ${tTask({ru:'Копировать',en:'Copy'})}</button>
+      <button class="modal-btn" onclick="downloadDBSchema()">⬇ ${tTask({ru:'Скачать',en:'Download'})}</button>
+      <button class="modal-btn" onclick="document.getElementById('db-view-modal').style.display='none'">${tTask({ru:'Закрыть',en:'Close'})}</button>
     </div>
   </div>`;
 }
 function copyDBSchema(){
   const tmpl=DB_TEMPLATES.find(t=>t.id===_dbViewId);if(!tmpl)return;
   let text=_dbViewMode==='sql'?schemaToSQL(tmpl):_dbViewMode==='mermaid'?schemaToMermaid(tmpl):schemaToJSON(tmpl);
-  navigator.clipboard.writeText(text).then(()=>toast('📋 Скопировано'));
+  navigator.clipboard.writeText(text).then(()=>toast('📋 '+tTask({ru:'Скопировано',en:'Copied'})));
 }
 function downloadDBSchema(){
   const tmpl=DB_TEMPLATES.find(t=>t.id===_dbViewId);if(!tmpl)return;
@@ -196,7 +217,7 @@ function downloadDBSchema(){
 // Добавить блок БД на схему с привязанной схемой
 function addDBBlock(id){
   const tmpl=DB_TEMPLATES.find(t=>t.id===id);if(!tmpl)return;
-  const typeMap={postgresql:'postgresql',mongodb:'mongodb',redis:'redis',cassandra:'cassandra',clickhouse:'clickhouse',mysql:'mysql'};
+  const typeMap={postgresql:'postgresql',mongodb:'mongodb',redis:'redis',cassandra:'cassandra',clickhouse:'clickhouse',mysql:'mysql',elasticsearch:'elasticsearch',s3:'s3'};
   const btype=typeMap[tmpl.type]||'postgresql';
   const r=svgRct();
   const b={
@@ -204,14 +225,14 @@ function addDBBlock(id){
     type:btype,
     x:Math.max(20,Math.round(r.width/2-S.panX-60)),
     y:Math.max(40,Math.round(r.height/3-S.panY)),
-    customLabel:tmpl.name.slice(0,20),
+    customLabel:tTask(tmpl.name), // полное имя; на холсте обрезается при отрисовке
     patterns:[],settings:{},
     dbTemplate:id,
     dbSchema:tmpl.schema,
   };
   S.blocks.push(b);
   pushHist();analyze();
-  toast('🗄 '+tmpl.name+' добавлена на схему');
+  toast('🗄 '+tTask(tmpl.name)+' '+tTask({ru:'добавлена на схему',en:'added to diagram'}));
   document.getElementById('db-tmpl-modal').style.display='none';
 }
 
@@ -224,26 +245,29 @@ function applyDBTemplateToBlock(blockId,templateId){
   if(!b||!t)return;
   b.dbSchema=JSON.parse(JSON.stringify(t.schema));
   delete b.dbTemplate;
-  if(!b.customLabel)b.customLabel=t.name.slice(0,20);
+  if(!b.customLabel)b.customLabel=tTask(t.name);
   pushHist();analyze();
   const m=document.getElementById('dbpick-modal');if(m)m.style.display='none';
-  toast('🗄 Схема «'+t.name+'» загружена');
+  if(typeof dbvRefresh==='function')dbvRefresh();
+  toast('🗄 '+tTask({ru:'Схема «',en:'Schema «'})+tTask(t.name)+tTask({ru:'» загружена',en:'» loaded'}));
 }
 function openDBSchemaPicker(blockId){
   const b=gb(blockId);if(!b)return;
-  const list=DB_TEMPLATES.filter(t=>t.type==='postgresql');
+  // шаблоны того же типа БД, что и блок (для старых PG-блоков поведение прежнее)
+  let list=DB_TEMPLATES.filter(t=>t.type===b.type);
+  if(!list.length)list=DB_TEMPLATES.filter(t=>t.type==='postgresql');
   let ov=document.getElementById('dbpick-modal');
   const inner=`<div class="modal-box" style="max-width:560px;width:96%">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <h2 style="color:#4a90d9">📚 Готовая схема для «${escHtml(b.customLabel||EL[b.type].lbl)}»</h2>
+      <h2 style="color:#4a90d9">📚 ${tTask({ru:'Готовая схема для',en:'Ready-made schema for'})} «${escHtml(b.customLabel||EL[b.type].lbl)}»</h2>
       <button class="modal-btn" onclick="document.getElementById('dbpick-modal').style.display='none'">✕</button>
     </div>
-    <div style="font-size:10.5px;color:#787c99;margin-bottom:8px">Лучшие практики — загрузка заменит таблицы этого блока.</div>
+    <div style="font-size:10.5px;color:#787c99;margin-bottom:8px">${tTask({ru:'Лучшие практики — загрузка заменит таблицы этого блока.',en:'Best practices — loading will replace this block’s tables.'})}</div>
     <div style="max-height:60vh;overflow-y:auto">
     ${list.map(t=>`<div style="border:1px solid #3d3f52;border-radius:8px;padding:9px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:10px">
-      <div style="min-width:0"><div style="font-size:12px;font-weight:600;color:#c0caf5">${t.name}</div>
+      <div style="min-width:0"><div style="font-size:12px;font-weight:600;color:#c0caf5">${tTask(t.name)}</div>
       <div style="font-size:9.5px;color:#787c99;overflow:hidden;text-overflow:ellipsis">${(t.schema.tables||[]).map(x=>x.name).join(', ')}</div></div>
-      <button class="btn run" style="flex-shrink:0" onclick="applyDBTemplateToBlock('${blockId}','${t.id}')">Загрузить</button>
+      <button class="btn run" style="flex-shrink:0" onclick="applyDBTemplateToBlock('${blockId}','${t.id}')">${tTask({ru:'Загрузить',en:'Load'})}</button>
     </div>`).join('')}
     </div>
   </div>`;
@@ -262,7 +286,7 @@ let _dbEditId=null;
 function openDBEditor(blockId){
   const b=gb(blockId);if(!b)return;
   if(b.type==='redis'){openRedisEditor(blockId);return;}
-  if(b.type!=='postgresql'){toast('Реляционная схема (таблицы/FK/ACID) — только для PostgreSQL');return;}
+  if(b.type!=='postgresql'&&b.type!=='mysql'){toast(tTask({ru:'Реляционная схема (таблицы/FK/ACID) — только для PostgreSQL/MySQL',en:'Relational schema (tables/FK/ACID) — PostgreSQL/MySQL only'}));return;}
   // Если привязан шаблон — скопировать его схему в собственную (чтобы можно было править)
   if(b.dbTemplate && !b.dbSchema){
     const t=DB_TEMPLATES.find(x=>x.id===b.dbTemplate);
@@ -278,7 +302,7 @@ function openDBEditor(blockId){
     ov.onclick=e=>{if(e.target===ov)closeDBEditor();};document.body.appendChild(ov);}
   ov.style.display='flex';renderDBEditor();
 }
-function closeDBEditor(){const ov=$('dbedit-modal');if(ov)ov.style.display='none';_dbEditId=null;pushHist();analyze();}
+function closeDBEditor(){const ov=$('dbedit-modal');if(ov)ov.style.display='none';_dbEditId=null;pushHist();analyze();if(typeof dbvRefresh==='function')dbvRefresh();}
 function renderDBEditor(){
   const b=gb(_dbEditId);if(!b)return;const sc=b.dbSchema;const ov=$('dbedit-modal');if(!ov)return;
   const inp='background:#1a1b26;border:1px solid #3d3f52;border-radius:4px;padding:3px 6px;font-size:10.5px;color:#c0caf5;outline:none;font-family:inherit;width:100%';
@@ -288,25 +312,25 @@ function renderDBEditor(){
   const consList=`<datalist id="dl-cons">${PG_CONSTRAINTS.map(t=>`<option value="${t}">`).join('')}</datalist>`;
   ov.innerHTML=`<div class="modal-box" style="max-width:900px;width:98%">${typeList}${consList}
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-      <h2 style="color:#4a90d9">🗄 Схема: ${escHtml(b.customLabel||EL[b.type]?.lbl)}</h2>
+      <h2 style="color:#4a90d9">🗄 ${tTask({ru:'Схема',en:'Schema'})}: ${escHtml(b.customLabel||EL[b.type]?.lbl)}</h2>
       <button class="modal-btn" onclick="closeDBEditor()">✕</button>
     </div>
     <div style="display:flex;gap:6px;margin-bottom:8px">
-      <button class="modal-btn" style="margin-top:0" onclick="openSQLImport('${_dbEditId}')" title="Создать таблицы вставкой SQL (CREATE TABLE)">📥 Импорт SQL</button>
-      ${isPG?'':'<span style="font-size:10px;color:#e0af68;align-self:center">⚠ Реляционная схема рассчитана на PostgreSQL/MySQL</span>'}
+      <button class="modal-btn" style="margin-top:0" onclick="openSQLImport('${_dbEditId}')" title="${tTask({ru:'Создать таблицы вставкой SQL (CREATE TABLE)',en:'Create tables by pasting SQL (CREATE TABLE)'})}">📥 ${tTask({ru:'Импорт SQL',en:'Import SQL'})}</button>
+      ${isPG?'':'<span style="font-size:10px;color:#e0af68;align-self:center">⚠ '+tTask({ru:'Реляционная схема рассчитана на PostgreSQL/MySQL',en:'Relational schema is designed for PostgreSQL/MySQL'})+'</span>'}
     </div>
     <div style="max-height:58vh;overflow-y:auto">
     ${(sc.tables||[]).map((t,ti)=>`
       <div style="border:1px solid #3d3f52;border-radius:8px;padding:10px;margin-bottom:10px;background:#1a1b26">
         <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
-          <span style="font-size:10px;color:#787c99">Таблица:</span>
+          <span style="font-size:10px;color:#787c99">${tTask({ru:'Таблица',en:'Table'})}:</span>
           <input style="${inp};max-width:220px;font-weight:700" value="${escHtml(t.name||'')}" oninput="gb('${_dbEditId}').dbSchema.tables[${ti}].name=this.value">
-          <button class="btn" onclick="gb('${_dbEditId}').dbSchema.tables.splice(${ti},1);renderDBEditor()" style="color:#f7768e;margin-left:auto">✕ таблица</button>
+          <button class="btn" onclick="gb('${_dbEditId}').dbSchema.tables.splice(${ti},1);renderDBEditor()" style="color:#f7768e;margin-left:auto">✕ ${tTask({ru:'таблица',en:'table'})}</button>
         </div>
         <table style="width:100%;border-collapse:collapse;font-size:10px">
           <thead><tr style="color:#787c99;text-align:left">
-            <th style="padding:2px">Поле</th><th style="padding:2px">Наименование</th><th style="padding:2px">Тип</th>
-            <th style="padding:2px">Ограничения</th><th style="padding:2px">Описание</th><th style="padding:2px">Пример</th><th style="padding:2px">FK →</th><th></th>
+            <th style="padding:2px">${tTask({ru:'Поле',en:'Field'})}</th><th style="padding:2px">${tTask({ru:'Наименование',en:'Label'})}</th><th style="padding:2px">${tTask({ru:'Тип',en:'Type'})}</th>
+            <th style="padding:2px">${tTask({ru:'Ограничения',en:'Constraints'})}</th><th style="padding:2px">${tTask({ru:'Описание',en:'Description'})}</th><th style="padding:2px">${tTask({ru:'Пример',en:'Example'})}</th><th style="padding:2px">FK →</th><th></th>
           </tr></thead><tbody>
           ${(t.fields||[]).map((f,fi)=>`<tr>
             <td style="padding:1px"><input style="${inp}" value="${escHtml(f.name||'')}" oninput="gb('${_dbEditId}').dbSchema.tables[${ti}].fields[${fi}].name=this.value"></td>
@@ -316,27 +340,27 @@ function renderDBEditor(){
             <td style="padding:1px"><input style="${inp}" value="${escHtml(f.desc||'')}" oninput="gb('${_dbEditId}').dbSchema.tables[${ti}].fields[${fi}].desc=this.value"></td>
             <td style="padding:1px"><input style="${inp}" value="${escHtml(f.example||'')}" oninput="gb('${_dbEditId}').dbSchema.tables[${ti}].fields[${fi}].example=this.value"></td>
             <td style="padding:1px;white-space:nowrap">
-              <select style="${inp};width:115px" onchange="setFieldFk('${_dbEditId}',${ti},${fi},this.value)"><option value="">— нет —</option>${fkOpts.map(o=>`<option ${f.fk&&(f.fk.table+'.'+f.fk.field)===o?'selected':''}>${o}</option>`).join('')}</select>
-              ${f.fk?`<select style="${inp};width:56px" title="кардинальность" onchange="setFieldCard('${_dbEditId}',${ti},${fi},this.value)">${['N:1','1:1','1:N','N:M'].map(cc=>`<option ${(f.fk.card||'N:1')===cc?'selected':''}>${cc}</option>`).join('')}</select>`:''}
+              <select style="${inp};width:115px" onchange="setFieldFk('${_dbEditId}',${ti},${fi},this.value)"><option value="">— ${tTask({ru:'нет',en:'none'})} —</option>${fkOpts.map(o=>`<option ${f.fk&&(f.fk.table+'.'+f.fk.field)===o?'selected':''}>${o}</option>`).join('')}</select>
+              ${f.fk?`<select style="${inp};width:56px" title="${tTask({ru:'кардинальность',en:'cardinality'})}" onchange="setFieldCard('${_dbEditId}',${ti},${fi},this.value)">${['N:1','1:1','1:N','N:M'].map(cc=>`<option ${(f.fk.card||'N:1')===cc?'selected':''}>${cc}</option>`).join('')}</select>`:''}
             </td>
             <td style="padding:1px"><span onclick="gb('${_dbEditId}').dbSchema.tables[${ti}].fields.splice(${fi},1);renderDBEditor()" style="cursor:pointer;color:#f7768e">✕</span></td>
           </tr>`).join('')}
           </tbody></table>
-        <button class="btn" onclick="gb('${_dbEditId}').dbSchema.tables[${ti}].fields.push({name:'',label:'',type:'varchar',constraints:'',desc:'',example:''});renderDBEditor()" style="margin-top:5px;font-size:10px">＋ поле</button>
+        <button class="btn" onclick="gb('${_dbEditId}').dbSchema.tables[${ti}].fields.push({name:'',label:'',type:'varchar',constraints:'',desc:'',example:''});renderDBEditor()" style="margin-top:5px;font-size:10px">＋ ${tTask({ru:'поле',en:'field'})}</button>
         <div style="margin-top:8px;border-top:1px solid #3d3f52;padding-top:6px">
-          <div style="font-size:10px;color:#9ece6a;margin-bottom:4px">📑 Индексы (ускоряют чтение — для реализма симуляции)</div>
+          <div style="font-size:10px;color:#9ece6a;margin-bottom:4px">📑 ${tTask({ru:'Индексы (ускоряют чтение — для реализма симуляции)',en:'Indexes (speed up reads — for simulation realism)'})}</div>
           ${(t.indexes||[]).map((idx,xi)=>`<div style="display:flex;gap:5px;margin-bottom:3px">
             <input style="${inp}" value="${escHtml(idx)}" oninput="gb('${_dbEditId}').dbSchema.tables[${ti}].indexes[${xi}]=this.value">
             <span onclick="gb('${_dbEditId}').dbSchema.tables[${ti}].indexes.splice(${xi},1);renderDBEditor()" style="cursor:pointer;color:#f7768e;align-self:center">✕</span>
           </div>`).join('')}
-          <button class="btn" onclick="addIndexToTable(${ti})" style="font-size:10px">＋ индекс</button>
+          <button class="btn" onclick="addIndexToTable(${ti})" style="font-size:10px">＋ ${tTask({ru:'индекс',en:'index'})}</button>
         </div>
       </div>`).join('')}
     </div>
-    <button class="btn" onclick="gb('${_dbEditId}').dbSchema.tables.push({name:'new_table',fields:[]});renderDBEditor()" style="margin-top:6px">＋ Таблица</button>
+    <button class="btn" onclick="gb('${_dbEditId}').dbSchema.tables.push({name:'new_table',fields:[]});renderDBEditor()" style="margin-top:6px">＋ ${tTask({ru:'Таблица',en:'Table'})}</button>
     <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
-      <button class="modal-btn primary" onclick="closeDBEditor()">Готово</button>
-      <button class="modal-btn" onclick="showERDVisual('${_dbEditId}')">🔗 ERD (схема)</button>
+      <button class="modal-btn primary" onclick="closeDBEditor()">${tTask({ru:'Готово',en:'Done'})}</button>
+      <button class="modal-btn" onclick="showERDVisual('${_dbEditId}')">🔗 ERD (${tTask({ru:'схема',en:'diagram'})})</button>
       <button class="modal-btn" onclick="showDBSchemaForBlock('${_dbEditId}','sql')">📋 SQL</button>
       <button class="modal-btn" onclick="showDBSchemaForBlock('${_dbEditId}','mermaid')">📝 Mermaid</button>
       <button class="modal-btn" onclick="showDBSchemaForBlock('${_dbEditId}','json')">{ } JSON</button>
@@ -409,14 +433,14 @@ function openSQLImport(blockId){
   let ov=document.getElementById('sqlimport-modal');
   const inner=`<div class="modal-box" style="max-width:640px;width:96%">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-      <h2 style="color:#4a90d9">📥 Импорт схемы из SQL</h2>
+      <h2 style="color:#4a90d9">📥 ${tTask({ru:'Импорт схемы из SQL',en:'Import schema from SQL'})}</h2>
       <button class="modal-btn" onclick="document.getElementById('sqlimport-modal').style.display='none'">✕</button>
     </div>
-    <div style="font-size:10.5px;color:#787c99;margin-bottom:8px">Вставь <b>CREATE TABLE</b> (и при желании CREATE INDEX). Распарсю в таблицы/поля/FK/индексы.</div>
+    <div style="font-size:10.5px;color:#787c99;margin-bottom:8px">${tTask({ru:'Вставь <b>CREATE TABLE</b> (и при желании CREATE INDEX). Распарсю в таблицы/поля/FK/индексы.',en:'Paste <b>CREATE TABLE</b> (and optionally CREATE INDEX). It will be parsed into tables/fields/FK/indexes.'})}</div>
     <textarea id="sqlimport-ta" spellcheck="false" style="width:100%;height:240px;background:#11121a;color:#c0caf5;border:1px solid #3d3f52;border-radius:7px;padding:10px;font-family:Consolas,monospace;font-size:11px;outline:none;resize:vertical" placeholder="CREATE TABLE users (&#10;  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),&#10;  email VARCHAR(255) NOT NULL UNIQUE,&#10;  created_at TIMESTAMP DEFAULT NOW()&#10;);"></textarea>
     <div style="margin-top:10px;display:flex;gap:8px">
-      <button class="modal-btn primary" onclick="doSQLImport('${blockId}')">Импортировать</button>
-      <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:#9aa5ce"><input type="checkbox" id="sqlimport-replace"> заменить текущие таблицы</label>
+      <button class="modal-btn primary" onclick="doSQLImport('${blockId}')">${tTask({ru:'Импортировать',en:'Import'})}</button>
+      <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:#9aa5ce"><input type="checkbox" id="sqlimport-replace"> ${tTask({ru:'заменить текущие таблицы',en:'replace current tables'})}</label>
     </div>
   </div>`;
   if(!ov){ov=document.createElement('div');ov.id='sqlimport-modal';ov.className='modal-ov';ov.onclick=e=>{if(e.target===ov)ov.style.display='none';};document.body.appendChild(ov);}
@@ -426,7 +450,7 @@ function doSQLImport(blockId){
   const b=gb(blockId);if(!b)return;
   const sql=document.getElementById('sqlimport-ta').value;
   const parsed=parseSQLToSchema(sql);
-  if(!parsed.tables.length){toast('Не нашёл CREATE TABLE — проверь синтаксис');return;}
+  if(!parsed.tables.length){toast(tTask({ru:'Не нашёл CREATE TABLE — проверь синтаксис',en:'No CREATE TABLE found — check syntax'}));return;}
   if(!b.dbSchema)b.dbSchema={tables:[]};
   if(!b.dbSchema.tables)b.dbSchema.tables=[];
   const replace=document.getElementById('sqlimport-replace')?.checked;
@@ -435,7 +459,7 @@ function doSQLImport(blockId){
   delete b.dbTemplate;
   document.getElementById('sqlimport-modal').style.display='none';
   pushHist();renderDBEditor();
-  toast(`📥 Импортировано таблиц: ${parsed.tables.length}`);
+  toast(`📥 ${tTask({ru:'Импортировано таблиц',en:'Tables imported'})}: ${parsed.tables.length}`);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -458,7 +482,7 @@ function erdEndSymbol(x,y,dir,kind){
 }
 function renderERDSvg(schema){
   const tables=(schema&&(schema.tables||schema.collections))||[];
-  if(!tables.length)return '<svg xmlns="http://www.w3.org/2000/svg" width="340" height="60"><text x="14" y="34" font-family="Arial" font-size="13" fill="#888">Нет таблиц — добавь через редактор</text></svg>';
+  if(!tables.length)return '<svg xmlns="http://www.w3.org/2000/svg" width="340" height="60"><text x="14" y="34" font-family="Arial" font-size="13" fill="#888">'+tTask({ru:'Нет таблиц — добавь через редактор',en:'No tables — add via editor'})+'</text></svg>';
 
   // ── Размеры ──────────────────────────────────────────────────────
   const colW=260, rowH=22, headH=34, gapX=160, gapY=56, padL=28, padT=28;
@@ -577,8 +601,8 @@ function showERDVisual(blockId){
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
       <h2 style="color:#4a90d9">🔗 ERD: ${escHtml(b.customLabel||EL[b.type]?.lbl)}</h2>
       <div style="display:flex;gap:6px;align-items:center">
-        <span style="font-size:10px;color:#787c99">Перетаскивай таблицы</span>
-        <button class="modal-btn" style="margin-top:0" onclick="_erdAutoLayout('${blockId}')">📐 Авто</button>
+        <span style="font-size:10px;color:#787c99">${tTask({ru:'Перетаскивай таблицы',en:'Drag tables around'})}</span>
+        <button class="modal-btn" style="margin-top:0" onclick="_erdAutoLayout('${blockId}')">📐 ${tTask({ru:'Авто',en:'Auto'})}</button>
         <button class="modal-btn" onclick="document.getElementById('erd-modal').style.display='none'">✕</button>
       </div>
     </div>
@@ -732,12 +756,12 @@ function setFieldFk(blockId,ti,fi,val){
 // тип / ограничения / кардинальность через настоящие <select> (datalist ненадёжен)
 function setFieldType(blockId,ti,fi,val){
   const b=gb(blockId);const f=b?.dbSchema?.tables?.[ti]?.fields?.[fi];if(!f)return;
-  if(val==='__custom__'){const c=prompt('Тип данных:',f.type||'');if(c!=null)f.type=c;}else f.type=val;
+  if(val==='__custom__'){const c=prompt(tTask({ru:'Тип данных:',en:'Data type:'}),f.type||'');if(c!=null)f.type=c;}else f.type=val;
   renderDBEditor();
 }
 function setFieldCons(blockId,ti,fi,val){
   const b=gb(blockId);const f=b?.dbSchema?.tables?.[ti]?.fields?.[fi];if(!f)return;
-  if(val==='__custom__'){const c=prompt('Ограничения (PK, NN, UNIQUE, CHECK ...):',dbFieldConstraintsStr(f));if(c!=null)f.constraints=c;}else f.constraints=val;
+  if(val==='__custom__'){const c=prompt(tTask({ru:'Ограничения (PK, NN, UNIQUE, CHECK ...):',en:'Constraints (PK, NN, UNIQUE, CHECK ...):'}),dbFieldConstraintsStr(f));if(c!=null)f.constraints=c;}else f.constraints=val;
   renderDBEditor();
 }
 function setFieldCard(blockId,ti,fi,val){
@@ -752,7 +776,7 @@ function dbSel(value,options,onchange,width,withEmpty){
   let html=`<select onchange="${onchange}" style="background:#1a1b26;border:1px solid #3d3f52;border-radius:4px;padding:3px 4px;font-size:10.5px;color:#c0caf5;outline:none;font-family:inherit;width:${width||120}px">`;
   if(withEmpty)html+=`<option value="" ${!cur?'selected':''}>—</option>`;
   html+=opts.map(o=>`<option ${o===cur?'selected':''} value="${escHtml(o)}">${escHtml(o)}</option>`).join('');
-  html+=`<option value="__custom__">✏️ другое…</option></select>`;
+  html+=`<option value="__custom__">✏️ ${tTask({ru:'другое…',en:'other…'})}</option></select>`;
   return html;
 }
 // ═══════════════════════════════════════════════════════════════
@@ -785,7 +809,7 @@ function _deTables(b){
 
 function openDataEditor(blockId){
   const b=gb(blockId);if(!b)return;
-  if(!['db','cache'].includes(EL[b.type]?.cat)){toast('Редактор данных — только для БД и кэша');return;}
+  if(!['db','cache'].includes(EL[b.type]?.cat)){toast(tTask({ru:'Редактор данных — только для БД и кэша',en:'Data editor — DB and cache only'}));return;}
   _deId=blockId;
   if(!b.dbRows)b.dbRows={};
   let ov=document.getElementById('data-edit-modal');
@@ -813,27 +837,27 @@ function _renderDataEditor(){
     const rows=(b.dbRows[tn]||[]);
     const cols=_deCols(b,tn);
     const inp='background:#11121a;border:1px solid #2a2b3d;border-radius:3px;padding:3px 5px;font-size:10.5px;color:#c0caf5;outline:none;font-family:inherit;width:100%';
-    const label=isRedis?'Redis Keys':`Таблица: <b style="color:${clr}">${escHtml(tn)}</b>`;
+    const label=isRedis?'Redis Keys':`${tTask({ru:'Таблица',en:'Table'})}: <b style="color:${clr}">${escHtml(tn)}</b>`;
 
     const headerCells=cols.map(c=>`<th style="padding:4px 6px;text-align:left;font-size:10px;color:#787c99;font-weight:600;white-space:nowrap">${escHtml(c)}</th>`).join('');
     const bodyRows=rows.map((row,ri)=>{
       const cells=cols.map(c=>`<td style="padding:2px 3px"><input style="${inp}" value="${escHtml(String(row[c]??''))}" oninput="_deSetCell('${tn}',${ri},'${c}',this.value)"></td>`).join('');
       return `<tr>
         <td style="padding:2px 4px;white-space:nowrap">
-          <button onclick="_deMoveRow('${tn}',${ri},-1)" title="Выше" style="background:none;border:none;color:#787c99;cursor:pointer;font-size:11px;padding:1px 3px">↑</button>
-          <button onclick="_deMoveRow('${tn}',${ri},1)"  title="Ниже" style="background:none;border:none;color:#787c99;cursor:pointer;font-size:11px;padding:1px 3px">↓</button>
-          <button onclick="_deDelRow('${tn}',${ri})" title="Удалить" style="background:none;border:none;color:#f7768e;cursor:pointer;font-size:12px;padding:1px 4px">✕</button>
+          <button onclick="_deMoveRow('${tn}',${ri},-1)" title="${tTask({ru:'Выше',en:'Up'})}" style="background:none;border:none;color:#787c99;cursor:pointer;font-size:11px;padding:1px 3px">↑</button>
+          <button onclick="_deMoveRow('${tn}',${ri},1)"  title="${tTask({ru:'Ниже',en:'Down'})}" style="background:none;border:none;color:#787c99;cursor:pointer;font-size:11px;padding:1px 3px">↓</button>
+          <button onclick="_deDelRow('${tn}',${ri})" title="${tTask({ru:'Удалить',en:'Delete'})}" style="background:none;border:none;color:#f7768e;cursor:pointer;font-size:12px;padding:1px 4px">✕</button>
         </td>${cells}</tr>`;
     }).join('');
 
-    const emptyHint=!rows.length?`<tr><td colspan="${cols.length+1}" style="padding:10px;text-align:center;color:#787c99;font-size:11px">Нет строк — нажми ＋ Строка</td></tr>`:'';
+    const emptyHint=!rows.length?`<tr><td colspan="${cols.length+1}" style="padding:10px;text-align:center;color:#787c99;font-size:11px">${tTask({ru:'Нет строк — нажми ＋ Строка',en:'No rows — click ＋ Row'})}</td></tr>`:'';
 
     return `<div style="margin-bottom:18px">
       <div style="font-size:11px;margin-bottom:6px;display:flex;align-items:center;gap:8px">
         <span>${label}</span>
-        <span style="color:#787c99;font-size:10px">${rows.length} строк</span>
-        <button onclick="_deAddRow('${tn}')" style="margin-left:auto;padding:3px 10px;border:1px solid ${clr};border-radius:5px;background:${clr}18;color:${clr};cursor:pointer;font-size:10.5px">＋ Строка</button>
-        ${isRedis?`<button onclick="_deAutoFillRedisFromSchema()" title="Заполнить примерами из Redis-схемы (паттернов)" style="padding:3px 8px;border:1px solid #f7768e77;border-radius:5px;background:transparent;color:#f7768e;cursor:pointer;font-size:10px">⚡ Из схемы</button>`:''}
+        <span style="color:#787c99;font-size:10px">${rows.length} ${tTask({ru:'строк',en:'rows'})}</span>
+        <button onclick="_deAddRow('${tn}')" style="margin-left:auto;padding:3px 10px;border:1px solid ${clr};border-radius:5px;background:${clr}18;color:${clr};cursor:pointer;font-size:10.5px">＋ ${tTask({ru:'Строка',en:'Row'})}</button>
+        ${isRedis?`<button onclick="_deAutoFillRedisFromSchema()" title="${tTask({ru:'Заполнить примерами из Redis-схемы (паттернов)',en:'Fill with examples from Redis schema (patterns)'})}" style="padding:3px 8px;border:1px solid #f7768e77;border-radius:5px;background:transparent;color:#f7768e;cursor:pointer;font-size:10px">⚡ ${tTask({ru:'Из схемы',en:'From schema'})}</button>`:''}
         ${!isRedis&&rows.length?`<button onclick="_deCopySql('${tn}')" style="padding:3px 8px;border:1px solid #4a4c6a;border-radius:5px;background:transparent;color:#787c99;cursor:pointer;font-size:10px">📋 SQL</button>`:''}
       </div>
       <div style="overflow-x:auto">
@@ -846,15 +870,15 @@ function _renderDataEditor(){
 
   ov.innerHTML=`<div class="modal-box" style="max-width:900px;width:98%">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <h2 style="color:${clr}">${icon} Данные: ${escHtml(name)}</h2>
+      <h2 style="color:${clr}">${icon} ${tTask({ru:'Данные',en:'Data'})}: ${escHtml(name)}</h2>
       <button class="modal-btn" onclick="closeDataEditor()">✕</button>
     </div>
     <div style="max-height:62vh;overflow-y:auto;padding-right:4px">${tablesHtml}</div>
     <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <button class="modal-btn primary" onclick="closeDataEditor()">✓ Готово</button>
-      <button class="modal-btn" onclick="_deCopyAll()" style="color:#9aa5ce">📋 Экспорт ${isRedis?'Redis':'SQL'}</button>
-      ${isRedis?`<button class="modal-btn" onclick="closeDataEditor();openRedisEditor('${_deId}')" style="border-color:#f7768e77;color:#f7768e">⚡ Redis-схема (паттерны)</button>`:''}
-      <span style="font-size:10px;color:#4a4c6a;margin-left:auto">Данные сохраняются в блок и экспортируются вместе с проектом</span>
+      <button class="modal-btn primary" onclick="closeDataEditor()">✓ ${tTask({ru:'Готово',en:'Done'})}</button>
+      <button class="modal-btn" onclick="_deCopyAll()" style="color:#9aa5ce">📋 ${tTask({ru:'Экспорт',en:'Export'})} ${isRedis?'Redis':'SQL'}</button>
+      ${isRedis?`<button class="modal-btn" onclick="closeDataEditor();openRedisEditor('${_deId}')" style="border-color:#f7768e77;color:#f7768e">⚡ ${tTask({ru:'Redis-схема (паттерны)',en:'Redis schema (patterns)'})}</button>`:''}
+      <span style="font-size:10px;color:#4a4c6a;margin-left:auto">${tTask({ru:'Данные сохраняются в блок и экспортируются вместе с проектом',en:'Data is saved in the block and exported with the project'})}</span>
     </div>
   </div>`;
 }
@@ -876,7 +900,7 @@ function _deAddRow(tname){
 
 function _deAutoFillRedisFromSchema(){
   const b=gb(_deId);if(!b)return;
-  const patterns=b.redisSchema?.patterns;if(!patterns?.length)return toast('Нет Redis-схемы (паттернов)');
+  const patterns=b.redisSchema?.patterns;if(!patterns?.length)return toast(tTask({ru:'Нет Redis-схемы (паттернов)',en:'No Redis schema (patterns)'}));
   if(!b.dbRows['__redis__'])b.dbRows['__redis__']=[];
   const EXAMPLES={UUID:'550e8400-e29b-41d4-a716-446655440000',id:'42',userId:'42',candidateId:'17',vacancyId:'5',interviewId:'9',token:'eyJhbGci...abc',page:'1',minute:'202406281200',sessionId:'sess_abc'};
   const exVal=v=>EXAMPLES[v]||v;
@@ -907,10 +931,10 @@ function _deMoveRow(tname,ri,dir){
 }
 function _deCopySql(tname){
   const b=gb(_deId);if(!b)return;
-  const rows=b.dbRows[tname]||[];if(!rows.length)return toast('Нет данных');
+  const rows=b.dbRows[tname]||[];if(!rows.length)return toast(tTask({ru:'Нет данных',en:'No data'}));
   const cols=_deCols(b,tname);
   const sql=rows.map(r=>`INSERT INTO ${tname} (${cols.join(', ')})\nVALUES (${cols.map(c=>{const v=r[c]??'';return isNaN(v)||v===''?`'${String(v).replace(/'/g,"''")}'`:v;}).join(', ')});`).join('\n');
-  navigator.clipboard.writeText(sql).then(()=>toast('📋 SQL скопирован'));
+  navigator.clipboard.writeText(sql).then(()=>toast('📋 SQL '+tTask({ru:'скопирован',en:'copied'})));
 }
 function _deCopyAll(){
   const b=gb(_deId);if(!b)return;
@@ -927,8 +951,8 @@ function _deCopyAll(){
       rows.forEach(r=>{out+=`INSERT INTO ${tn} (${cols.join(', ')}) VALUES (${cols.map(c=>{const v=r[c]??'';return isNaN(v)||v===''?`'${String(v).replace(/'/g,"''")}'`:v;}).join(', ')});\n`;});
     });
   }
-  if(!out.trim())return toast('Нет данных для экспорта');
-  navigator.clipboard.writeText(out.trim()).then(()=>toast('📋 Скопировано'));
+  if(!out.trim())return toast(tTask({ru:'Нет данных для экспорта',en:'No data to export'}));
+  navigator.clipboard.writeText(out.trim()).then(()=>toast('📋 '+tTask({ru:'Скопировано',en:'Copied'})));
 }
 
 // Показать данные блока кратко (из других мест)
@@ -950,7 +974,7 @@ function showDBSchemaForBlock(blockId,mode){
       <h2 style="color:#4a90d9">${escHtml(fake.name)} — ${mode.toUpperCase()}</h2>
       <button class="modal-btn" onclick="document.getElementById('db-view-modal').style.display='none'">✕</button></div>
     <pre style="font-size:11px;line-height:1.5;white-space:pre-wrap;font-family:Consolas,monospace;color:${clr};max-height:50vh;overflow-y:auto;background:#11121a;padding:12px;border-radius:7px">${escHtml(text)}</pre>
-    <div style="margin-top:10px"><button class="modal-btn primary" onclick="navigator.clipboard.writeText(document.querySelector('#db-view-modal pre').textContent).then(()=>toast('Скопировано'))">📋 Копировать</button></div>
+    <div style="margin-top:10px"><button class="modal-btn primary" onclick="navigator.clipboard.writeText(document.querySelector('#db-view-modal pre').textContent).then(()=>toast(tTask({ru:'Скопировано',en:'Copied'})))">📋 ${tTask({ru:'Копировать',en:'Copy'})}</button></div>
   </div>`;
   if(!ov){ov=document.createElement('div');ov.id='db-view-modal';ov.className='modal-ov';ov.onclick=e=>{if(e.target===ov)ov.style.display='none';};document.body.appendChild(ov);}
   ov.innerHTML=inner;ov.style.display='flex';
@@ -987,8 +1011,8 @@ function _redisPgBlocks(blockId){
 // Список опций "таблица.поле" из всех связанных PG-блоков
 function _redisPgOpts(blockId){
   const pgs=_redisPgBlocks(blockId);
-  if(!pgs.length)return '<option value="">— нет связанных PG —</option>';
-  let opts='<option value="">— выбрать поле PG —</option>';
+  if(!pgs.length)return '<option value="">— '+tTask({ru:'нет связанных PG',en:'no related PG'})+' —</option>';
+  let opts='<option value="">— '+tTask({ru:'выбрать поле PG',en:'select PG field'})+' —</option>';
   pgs.forEach(pg=>{
     const lbl=pg.customLabel||EL[pg.type]?.lbl||'PostgreSQL';
     (pg.dbSchema?.tables||[]).forEach(t=>{
@@ -1016,6 +1040,7 @@ function _closeRedisEditor(){
   const ov=document.getElementById('redis-edit-modal');
   if(ov)ov.style.display='none';
   _redisId=null;pushHist();
+  if(typeof dbvRefresh==='function')dbvRefresh();
 }
 
 function _renderRedisEditor(){
@@ -1035,18 +1060,18 @@ function _renderRedisEditor(){
     const clr=TYPE_CLR[p.type]||'#c0caf5';
     const fieldsHtml=p.type==='Hash'?`
       <div style="margin-top:8px;border-top:1px solid #2a2d3e;padding-top:8px">
-        <div style="font-size:10px;color:#7dcfff;margin-bottom:5px;font-weight:600">🔑 Поля Hash</div>
+        <div style="font-size:10px;color:#7dcfff;margin-bottom:5px;font-weight:600">🔑 ${tTask({ru:'Поля Hash',en:'Hash fields'})}</div>
         <table style="width:100%;border-collapse:collapse;font-size:10.5px">
           <thead><tr style="color:#787c99">
-            <th style="padding:2px 4px;text-align:left;font-weight:500">Поле</th>
-            <th style="padding:2px 4px;text-align:left;font-weight:500">Описание / назначение</th>
-            <th style="padding:2px 4px;text-align:left;font-weight:500">Подтянуть из PG</th>
+            <th style="padding:2px 4px;text-align:left;font-weight:500">${tTask({ru:'Поле',en:'Field'})}</th>
+            <th style="padding:2px 4px;text-align:left;font-weight:500">${tTask({ru:'Описание / назначение',en:'Description / purpose'})}</th>
+            <th style="padding:2px 4px;text-align:left;font-weight:500">${tTask({ru:'Подтянуть из PG',en:'Pull from PG'})}</th>
             <th style="padding:2px 4px;width:24px"></th>
           </tr></thead><tbody>
           ${(p.fields||[]).map((f,fi)=>`<tr>
             <td style="padding:2px 3px"><input style="${IS}" value="${escHtml(f.name||'')}" placeholder="field_name"
               oninput="_redisSetField(${pi},${fi},'name',this.value)"></td>
-            <td style="padding:2px 3px"><input style="${IS}" value="${escHtml(f.desc||'')}" placeholder="что хранит"
+            <td style="padding:2px 3px"><input style="${IS}" value="${escHtml(f.desc||'')}" placeholder="${tTask({ru:'что хранит',en:'what it stores'})}"
               oninput="_redisSetField(${pi},${fi},'desc',this.value)"></td>
             <td style="padding:2px 3px">
               <select style="${ISS};width:100%" onchange="_redisSetField(${pi},${fi},'fromPg',this.value)">
@@ -1059,16 +1084,16 @@ function _renderRedisEditor(){
           </tr>`).join('')}
           </tbody>
         </table>
-        <button onclick="_redisAddField(${pi})" style="margin-top:5px;padding:2px 10px;border:1px solid #7dcfff44;border-radius:4px;background:#7dcfff11;color:#7dcfff;cursor:pointer;font-size:10px">＋ поле</button>
+        <button onclick="_redisAddField(${pi})" style="margin-top:5px;padding:2px 10px;border:1px solid #7dcfff44;border-radius:4px;background:#7dcfff11;color:#7dcfff;cursor:pointer;font-size:10px">＋ ${tTask({ru:'поле',en:'field'})}</button>
       </div>`:
       p.type==='String'?`<div style="margin-top:8px;border-top:1px solid #2a2d3e;padding-top:8px;display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
         <div style="flex:2;min-width:140px">
-          <label style="font-size:9.5px;color:#787c99">Что хранит value:</label>
-          <input style="${IS};margin-top:2px" value="${escHtml(p.valueDesc||'')}" placeholder="напр. user_id (INTEGER)"
+          <label style="font-size:9.5px;color:#787c99">${tTask({ru:'Что хранит value:',en:'What value stores:'})}</label>
+          <input style="${IS};margin-top:2px" value="${escHtml(p.valueDesc||'')}" placeholder="${tTask({ru:'напр. user_id (INTEGER)',en:'e.g. user_id (INTEGER)'})}"
             oninput="_redisSet(${pi},'valueDesc',this.value)">
         </div>
         <div style="flex:2;min-width:160px">
-          <label style="font-size:9.5px;color:#9ece6a">↳ value берётся из PG:</label>
+          <label style="font-size:9.5px;color:#9ece6a">↳ ${tTask({ru:'value берётся из PG:',en:'value comes from PG:'})}</label>
           <select style="${IS};margin-top:2px" onchange="_redisSet(${pi},'valuePg',this.value)">
             ${pgOpts.replace(`value="${escHtml(p.valuePg||'')}"`,`value="${escHtml(p.valuePg||'')}" selected`)}
           </select>
@@ -1091,13 +1116,13 @@ function _renderRedisEditor(){
           <input style="${ISS};width:80px" value="${escHtml(p.ttl||'')}" placeholder="3600s / —"
             oninput="_redisSet(${pi},'ttl',this.value)">
         </div>
-        <span onclick="_redisDelPattern(${pi})" style="cursor:pointer;color:#f7768e;font-size:14px;margin-left:auto" title="Удалить паттерн">✕</span>
+        <span onclick="_redisDelPattern(${pi})" style="cursor:pointer;color:#f7768e;font-size:14px;margin-left:auto" title="${tTask({ru:'Удалить паттерн',en:'Delete pattern'})}">✕</span>
       </div>
       <!-- переменные ключа {var} → PG -->
       ${(()=>{const vars=[...(p.key||'').matchAll(/\{(\w+)\}/g)].map(m=>m[1]);if(!vars.length)return '';
         return `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;align-items:flex-end">
           ${vars.map(v=>`<div style="min-width:160px;flex:1">
-            <label style="font-size:9.5px;color:#e0af68">{${v}} берётся из PG:</label>
+            <label style="font-size:9.5px;color:#e0af68">{${v}} ${tTask({ru:'берётся из PG:',en:'comes from PG:'})}</label>
             <select style="${ISS};width:100%;margin-top:2px" onchange="_redisSetKeyVar(${pi},'${v}',this.value)">
               ${pgOpts.replace(`value="${escHtml((p.keyVars||{})[v]||'')}"`,`value="${escHtml((p.keyVars||{})[v]||'')}" selected`)}
             </select>
@@ -1106,17 +1131,17 @@ function _renderRedisEditor(){
       <!-- описание + кто пишет/читает -->
       <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
         <div style="flex:2;min-width:160px">
-          <label style="font-size:9.5px;color:#787c99">Назначение / что хранит</label>
-          <input style="${IS};margin-top:2px" value="${escHtml(p.desc||'')}" placeholder="JWT токен → user_id"
+          <label style="font-size:9.5px;color:#787c99">${tTask({ru:'Назначение / что хранит',en:'Purpose / what it stores'})}</label>
+          <input style="${IS};margin-top:2px" value="${escHtml(p.desc||'')}" placeholder="${tTask({ru:'JWT токен → user_id',en:'JWT token → user_id'})}"
             oninput="_redisSet(${pi},'desc',this.value)">
         </div>
         <div style="flex:1;min-width:100px">
-          <label style="font-size:9.5px;color:#9ece6a">✍ Пишет</label>
+          <label style="font-size:9.5px;color:#9ece6a">✍ ${tTask({ru:'Пишет',en:'Writer'})}</label>
           <input style="${IS};margin-top:2px" value="${escHtml(p.writer||'')}" placeholder="Auth Service"
             oninput="_redisSet(${pi},'writer',this.value)">
         </div>
         <div style="flex:1;min-width:100px">
-          <label style="font-size:9.5px;color:#7dcfff">👁 Читает</label>
+          <label style="font-size:9.5px;color:#7dcfff">👁 ${tTask({ru:'Читает',en:'Reader'})}</label>
           <input style="${IS};margin-top:2px" value="${escHtml(p.reader||'')}" placeholder="API Gateway"
             oninput="_redisSet(${pi},'reader',this.value)">
         </div>
@@ -1131,21 +1156,21 @@ function _renderRedisEditor(){
       <button class="modal-btn" onclick="_closeRedisEditor()">✕</button>
     </div>
     <div style="font-size:10.5px;color:#787c99;margin-bottom:10px">
-      Паттерн ключа = шаблон имени + тип структуры + TTL + кто пишет/читает.
+      ${tTask({ru:'Паттерн ключа = шаблон имени + тип структуры + TTL + кто пишет/читает.',en:'Key pattern = name template + structure type + TTL + who writes/reads.'})}
       ${_redisPgBlocks(_redisId).length
-        ? `<span style="color:#9ece6a">🔗 Найдено ${_redisPgBlocks(_redisId).length} PG — поля доступны в дропдауне Hash.</span>`
-        : '<span style="color:#e0af68">⚠ Нет связанных PostgreSQL — соедини Redis со Service и PostgreSQL для авто-подсказок.</span>'}
+        ? `<span style="color:#9ece6a">🔗 ${tTask({ru:'Найдено',en:'Found'})} ${_redisPgBlocks(_redisId).length} PG — ${tTask({ru:'поля доступны в дропдауне Hash.',en:'fields available in the Hash dropdown.'})}</span>`
+        : '<span style="color:#e0af68">⚠ '+tTask({ru:'Нет связанных PostgreSQL — соедини Redis со Service и PostgreSQL для авто-подсказок.',en:'No related PostgreSQL — connect Redis to a Service and PostgreSQL for auto-suggestions.'})+'</span>'}
     </div>
     <div id="redis-patterns-wrap" style="max-height:60vh;overflow-y:auto;padding-right:4px">
       ${ps.length?ps.map(patternHtml).join('')
         :`<div style="text-align:center;padding:30px;color:#787c99;font-size:12px">
-            Нет паттернов — нажми «＋ Паттерн»
+            ${tTask({ru:'Нет паттернов — нажми «＋ Паттерн»',en:'No patterns — click «＋ Pattern»'})}
           </div>`}
     </div>
     <div style="display:flex;gap:8px;margin-top:12px;align-items:center">
-      <button class="modal-btn primary" onclick="_closeRedisEditor()">✓ Готово</button>
-      <button class="modal-btn" onclick="_redisAddPattern()" style="border-color:#f7768e;color:#f7768e">⚡ ＋ Паттерн</button>
-      <span style="font-size:10px;color:#787c99;margin-left:auto">${ps.length} паттернов · ${ps.filter(p=>p.type==='Hash').reduce((s,p)=>s+(p.fields||[]).length,0)} Hash-полей</span>
+      <button class="modal-btn primary" onclick="_closeRedisEditor()">✓ ${tTask({ru:'Готово',en:'Done'})}</button>
+      <button class="modal-btn" onclick="_redisAddPattern()" style="border-color:#f7768e;color:#f7768e">⚡ ＋ ${tTask({ru:'Паттерн',en:'Pattern'})}</button>
+      <span style="font-size:10px;color:#787c99;margin-left:auto">${ps.length} ${tTask({ru:'паттернов',en:'patterns'})} · ${ps.filter(p=>p.type==='Hash').reduce((s,p)=>s+(p.fields||[]).length,0)} ${tTask({ru:'Hash-полей',en:'Hash fields'})}</span>
     </div>
   </div>`;
 }

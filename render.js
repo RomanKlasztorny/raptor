@@ -4,7 +4,9 @@
 // МАРШРУТИЗАЦИЯ СТРЕЛОК (использует bw/bh — учитывает ручной ресайз)
 // ═══════════════════════════════════════════════════════════════
 function route(conn){
-  const f=gb(conn.from),t=gb(conn.to);if(!f||!t)return null;
+  // c4-zoom: конец связи может быть компонентом раскрытого сервиса / рамкой системы (C1)
+  const _zn=typeof zsNode==='function'?zsNode:null;
+  const f=_zn?_zn(conn.from,conn):gb(conn.from),t=_zn?_zn(conn.to,conn):gb(conn.to);if(!f||!t)return null;
   const fw=bw(f),fh=bh(f),tw=bw(t),th2=bh(t);
   const fcx=f.x+fw/2,fcy=f.y+fh/2,tcx=t.x+tw/2,tcy=t.y+th2/2,dx=tcx-fcx,dy=tcy-fcy;
   // Вертикальный выход (снизу/сверху) если цель явно ниже/выше (>50px)
@@ -152,11 +154,32 @@ function mkEl(tag,a,p){const e=document.createElementNS(NS,tag);for(const k in a
 function mkTxt(x,y,t,css,p){const e=document.createElementNS(NS,'text');e.setAttribute('x',x);e.setAttribute('y',y);e.setAttribute('text-anchor','middle');e.setAttribute('dominant-baseline','central');e.style.cssText=css;e.style.pointerEvents='none';e.textContent=t;if(p)p.appendChild(e);return e;}
 // Затемняет hex-цвет типа для readable текста на белом canvas (сохраняет оттенок)
 function darkFor(hex){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);const bright=0.299*r+0.587*g+0.114*b;const f=bright<80?1.0:bright<150?0.55:0.38;return '#'+[r,g,b].map(c=>Math.min(255,Math.round(c*f)).toString(16).padStart(2,'0')).join('');}
-function render(){renderConns();renderBlocks();$('hint').style.display=S.blocks.length?'none':'block';}
+function render(){
+  if(S.notationMode==='bpmn'){
+    const A=$('anim-layer');if(A)A.removeAttribute('transform'); // bpmn сам прибавляет pan к точкам
+    const Zl=$('zoom-layer');if(Zl)Zl.style.display='none';
+    if(typeof renderBpmnDiagram==='function')renderBpmnDiagram();
+    $('hint').style.display='none';
+  }else{
+    if(typeof zsPrep==='function')zsPrep();
+    renderConns();renderBlocks();
+    if(typeof renderZoom==='function')renderZoom();
+    const Zl=$('zoom-layer');if(Zl)Zl.style.display='';
+    $('hint').style.display=S.blocks.length?'none':'block';
+  }
+}
 
 function renderConns(){
-  const L=$('conn-layer');L.innerHTML='';L.setAttribute('transform',`translate(${S.panX},${S.panY})`);
-  const connSet=((S.view||'workspace')==='c4')?c4Graph().conns:S.conns;
+  const L=$('conn-layer');L.innerHTML='';L.setAttribute('transform',`translate(${S.panX},${S.panY}) scale(${S.zoom||1})`);
+  const A=$('anim-layer');if(A)A.setAttribute('transform',`translate(${S.panX},${S.panY}) scale(${S.zoom||1})`);
+  const ZC=$('zl-conns');if(ZC)ZC.innerHTML='';
+  let connSet=((S.view||'workspace')==='c4')?c4Graph().conns:S.conns;
+  // В C1/C2/C3 показываем только связи между видимыми на этом уровне блоками
+  if(S.view==='c4_level'&&typeof c4LevelBlocks==='function'){
+    const vis=new Set(c4LevelBlocks().map(b=>b.id));
+    connSet=connSet.filter(c=>vis.has(c.from)&&vis.has(c.to));
+  }
+  if((S.view||'workspace')==='workspace'&&typeof zsConnFilter==='function')connSet=zsConnFilter(connSet);
   connSet.forEach(c=>{
     const r=route(c);if(!r)return;
     const t=gb(c.to);const th=t?.rt?.health;
@@ -174,47 +197,17 @@ function renderConns(){
       'stroke-linejoin':'round','stroke-linecap':'round','marker-end':`url(#${mk})`};
     if(bi) pathAttrs['marker-start']=`url(#${mk}R)`;
     if(cs.dash!=='none') pathAttrs['stroke-dasharray']=cs.dash;
+    if(typeof ZS!=='undefined'&&ZS.l1&&ZS.sys&&ZS.sys.k>1)pathAttrs['stroke-width']=(parseFloat(pathAttrs['stroke-width'])*ZS.sys.k).toFixed(2);
     mkEl('path',pathAttrs,g);
     g.addEventListener('mouseenter',()=>{S.hovConn=c.id;renderConns();});
     g.addEventListener('mouseleave',()=>{S.hovConn=null;renderConns();});
     g.addEventListener('click',e=>{e.stopPropagation();onConnClick(c.id);});
     g.addEventListener('dblclick',e=>{e.stopPropagation();S.conns=S.conns.filter(x=>x.id!==c.id);pushHist();analyze();});
-    const lbl=connText(c);
-    // В C2/C4 view подписи не показываем совсем — только в workspace при hover
-    const isDocView=(S.view==='c4_level'||S.view==='c4');
-    if(lbl&&!isDocView&&(S.hovConn===c.id||S.inspConn===c.id)){let mx=(r.sx+r.ex)/2,my=(r.sy+r.ey)/2;if(r.pts&&r.pts.length>1){const mp=polyMid(r.pts);mx=mp.x;my=mp.y;}const tw=lbl.length*5.6+10;
-      mkEl('rect',{x:(mx-tw/2).toFixed(1),y:(my-8).toFixed(1),width:tw.toFixed(1),height:15,rx:4,fill:'#1a1b26ee',stroke:'#bb9af7','stroke-width':'1'},g);
-      mkTxt(mx,my,lbl,'font-size:9.5px;fill:#c0caf5;font-weight:600',g);}
+    // Подписи метода на самой схеме не рисуем — метод/URI смотрят в инспекторе связи
+    // или в sequence-диаграмме сценария, канвас остаётся чистым.
 
-    // ── Переключатель роутинга (виден при наведении) ─────────
-    if(S.hovConn===c.id){
-      const _RSEQ=['auto','straight','ortho-h','ortho-v'];
-      const _RLBL={auto:'↙↗',straight:'╱ прямая','ortho-h':'└─ H','ortho-v':'│ V'};
-      const _RCLR={auto:'#787c99',straight:'#9ece6a','ortho-h':'#7aa2f7','ortho-v':'#e0af68'};
-      const _cur=c.routeStyle||'auto';
-      let _rx=(r.sx+r.ex)/2,_ry=(r.sy+r.ey)/2;
-      if(r.pts&&r.pts.length>1){const mp=polyMid(r.pts);_rx=mp.x;_ry=mp.y;}
-      _ry-=16; // чуть выше центра
-      const _bw=46,_bh=15,_clr=_RCLR[_cur];
-      const _btn=document.createElementNS(NS,'g');
-      mkEl('rect',{x:(_rx-_bw/2).toFixed(1),y:(_ry-_bh/2).toFixed(1),width:_bw,height:_bh,rx:7,fill:'#1a1b26',stroke:_clr,'stroke-width':'1.3'},_btn);
-      const _tEl=document.createElementNS(NS,'text');
-      _tEl.setAttribute('x',_rx.toFixed(1));_tEl.setAttribute('y',(_ry+1).toFixed(1));
-      _tEl.setAttribute('text-anchor','middle');_tEl.setAttribute('dominant-baseline','central');
-      _tEl.style.cssText=`font-size:8px;fill:${_clr};pointer-events:none`;
-      _tEl.textContent=_RLBL[_cur];_btn.appendChild(_tEl);
-      _btn.style.cursor='pointer';
-      _btn.addEventListener('click',e=>{
-        e.stopPropagation();
-        const _ni=(_RSEQ.indexOf(_cur)+1)%_RSEQ.length;
-        const _next=_RSEQ[_ni];
-        c.routeStyle=_next==='auto'?undefined:_next;
-        pushHist();renderConns();
-      });
-      g.appendChild(_btn);
-    }
-
-    L.appendChild(g);
+    // связи раскрытого (C3) сервиса — поверх его рамки, к своим компонентам
+    if(ZC&&typeof zsTouches==='function'&&zsTouches(c))ZC.appendChild(g);else L.appendChild(g);
   });
   if((S.view||'workspace')==='workspace'&&typeof renderRouteStripes==='function')renderRouteStripes(L);
   if(S.mode==='connecting'){const fb=gb(S.connFrom);if(fb)mkEl('line',{x1:fb.x+bw(fb),y1:fb.y+bh(fb)/2,x2:S.tempX,y2:S.tempY,stroke:'#bb9af7','stroke-width':'1.8','stroke-dasharray':'5 4'},L);}
@@ -232,7 +225,10 @@ function drawPerson(g,b,W,H,clr){
   const cxv=b.x+W/2,top=b.y+4,figH=H-8;
   const headR=Math.max(6,Math.min(11,figH*0.17));
   const hy=top+headR;const sw='2';
-  mkEl('circle',{cx:cxv,cy:hy,r:headR,fill:clr+'44',stroke:clr,'stroke-width':sw},g);
+  if(typeof ensureMatDefs==='function')ensureMatDefs();
+  mkEl('circle',{cx:cxv,cy:hy,r:headR,fill:matTint(clr,.5),stroke:matDark(clr,.75),'stroke-width':sw,filter:'url(#m-sh)'},g);
+  mkEl('circle',{cx:cxv,cy:hy,r:headR,fill:'url(#m-v)'},g);
+  mkEl('ellipse',{cx:cxv-headR*0.35,cy:hy-headR*0.4,rx:headR*0.35,ry:headR*0.22,fill:'#fff',opacity:'.7'},g);
   const neck=hy+headR, hip=top+figH*0.72, foot=top+figH;
   mkEl('line',{x1:cxv,y1:neck,x2:cxv,y2:hip,stroke:clr,'stroke-width':sw},g);
   const armY=neck+(hip-neck)*0.35,armW=W*0.26;
@@ -249,11 +245,13 @@ function drawBlockLabel(g,b,W,H,d,icons,sc,rt){
   const isStore=(d.cat==='db'||d.cat==='cache');
   let sub;
   if(showLoad)sub=`${Math.round(rt.rho*100)}% · ${fmt(rt.lambdaIn)}rps`;
+  if(showLoad&&b.type==='redis'&&rt.hitRate!=null)sub=rt.oomErr?`OOM ${Math.round(rt.oomErr*100)}% · hit ${Math.round(rt.hitRate*100)}%`:`${Math.round(rt.rho*100)}% · hit ${Math.round(rt.hitRate*100)}%`;
+  else if(showLoad&&rt.writeBound)sub=`${Math.round(rt.rho*100)}% · ✎ ${Math.round((rt.wShare||0)*100)}% w`;
   else if(b.type==='auth')sub='🔐 '+(AUTH_TYPE_LABEL[(typeof authType==='function')?authType(b):'jwt_only']||'JWT');
   else if(isStore){
     if(b.customLabel)sub=d.lbl;
-    else if(d.cat==='cache')sub='кэш';
-    else sub={elasticsearch:'Поиск',s3:'Объекты',clickhouse:'OLAP',cassandra:'NoSQL',mongodb:'NoSQL',redis:'кэш'}[b.type]||'БД';
+    else if(d.cat==='cache')sub=t('sub_cache');
+    else sub={elasticsearch:t('sub_search'),s3:t('sub_objects'),clickhouse:t('sub_olap'),cassandra:t('sub_nosql'),mongodb:t('sub_nosql'),redis:t('sub_cache')}[b.type]||t('sub_db');
   }
   else sub=d.sub||d.cat;
   const subClr=showLoad?(sc||'var(--txt2)'):'var(--txt2)';
@@ -279,42 +277,76 @@ function shapeOf(b){
   if(cat==='gw')return'hex';
   return'box';
 }
+// ── «Материальная» заливка блоков (UI-2): база = светлый тон цвета категории,
+// поверх — общие накладки-градиенты (блик сверху-слева, тень снизу), мягкая тень
+// под фигурой. Накладки бесцветные, поэтому defs общие на все цвета.
+function _mHx(h){return [1,3,5].map(i=>parseInt(h.slice(i,i+2),16)||0);}
+function _mHex(a){return '#'+a.map(c=>Math.max(0,Math.min(255,Math.round(c))).toString(16).padStart(2,'0')).join('');}
+function matTint(h,t){return _mHex(_mHx(h).map(c=>c+(255-c)*t));}
+function matDark(h,f){return _mHex(_mHx(h).map(c=>c*f));}
+function ensureMatDefs(){
+  const svg=$('canvas');if(!svg)return;const defs=svg.querySelector('defs');if(!defs||defs.querySelector('#m-v'))return;
+  const tmp=document.createElementNS(NS,'svg');
+  tmp.innerHTML=`<linearGradient id="m-v" x1="0" y1="0" x2=".25" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".7"/><stop offset=".45" stop-color="#fff" stop-opacity=".08"/><stop offset=".7" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".16"/></linearGradient>
+<linearGradient id="m-h" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".1"/><stop offset=".22" stop-color="#fff" stop-opacity=".6"/><stop offset=".5" stop-color="#fff" stop-opacity=".05"/><stop offset="1" stop-color="#000" stop-opacity=".22"/></linearGradient>
+<linearGradient id="m-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".75"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+<linearGradient id="m-t" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".65"/><stop offset="1" stop-color="#fff" stop-opacity=".1"/></linearGradient>
+<filter id="m-sh" x="-20%" y="-20%" width="150%" height="160%"><feDropShadow dx="1.6" dy="2.6" stdDeviation="2.2" flood-color="#1c2230" flood-opacity=".3"/></filter>`;
+  [...tmp.childNodes].forEach(n=>{if(n.nodeType===1)defs.appendChild(n);});
+}
+// база (с тенью) + накладка + контур — одна геометрия
+function matShape(tag,a,clr,g,o){
+  o=o||{};const base=Object.assign({},a,{fill:o.base||matTint(clr,.55),stroke:'none'});if(o.shadow!==false)base.filter='url(#m-sh)';
+  mkEl(tag,base,g);
+  mkEl(tag,Object.assign({},a,{fill:`url(#${o.ov||'m-v'})`,stroke:'none'}),g);
+  if(o.stroke!==false)mkEl(tag,Object.assign({},a,{fill:'none',stroke:o.st||matDark(clr,.72),'stroke-width':o.sw||'1.2','stroke-dasharray':o.dash||'none'}),g);
+}
+// глянцевая полоса-блик в верхней части
+function matGloss(g,x,y,w,h,rx){if(w>4&&h>2)mkEl('rect',{x,y,width:w,height:h,rx:rx||0,fill:'url(#m-g)',opacity:'.85','pointer-events':'none'},g);}
 function drawCylinder(g,b,W,H,clr,sc,dash){
+  ensureMatDefs();
   const x=b.x,y=b.y,ry=Math.min(9,H*0.16),cx=x+W/2,rx=W/2;
-  const st=sc||clr,sw=sc?'1.5':'1.2';
-  mkEl('rect',{x,y:y+ry,width:W,height:H-2*ry,fill:clr+'44',stroke:'none'},g);
-  mkEl('ellipse',{cx,cy:y+H-ry,rx,ry,fill:clr+'44',stroke:st,'stroke-width':sw,'stroke-dasharray':dash},g);
-  mkEl('line',{x1:x,y1:y+ry,x2:x,y2:y+H-ry,stroke:st,'stroke-width':sw},g);
-  mkEl('line',{x1:x+W,y1:y+ry,x2:x+W,y2:y+H-ry,stroke:st,'stroke-width':sw},g);
-  mkEl('ellipse',{cx,cy:y+ry,rx,ry,fill:clr+'33',stroke:st,'stroke-width':sw},g);
+  const st=sc||matDark(clr,.72),sw=sc?'1.6':'1.2';
+  const d=`M ${x} ${y+ry} L ${x} ${y+H-ry} A ${rx} ${ry} 0 0 0 ${x+W} ${y+H-ry} L ${x+W} ${y+ry} Z`;
+  matShape('path',{d},clr,g,{ov:'m-h',st,sw,dash});
+  mkEl('ellipse',{cx,cy:y+ry,rx,ry,fill:matTint(clr,.72),stroke:st,'stroke-width':sw},g);
+  mkEl('ellipse',{cx,cy:y+ry,rx,ry,fill:'url(#m-t)'},g);
+  mkEl('rect',{x:x+W*0.14,y:y+ry*2+3,width:Math.max(3,W*0.05),height:Math.max(4,H-ry*3-8),rx:2,fill:'#fff',opacity:'.45','pointer-events':'none'},g);
 }
 function drawQueue(g,b,W,H,clr,sc,dash){
+  ensureMatDefs();
   const x=b.x,y=b.y,rx=Math.min(9,W*0.06),cy=y+H/2,ry=H/2;
-  const st=sc||clr,sw=sc?'1.5':'1.2';
-  mkEl('rect',{x:x+rx,y,width:W-2*rx,height:H,fill:clr+'44',stroke:'none'},g);
-  mkEl('ellipse',{cx:x+rx,cy,rx,ry,fill:clr+'33',stroke:st,'stroke-width':sw},g);
-  mkEl('line',{x1:x+rx,y1:y,x2:x+W-rx,y2:y,stroke:st,'stroke-width':sw},g);
-  mkEl('line',{x1:x+rx,y1:y+H,x2:x+W-rx,y2:y+H,stroke:st,'stroke-width':sw},g);
-  mkEl('ellipse',{cx:x+W-rx,cy,rx,ry,fill:clr+'44',stroke:st,'stroke-width':sw},g);
+  const st=sc||matDark(clr,.72),sw=sc?'1.6':'1.2';
+  const d=`M ${x+rx} ${y} L ${x+W-rx} ${y} A ${rx} ${ry} 0 0 1 ${x+W-rx} ${y+H} L ${x+rx} ${y+H} Z`;
+  matShape('path',{d},clr,g,{st,sw,dash});
+  matGloss(g,x+rx+2,y+3,W-2*rx-6,H*0.3,3);
+  mkEl('ellipse',{cx:x+rx,cy,rx,ry,fill:matTint(clr,.68),stroke:st,'stroke-width':sw},g);
+  mkEl('ellipse',{cx:x+rx,cy,rx:rx*0.5,ry:ry*0.62,fill:matTint(clr,.25),opacity:'.8'},g);
 }
 function drawApp(g,b,W,H,clr,sc,dash){
-  const x=b.x,y=b.y,bar=11;const st=sc||clr,sw=sc?'1.5':'1.2';
-  mkEl('rect',{x,y,width:W,height:H,rx:8,fill:clr+'44',stroke:st,'stroke-width':sw,'stroke-dasharray':dash},g);
-  mkEl('path',{d:`M ${x} ${y+bar} Q ${x} ${y} ${x+8} ${y} L ${x+W-8} ${y} Q ${x+W} ${y} ${x+W} ${y+bar} Z`,fill:clr+'33',stroke:'none'},g);
+  ensureMatDefs();
+  const x=b.x,y=b.y,bar=11;const st=sc||matDark(clr,.72),sw=sc?'1.6':'1.2';
+  matShape('rect',{x,y,width:W,height:H,rx:6},clr,g,{st,sw,dash});
+  mkEl('path',{d:`M ${x+.6} ${y+bar} L ${x+.6} ${y+6} Q ${x+.6} ${y+.6} ${x+6} ${y+.6} L ${x+W-6} ${y+.6} Q ${x+W-.6} ${y+.6} ${x+W-.6} ${y+6} L ${x+W-.6} ${y+bar} Z`,fill:matTint(clr,.3),opacity:'.75',stroke:'none'},g);
   mkEl('line',{x1:x,y1:y+bar,x2:x+W,y2:y+bar,stroke:st,'stroke-width':'1','opacity':'0.6'},g);
-  [0,1,2].forEach(i=>mkEl('circle',{cx:x+9+i*8,cy:y+bar/2+0.5,r:1.8,fill:clr,opacity:'0.7'},g));
+  [0,1,2].forEach(i=>mkEl('circle',{cx:x+9+i*8,cy:y+bar/2+0.5,r:2,fill:['#e5484d','#e6b81e','#2a9a3a'][i],stroke:'#0003','stroke-width':'.5'},g));
+  matGloss(g,x+3,y+bar+2,W-6,(H-bar)*0.32,3);
 }
 function drawHex(g,b,W,H,clr,sc,dash){
-  const x=b.x,y=b.y,k=Math.min(14,W*0.12);const st=sc||clr,sw=sc?'1.5':'1.2';
-  mkEl('path',{d:`M ${x+k} ${y} L ${x+W-k} ${y} L ${x+W} ${y+H/2} L ${x+W-k} ${y+H} L ${x+k} ${y+H} L ${x} ${y+H/2} Z`,
-    fill:clr+'44',stroke:st,'stroke-width':sw,'stroke-dasharray':dash},g);
+  ensureMatDefs();
+  const x=b.x,y=b.y,k=Math.min(14,W*0.12);const st=sc||matDark(clr,.72),sw=sc?'1.6':'1.2';
+  matShape('path',{d:`M ${x+k} ${y} L ${x+W-k} ${y} L ${x+W} ${y+H/2} L ${x+W-k} ${y+H} L ${x+k} ${y+H} L ${x} ${y+H/2} Z`},clr,g,{st,sw,dash});
+  mkEl('path',{d:`M ${x+k+2} ${y+3} L ${x+W-k-2} ${y+3} L ${x+W-k*0.45} ${y+H*0.34} L ${x+k*0.45} ${y+H*0.34} Z`,fill:'url(#m-g)',opacity:'.8','pointer-events':'none'},g);
 }
 function drawBlockShape(g,b,W,H,shape,clr,sc,dash){
   if(shape==='cylinder')return drawCylinder(g,b,W,H,clr,sc,dash);
   if(shape==='queue')return drawQueue(g,b,W,H,clr,sc,dash);
   if(shape==='app')return drawApp(g,b,W,H,clr,sc,dash);
   if(shape==='hex')return drawHex(g,b,W,H,clr,sc,dash);
-  mkEl('rect',{x:b.x,y:b.y,width:W,height:H,rx:shape==='ext'?4:9,fill:clr+'44',stroke:sc||clr,'stroke-width':sc?'1.5':'1.2','stroke-dasharray':dash},g);
+  ensureMatDefs();
+  const rx=shape==='ext'?4:7;
+  matShape('rect',{x:b.x,y:b.y,width:W,height:H,rx},clr,g,{st:sc||matDark(clr,.72),sw:sc?'1.6':'1.2',dash,base:shape==='ext'?matTint(clr,.7):null});
+  matGloss(g,b.x+3,b.y+3,W-6,H*0.34,rx-2);
   if(shape==='box')mkEl('rect',{x:b.x+9,y:b.y,width:W-18,height:3,rx:1.5,fill:clr},g);
 }
 
@@ -329,7 +361,7 @@ function setView(v){
   render();
 }
 function c4Kind(b){const cat=EL[b.type]?.cat;if(cat==='actor'||EL[b.type]?.shape==='person'||EL[b.type]?.shape==='role')return'Person';if(cat==='external'||EL[b.type]?.shape==='ext')return'External System';return'Container';}
-function c4Tech(b){const cat=EL[b.type]?.cat;if(b.tech)return b.tech;if(['db','cache','broker','queue'].includes(cat))return EL[b.type]?.lbl;if(cat==='client')return EL[b.type]?.lbl;if(cat==='gw')return'API Gateway';if(cat==='bff')return'BFF';if(cat==='svc')return'Сервис';return EL[b.type]?.lbl||'';}
+function c4Tech(b){const cat=EL[b.type]?.cat;if(b.tech)return b.tech;if(['db','cache','broker','queue'].includes(cat))return EL[b.type]?.lbl;if(cat==='client')return EL[b.type]?.lbl;if(cat==='gw')return'API Gateway';if(cat==='bff')return'BFF';if(cat==='svc')return t('c4_svc');return EL[b.type]?.lbl||'';}
 function c4Desc(b){return b.desc||EL[b.type]?.role||'';}
 function c4Graph(){
   const hidden=new Set(S.blocks.filter(b=>EL[b.type]?.cat==='net').map(b=>b.id));
@@ -363,7 +395,7 @@ function renderC4(L){
     inner.forEach(b=>{const W=bw(b),H=bh(b);x0=Math.min(x0,b.x);y0=Math.min(y0,b.y);x1=Math.max(x1,b.x+W);y1=Math.max(y1,b.y+H);});
     const pad=28;
     mkEl('rect',{x:x0-pad,y:y0-pad,width:x1-x0+2*pad,height:y1-y0+2*pad,rx:14,fill:'#7aa2f708',stroke:'#7aa2f755','stroke-width':'1.4','stroke-dasharray':'9 5'},L);
-    mkTxt(x0-pad+90,y0-pad-9,(S.meta?.systemName||'Система')+'  [Software System]','font-size:10px;fill:var(--blue);font-weight:600',L);
+    mkTxt(x0-pad+90,y0-pad-9,(S.meta?.systemName||t('c4_system_default'))+t('c4_system_suffix'),'font-size:10px;fill:var(--blue);font-weight:600',L);
   }
   blocks.forEach(b=>{
     const d=EL[b.type];if(!d)return;const W=bw(b),H=bh(b),shape=shapeOf(b);
@@ -373,7 +405,7 @@ function renderC4(L){
     if(shape==='person'||shape==='role'){
       drawPerson(g,b,W,H,d.clr);
       mkTxt(b.x+W/2,b.y+H+9,b.customLabel||d.lbl,`font-size:11px;font-weight:700;fill:${darkFor(d.clr)}`,g);
-      mkTxt(b.x+W/2,b.y+H+20,'[Person]','font-size:8px;fill:var(--txt2)',g);
+      mkTxt(b.x+W/2,b.y+H+20,t('c4_person_lbl'),'font-size:8px;fill:var(--txt2)',g);
     }else{
       drawBlockShape(g,b,W,H,shape,d.clr,null,shape==='ext'?'6 4':'none');
       drawC4Label(g,b,W,H,d);
@@ -385,10 +417,16 @@ function renderC4(L){
 }
 
 function renderBlocks(){
-  const L=$('block-layer');L.innerHTML='';L.setAttribute('transform',`translate(${S.panX},${S.panY})`);
+  const L=$('block-layer');L.innerHTML='';L.setAttribute('transform',`translate(${S.panX},${S.panY}) scale(${S.zoom||1})`);
   if((S.view||'workspace')==='c4'){renderC4(L);return;}
   if((S.view||'workspace')==='c4_level'&&typeof renderC4Level==='function'){renderC4Level(L);return;}
-  S.blocks.forEach(b=>{
+  const _zs=typeof zsView==='function';
+  if(_zs)zsRenderL1(L);
+  S.blocks.forEach(b0=>{
+    // c4-zoom: на C1 внутренние блоки свёрнуты в рамку системы; на C3 соседи раздвинуты
+    if(_zs&&zsHidden(b0))return;
+    let b=_zs?zsView(b0):b0,zk=1;
+    if(b._zsK){zk=b._zsK;b=b._zsDraw;} // C1: внешние блоки крупнее, чтобы читались
     const d=EL[b.type];if(!d)return;
     const W=bw(b),H=bh(b),shape=shapeOf(b);
     const rt=b.rt||{health:'ok'};const sc=hClr(rt.health);
@@ -397,6 +435,7 @@ function renderBlocks(){
     if(sel)mkEl('rect',{x:b.x-4,y:b.y-4,width:W+8,height:H+8,rx:11,fill:'none',stroke:'#bb9af7','stroke-width':'1.6','stroke-dasharray':'5 3'},g);
     if(rt.cascade)mkEl('rect',{x:b.x-3,y:b.y-3,width:W+6,height:H+6,rx:11,fill:'none',stroke:'#e0af68','stroke-width':'1.4','stroke-dasharray':'2 3',opacity:'0.7'},g);
     // Красная рамка при коллизии
+    if(b._unknownType){mkEl('rect',{x:b.x-3,y:b.y-3,width:W+6,height:H+6,rx:11,fill:'none',stroke:'#f7768e','stroke-width':'1.6','stroke-dasharray':'3 3'},g);mkTxt(b.x+W/2,b.y-9,'⚠ '+tTask({ru:'неизвестный тип',en:'unknown type'})+': '+b._unknownType,'font-size:9px;fill:#f7768e;font-weight:600',g);}
     if(b._collision)mkEl('rect',{x:b.x-3,y:b.y-3,width:W+6,height:H+6,rx:11,fill:'none',stroke:'#f7768e','stroke-width':'2','stroke-dasharray':'none',opacity:'0.9'},g);
     if(S.mode==='routing'&&typeof isRouteCandidate==='function'&&isRouteCandidate(b.id))mkEl('rect',{x:b.x-5,y:b.y-5,width:W+10,height:H+10,rx:12,fill:'none',stroke:'#9ece6a','stroke-width':'2','stroke-dasharray':'4 3',opacity:'0.95'},g);
     const icons=(b.patterns||[]).map(p=>PAT[p]?.icon||'').join('');
@@ -405,7 +444,7 @@ function renderBlocks(){
       mkTxt(b.x+W/2,b.y+H+9,b.customLabel||d.lbl,`font-size:11.5px;font-weight:600;fill:${darkFor(d.clr)}`,g);
       const hasScen=b.scenario&&b.scenario.trim();
       if(hasScen)mkTxt(b.x+W-6,b.y+4,'📜','font-size:12px;fill:#e0af68',g);
-      mkTxt(b.x+W/2,b.y+H+21,hasScen?'сценарий ✓ (2× клик)':'2× клик — сценарий','font-size:8px;fill:var(--txt2)',g);
+      mkTxt(b.x+W/2,b.y+H+21,hasScen?t('scenario_set'):t('scenario_unset'),'font-size:8px;fill:var(--txt2)',g);
     }else{
       const dash=rt.health==='error'?'5 3':(shape==='ext'?'6 4':'none');
       drawBlockShape(g,b,W,H,shape,d.clr,sc,dash);
@@ -423,6 +462,8 @@ function renderBlocks(){
       const rh=mkEl('rect',{x:b.x+W-6,y:b.y+H-6,width:12,height:12,rx:2,fill:'#bb9af7',stroke:'#1a1b26','stroke-width':'1.2'},g);rh.style.cursor='nwse-resize';
       rh.addEventListener('mousedown',e=>{e.stopPropagation();e.preventDefault();S.mode='resizing';S.resizeId=b.id;S.rsOx=e.clientX;S.rsOy=e.clientY;S.rsW=W;S.rsH=H;});
     }
+    if(typeof rtTipText==='function'&&rt.cap){const tt=document.createElementNS(NS,'title');tt.textContent=rtTipText(b);g.insertBefore(tt,g.firstChild);} // тултип: нагрузка, hit rate, OOM, запись/реплики
+    if(zk!==1){const cx=b.x+W/2,cy=b.y+H/2;g.setAttribute('transform',`translate(${cx},${cy}) scale(${zk}) translate(${-cx},${-cy})`);}
     L.appendChild(g);
   });
 }
